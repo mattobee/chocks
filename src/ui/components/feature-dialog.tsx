@@ -20,7 +20,7 @@ import {
 } from '@/ui/components/ui/select'
 import { Toggle } from '@/ui/components/ui/toggle'
 import type { Feature } from '@/lib/types'
-import { defaultStatusId, type StatusDefinition } from '@/lib/status'
+import { defaultStatusId, statusOrUnknown, type StatusDefinition } from '@/lib/status'
 
 export interface FeatureDraft {
   title: string
@@ -114,7 +114,12 @@ export function FeatureDialog({
                 onValueChange={(value) => setDraft({ ...draft, status: String(value) })}
               >
                 <SelectTrigger id="feature-status">
-                  <SelectValue />
+                  {/* Base UI's SelectValue renders the raw value, not the selected item's
+                      text, so without this the trigger shows the id (pre-release) rather
+                      than the label (Pre-release). */}
+                  <SelectValue>
+                    {(value) => statusOrUnknown(statuses, String(value ?? '')).label}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {statuses.map((status) => (
