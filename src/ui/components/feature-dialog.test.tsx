@@ -63,6 +63,54 @@ describe('status select', () => {
   })
 })
 
+describe('title validation', () => {
+  it('keeps the submit button enabled so the problem can be reported', () => {
+    // A disabled submit gives no reason for being unavailable, and paired with `required`
+    // it meant the browser's own validation never fired either.
+    setup()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled()
+  })
+
+  it('reports an empty title through the accessibility tree', async () => {
+    const { user, onSubmit } = setup()
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    expect(title).toBeInvalid()
+    expect(title).toHaveAccessibleErrorMessage('Enter a title.')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('moves focus to the field that needs fixing', async () => {
+    const { user } = setup()
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveFocus()
+  })
+
+  it('clears the error once a title is typed', async () => {
+    const { user } = setup()
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Sign in')
+
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBeValid()
+    expect(screen.queryByText('Enter a title.')).not.toBeInTheDocument()
+  })
+
+  it('rejects a title that is only whitespace', async () => {
+    const { user, onSubmit } = setup()
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), '   ')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('trims the title it submits', async () => {
+    const { user, onSubmit } = setup()
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), '  Sign in  ')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ title: 'Sign in' }))
+  })
+})
+
 describe('tags', () => {
   it('parses a comma separated list', async () => {
     const { user, onSubmit } = setup()

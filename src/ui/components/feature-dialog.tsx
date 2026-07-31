@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -48,9 +48,11 @@ export function FeatureDialog({
   onSubmit: (draft: FeatureDraft) => void
 }) {
   const [draft, setDraft] = useState<FeatureDraft>(() => emptyDraft(defaultStatusId(statuses)))
+  const [titleError, setTitleError] = useState<string | null>(null)
   // Held as raw text while typing. Parsing on every keystroke and joining back would strip
   // the separator as soon as you typed it, making a second tag impossible to enter.
   const [tagsText, setTagsText] = useState('')
+  const titleRef = useRef<HTMLInputElement>(null)
 
   // Reset whenever the dialog opens so a previous edit never leaks into the next one.
   useEffect(() => {
@@ -65,6 +67,7 @@ export function FeatureDialog({
           }
         : emptyDraft(defaultStatusId(statuses)),
     )
+    setTitleError(null)
     setTagsText(feature ? feature.tags.join(', ') : '')
   }, [open, feature, statuses])
 
@@ -73,10 +76,22 @@ export function FeatureDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
+        {/*
+          The submit button is deliberately never disabled. A disabled control gives no
+          reason for being unavailable, and pairing it with `required` meant the browser's
+          own validation could never fire either, so an empty title failed silently.
+          Submitting reports the problem and moves focus to the field instead.
+        */}
         <form
+          noValidate
           onSubmit={(event) => {
             event.preventDefault()
-            if (draft.title.trim() === '') return
+            if (draft.title.trim() === '') {
+              setTitleError('Enter a title.')
+              titleRef.current?.focus()
+              return
+            }
+            setTitleError(null)
             onSubmit({ ...draft, title: draft.title.trim(), tags: parseTags(tagsText) })
           }}
         >
@@ -92,12 +107,23 @@ export function FeatureDialog({
               <Label htmlFor="feature-title">Title</Label>
               <Input
                 id="feature-title"
+                ref={titleRef}
                 autoFocus
                 required
                 maxLength={300}
                 value={draft.title}
-                onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+                aria-invalid={titleError !== null}
+                aria-errormessage={titleError !== null ? 'feature-title-error' : undefined}
+                onChange={(event) => {
+                  setDraft({ ...draft, title: event.target.value })
+                  if (titleError !== null && event.target.value.trim() !== '') setTitleError(null)
+                }}
               />
+              {titleError !== null && (
+                <p id="feature-title-error" className="text-destructive text-sm">
+                  {titleError}
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -178,7 +204,7 @@ export function FeatureDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={busy || draft.title.trim() === ''}>
+            <Button type="submit" disabled={busy}>
               {busy ? 'Saving…' : isEdit ? 'Save' : 'Create'}
             </Button>
           </DialogFooter>
