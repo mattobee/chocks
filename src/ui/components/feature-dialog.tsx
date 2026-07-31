@@ -48,6 +48,9 @@ export function FeatureDialog({
   onSubmit: (draft: FeatureDraft) => void
 }) {
   const [draft, setDraft] = useState<FeatureDraft>(() => emptyDraft(defaultStatusId(statuses)))
+  // Held as raw text while typing. Parsing on every keystroke and joining back would strip
+  // the separator as soon as you typed it, making a second tag impossible to enter.
+  const [tagsText, setTagsText] = useState('')
 
   // Reset whenever the dialog opens so a previous edit never leaks into the next one.
   useEffect(() => {
@@ -62,6 +65,7 @@ export function FeatureDialog({
           }
         : emptyDraft(defaultStatusId(statuses)),
     )
+    setTagsText(feature ? feature.tags.join(', ') : '')
   }, [open, feature, statuses])
 
   const isEdit = feature !== undefined
@@ -73,7 +77,7 @@ export function FeatureDialog({
           onSubmit={(event) => {
             event.preventDefault()
             if (draft.title.trim() === '') return
-            onSubmit({ ...draft, title: draft.title.trim() })
+            onSubmit({ ...draft, title: draft.title.trim(), tags: parseTags(tagsText) })
           }}
         >
           <DialogHeader>
@@ -138,27 +142,27 @@ export function FeatureDialog({
               <Input
                 id="feature-tags"
                 placeholder="comma separated, e.g. ux, api"
-                value={draft.tags.join(', ')}
-                onChange={(event) => setDraft({ ...draft, tags: parseTags(event.target.value) })}
+                value={tagsText}
+                onChange={(event) => setTagsText(event.target.value)}
+                onBlur={() => setTagsText(parseTags(tagsText).join(', '))}
               />
               {availableTags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {availableTags.map((tag) => {
-                    const selected = draft.tags.includes(tag)
+                    const selected = parseTags(tagsText).includes(tag)
                     return (
                       <Toggle
                         key={tag}
                         size="sm"
                         variant="outline"
                         pressed={selected}
-                        onPressedChange={() =>
-                          setDraft({
-                            ...draft,
-                            tags: selected
-                              ? draft.tags.filter((value) => value !== tag)
-                              : [...draft.tags, tag],
-                          })
-                        }
+                        onPressedChange={() => {
+                          const current = parseTags(tagsText)
+                          const next = selected
+                            ? current.filter((value) => value !== tag)
+                            : [...current, tag]
+                          setTagsText(next.join(', '))
+                        }}
                         className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary"
                       >
                         {tag}
