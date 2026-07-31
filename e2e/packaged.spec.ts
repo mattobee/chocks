@@ -36,14 +36,23 @@ test.describe('packaged artefact', () => {
   let workdir: string
   let server: ChildProcess | undefined
   let url: string
+  let packed: string[]
 
   test.beforeAll(async () => {
-    const { stdout } = await run('npm', ['pack', '--silent'], { cwd: REPO_ROOT })
-    const tarball = path.join(REPO_ROOT, stdout.trim().split('\n').pop() ?? '')
-
     workdir = await mkdtemp(path.join(tmpdir(), 'chocks-packaged-'))
     await run('git', ['-C', workdir, 'init', '-q', '-b', 'main'])
-    await run('npm', ['install', '--silent', '--no-audit', '--no-fund', tarball], { cwd: workdir })
+
+    // --out fixes the path, so there is no pack output to parse.
+    const tarball = path.join(workdir, 'chocks.tgz')
+    await run('pnpm', ['pack', '--out', tarball], { cwd: REPO_ROOT })
+
+    const { stdout } = await run('tar', ['-tzf', tarball])
+    packed = stdout
+      .split('\n')
+      .filter(Boolean)
+      .map((entry) => entry.replace(/^package\//, ''))
+
+    await run('pnpm', ['add', tarball], { cwd: workdir })
     await rm(tarball, { force: true })
 
     const port = await freePort()
@@ -71,10 +80,13 @@ test.describe('packaged artefact', () => {
     if (workdir) await rm(workdir, { recursive: true, force: true })
   })
 
-  test('ships no tests or sources', async () => {
-    const packaged = path.join(workdir, 'node_modules', 'chocks')
-    const entries = await readdir(packaged)
-    expect(entries.sort()).toEqual(['LICENSE', 'README.md', 'dist', 'package.json'])
+  test('ships no tests or sources', () => {
+    // Asserted against the tarball rather than the installed directory: package managers
+    // lay installs out differently, and pnpm nests a node_modules inside the package.
+    const top = [...new Set(packed.map((entry) => entry.split('/')[0]))].sort()
+    expect(top).toEqual(['LICENSE', 'README.md', 'dist', 'package.json'])
+
+    expect(packed.filter((entry) => /\.test\.|^src\/|^e2e\//.test(entry))).toEqual([])
   })
 
   test('serves its own UI assets from inside the package', async ({ page }) => {

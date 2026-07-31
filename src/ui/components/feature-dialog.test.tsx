@@ -47,6 +47,9 @@ describe('status select', () => {
     const { user } = setup()
     await user.click(screen.getByRole('combobox', { name: 'Status' }))
 
+    // The popup mounts asynchronously, so wait for the first option before asserting the
+    // rest synchronously.
+    await screen.findByRole('option', { name: DEFAULT_STATUSES[0]!.label })
     for (const status of DEFAULT_STATUSES) {
       expect(screen.getByRole('option', { name: status.label })).toBeInTheDocument()
     }
