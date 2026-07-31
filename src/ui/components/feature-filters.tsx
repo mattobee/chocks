@@ -111,7 +111,12 @@ export function FeatureFilters({
           region exists before the count first appears — a live region added to the DOM
           already populated announces nothing.
         */}
-        <span role="status" aria-live="polite" className="text-muted-foreground ms-auto text-xs">
+        <span
+          role="status"
+          aria-live="polite"
+          aria-label="Search results"
+          className="text-muted-foreground ms-auto text-xs"
+        >
           {matchCount !== null && `${matchCount} ${matchCount === 1 ? 'match' : 'matches'}`}
         </span>
       </div>
