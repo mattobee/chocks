@@ -118,7 +118,7 @@ async function main(): Promise<void> {
   const here = path.dirname(fileURLToPath(import.meta.url))
   const uiDir = path.join(here, 'ui')
 
-  const app = createApp({ root, name: path.basename(repoRoot), uiDir })
+  const app = createApp({ root, repoRoot, name: path.basename(repoRoot), uiDir })
 
   const server = serve({ fetch: app.fetch, port, hostname: host }, (info) => {
     const { local, network } = urlsFor(host, info.port)

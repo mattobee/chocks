@@ -5,6 +5,7 @@ import { ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { AppShell } from '@/ui/components/app-shell'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusBadge } from '@/ui/components/status-badge'
+import { FeatureHistory } from '@/ui/components/feature-history'
 import { Button } from '@/ui/components/ui/button'
 import { Badge } from '@/ui/components/ui/badge'
 import { Input } from '@/ui/components/ui/input'
@@ -246,6 +247,11 @@ function FeaturePage() {
             No sub-features.
           </p>
         )}
+
+        <Separator className="my-6" />
+
+        <h2 className="mb-3 text-sm font-medium">History</h2>
+        <FeatureHistory featureId={featureId} />
       </div>
 
       <FeatureDialog

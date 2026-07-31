@@ -138,6 +138,25 @@ own page at `/f/<slug>~<uid>`, showing its breadcrumb trail, description and sub
 
 Editing a feature file in your editor updates the open UI, and vice versa.
 
+Each feature page also shows its **git history** — the commits that touched that file,
+read with `--follow` so the trail survives every rename and reparent. chocks has no
+revision model of its own on purpose: the repo already records who changed what and why,
+usually in the same commit as the code the feature describes.
+
+## Changing a feature that is already released
+
+Two cases that look alike but are not:
+
+- **A new capability** on something released is a _child feature_ with its own lifecycle.
+  The parent stays Released, because it is; the child sits at Pre-release. The hierarchy
+  already says this, so no new concepts are needed.
+- **Anything else** — reworking internals, correcting a description, changing scope — is
+  just an edit. The status does not move, because the feature's lifecycle position has not
+  changed. `git log` carries the why.
+
+If you want to flag that something is actively being worked on, that is the activity axis,
+not the lifecycle one: use a tag.
+
 ## Development
 
 ```sh

@@ -1,5 +1,19 @@
 import type { Feature, Workspace } from '../../lib/types'
 
+export interface Commit {
+  sha: string
+  shortSha: string
+  author: string
+  date: string
+  subject: string
+}
+
+export interface FeatureHistory {
+  commits: Commit[]
+  unavailable?: 'not-a-repo' | 'git-missing' | 'failed'
+  uncommitted: boolean
+}
+
 /**
  * Client for the local chocks server.
  *
@@ -79,6 +93,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+
+  featureHistory: (id: string) => request<FeatureHistory>(`/api/history/${encodeId(id)}`),
 
   deleteFeature: (id: string) =>
     request<void>(`/api/features/${encodeId(id)}`, { method: 'DELETE' }),

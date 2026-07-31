@@ -187,3 +187,28 @@ describe('path traversal', () => {
     expect(response.status).toBe(400)
   })
 })
+
+describe('history route', () => {
+  // Feature ids contain slashes, so history lives on its own prefix — nesting it under
+  // /api/features/:id/history is silently swallowed by the greedy id param.
+  it('is not shadowed by the feature read route', async () => {
+    await createFeature('', 'Auth')
+    const response = await app.request('/api/history/auth')
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { commits: unknown[]; uncommitted: boolean }
+    expect(Array.isArray(body.commits)).toBe(true)
+  })
+
+  it('resolves history for a nested feature', async () => {
+    await createFeature('', 'Auth')
+    await createFeature('auth', 'OAuth')
+    const response = await app.request('/api/history/auth/oauth')
+    expect(response.status).toBe(200)
+    expect(Array.isArray(((await response.json()) as { commits: unknown[] }).commits)).toBe(true)
+  })
+
+  it('refuses a traversing id', async () => {
+    const response = await app.request('/api/history/..%2F..%2Fetc%2Fpasswd')
+    expect(response.status).toBe(400)
+  })
+})

@@ -6,10 +6,14 @@ import { create, move, read, remove, scan, StoreError, update } from '../store/s
 import { isValidStatusId } from '../lib/status'
 import { loadConfig } from '../store/config'
 import { watchFeatures } from './watch'
+import { featureHistory } from './git'
+import { FEATURE_SUFFIX, isValidId } from '../lib/ids'
 
 export interface ServerOptions {
   /** Absolute path of the chocks directory holding the feature files. */
   root: string
+  /** Repo root, for reading a feature's git history. Defaults to `root`. */
+  repoRoot?: string
   /** Name shown in the UI, normally the repo directory. */
   name: string
   /** Directory of built UI assets. Omitted in dev, where Vite serves them instead. */
@@ -41,6 +45,22 @@ export function createApp(options: ServerOptions) {
   })
 
   app.get('/api/features', async (c) => c.json(await scan(root)))
+
+  /**
+   * A feature's history, straight from git.
+   *
+   * chocks has no revision model of its own — the repo is the record.
+   *
+   * Deliberately on its own prefix rather than `/api/features/:id/history`: a feature id
+   * contains slashes, so a greedy `:id{.+}` swallows the trailing segment and Hono's
+   * router will not backtrack to rescue it.
+   */
+  app.get('/api/history/:id{.+}', async (c) => {
+    const id = c.req.param('id')
+    if (!isValidId(id)) return c.json({ message: `Invalid feature id: ${id}` }, 400)
+    const file = path.join(root, `${id}${FEATURE_SUFFIX}`)
+    return c.json(await featureHistory(options.repoRoot ?? root, file))
+  })
 
   app.get('/api/features/:id{.+}', async (c) => c.json(await read(root, c.req.param('id'))))
 
