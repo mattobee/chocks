@@ -1,0 +1,8 @@
+---
+title: File storage
+status: released
+sort: a2
+uid: c58e048085
+---
+
+One markdown file per feature under .chocks.

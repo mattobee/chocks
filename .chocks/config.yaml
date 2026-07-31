@@ -1,0 +1,28 @@
+# chocks project config. Delete this file to use the defaults.
+#
+# Statuses describe where a feature is in its life, not how much effort is going into it
+# right now — a released feature is usually still being worked on, so an effort-shaped
+# status like "in progress" would overlap with every other state. Use tags for activity.
+#
+# Order is the lifecycle order, and is used for the filter bar and the status dropdown.
+# Colours: slate, blue, amber, emerald, orange, rose, violet, muted.
+
+statuses:
+  - id: idea
+    label: Idea
+    color: slate
+  - id: planned
+    label: Planned
+    color: blue
+  - id: pre-release
+    label: Pre-release
+    color: amber
+  - id: released
+    label: Released
+    color: emerald
+  - id: deprecated
+    label: Deprecated
+    color: orange
+  - id: dropped
+    label: Dropped
+    color: muted
