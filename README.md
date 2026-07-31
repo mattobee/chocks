@@ -164,8 +164,19 @@ pnpm install
 pnpm dev:server   # API on :4321, watching src/
 pnpm dev          # UI on :5173, proxying /api to it
 pnpm check        # oxlint, prettier, tsc, vitest
+pnpm test:e2e     # builds, then runs Playwright
 pnpm build        # dist/ui (Vite) + dist/cli.mjs (tsdown)
 ```
+
+Tests come in three layers. `vitest` runs two projects: the store, server and pure logic in
+node, and the components in jsdom with Testing Library. Playwright drives a real browser
+against a throwaway git repo, so a drag can be checked by looking at what changed on disk.
+One suite packs the tarball, installs it and drives that, which is the only layer that
+catches anything depending on install layout.
+
+Locators are role-based throughout, in both layers. Break an accessible name and the tests
+fail, which is the point. axe runs on the main screens as a floor, with explicit
+assertions on top for the things a scanner doesn't know to look for.
 
 `src/lib` is pure and shared by both sides — tree building, filtering, drag projection and
 sort keys, all unit tested. `src/store` owns the file format and the filesystem.
