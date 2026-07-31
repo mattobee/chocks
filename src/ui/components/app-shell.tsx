@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FolderGit2 } from 'lucide-react'
+import { ColorModeSwitcher } from '@/ui/components/color-mode-switcher'
 import { workspaceQuery } from '@/ui/lib/queries'
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -18,10 +19,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="text-muted-foreground flex items-center gap-1.5 text-sm"
             title={workspace.data.root}
           >
-            <FolderGit2 className="size-4" />
+            <FolderGit2 className="size-4" aria-hidden="true" />
             {workspace.data.name}
           </span>
         )}
+        <div className="ms-auto">
+          <ColorModeSwitcher />
+        </div>
       </header>
       <main className="flex-1">{children}</main>
     </div>

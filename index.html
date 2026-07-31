@@ -6,6 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>chocks</title>
     <meta name="description" content="Track planned and existing features as a tree." />
+    <script>
+      // Applies the saved colour mode before first paint. Without this the page renders
+      // light and then flips, which is unpleasant in a dark room and reads as a bug.
+      // Runs ahead of React on purpose; it stays in sync with next-themes by using the
+      // same localStorage key.
+      try {
+        var stored = localStorage.getItem('theme') || 'system'
+        var dark =
+          stored === 'dark' ||
+          (stored === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', dark)
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+      } catch (error) {
+        // Storage can be unavailable in private mode. Falling back to light is fine.
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
