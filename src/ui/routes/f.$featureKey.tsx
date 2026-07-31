@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { AppShell } from '@/ui/components/app-shell'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusBadge } from '@/ui/components/status-badge'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/ui/components/ui/breadcrumb'
 import { FeatureHistory } from '@/ui/components/feature-history'
 import { Button } from '@/ui/components/ui/button'
 import { Badge } from '@/ui/components/ui/badge'
@@ -122,26 +130,33 @@ function FeaturePage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl p-6">
-        <nav
-          aria-label="Breadcrumb"
-          className="text-muted-foreground mb-4 flex flex-wrap items-center gap-1 text-sm"
-        >
-          <Link to="/" className="hover:text-foreground">
-            Features
-          </Link>
-          {ancestors.map((ancestor) => (
-            <span key={ancestor.id} className="flex items-center gap-1">
-              <ChevronRight className="size-3.5 shrink-0" />
-              <Link
-                to="/f/$featureKey"
-                params={{ featureKey: featureKey(ancestor) }}
-                className="hover:text-foreground truncate"
-              >
-                {ancestor.title}
-              </Link>
-            </span>
-          ))}
-        </nav>
+        <Breadcrumb className="mb-4">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link to="/" />}>Features</BreadcrumbLink>
+            </BreadcrumbItem>
+            {ancestors.map((ancestor) => (
+              <Fragment key={ancestor.id}>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink
+                    render={
+                      <Link to="/f/$featureKey" params={{ featureKey: featureKey(ancestor) }} />
+                    }
+                  >
+                    {ancestor.title}
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+              </Fragment>
+            ))}
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              {/* Ends on the current feature so the trail is complete and the last item
+                  carries aria-current="page". */}
+              <BreadcrumbPage>{feature.title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         <div className="mb-2 flex items-start gap-3">
           <Input

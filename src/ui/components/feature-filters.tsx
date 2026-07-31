@@ -1,9 +1,14 @@
 import { Search, X } from 'lucide-react'
 import { Input } from '@/ui/components/ui/input'
 import { Button } from '@/ui/components/ui/button'
-import { Badge } from '@/ui/components/ui/badge'
+import { Toggle } from '@/ui/components/ui/toggle'
 import type { StatusDefinition } from '@/lib/status'
 import type { TreeFilters } from '@/lib/tree'
+
+// Toggle's own pressed state is a subtle background change. A filter that is on needs to
+// read at a glance, so selection is filled rather than tinted.
+const SELECTED_CHIP =
+  'aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary aria-pressed:hover:bg-primary/90'
 
 export function FeatureFilters({
   filters,
@@ -69,16 +74,16 @@ export function FeatureFilters({
         {statuses.map((status) => {
           const selected = filters.statuses.includes(status.id)
           return (
-            <button
+            <Toggle
               key={status.id}
-              type="button"
-              onClick={() => toggleStatus(status.id)}
-              aria-pressed={selected}
+              size="sm"
+              variant="outline"
+              pressed={selected}
+              onPressedChange={() => toggleStatus(status.id)}
+              className={SELECTED_CHIP}
             >
-              <Badge variant={selected ? 'default' : 'outline'} className="cursor-pointer">
-                {status.label}
-              </Badge>
-            </button>
+              {status.label}
+            </Toggle>
           )
         })}
 
@@ -87,11 +92,16 @@ export function FeatureFilters({
         {tags.map((tag) => {
           const selected = filters.tags.includes(tag)
           return (
-            <button key={tag} type="button" onClick={() => toggleTag(tag)} aria-pressed={selected}>
-              <Badge variant={selected ? 'default' : 'outline'} className="cursor-pointer">
-                {tag}
-              </Badge>
-            </button>
+            <Toggle
+              key={tag}
+              size="sm"
+              variant="outline"
+              pressed={selected}
+              onPressedChange={() => toggleTag(tag)}
+              className={SELECTED_CHIP}
+            >
+              {tag}
+            </Toggle>
           )
         })}
 

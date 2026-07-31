@@ -18,8 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/ui/components/ui/select'
-import { Badge } from '@/ui/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { Toggle } from '@/ui/components/ui/toggle'
 import type { Feature } from '@/lib/types'
 import { defaultStatusId, type StatusDefinition } from '@/lib/status'
 
@@ -142,10 +141,12 @@ export function FeatureDialog({
                   {availableTags.map((tag) => {
                     const selected = draft.tags.includes(tag)
                     return (
-                      <button
+                      <Toggle
                         key={tag}
-                        type="button"
-                        onClick={() =>
+                        size="sm"
+                        variant="outline"
+                        pressed={selected}
+                        onPressedChange={() =>
                           setDraft({
                             ...draft,
                             tags: selected
@@ -153,15 +154,10 @@ export function FeatureDialog({
                               : [...draft.tags, tag],
                           })
                         }
-                        aria-pressed={selected}
+                        className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary"
                       >
-                        <Badge
-                          variant={selected ? 'default' : 'outline'}
-                          className={cn('cursor-pointer', !selected && 'opacity-70')}
-                        >
-                          {tag}
-                        </Badge>
-                      </button>
+                        {tag}
+                      </Toggle>
                     )
                   })}
                 </div>

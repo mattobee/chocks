@@ -89,31 +89,35 @@ export function FeatureRow({
         !matched && 'opacity-55',
       )}
     >
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         aria-label={hasChildren ? (expanded ? 'Collapse' : 'Expand') : undefined}
         aria-expanded={hasChildren ? expanded : undefined}
         onClick={() => hasChildren && onToggle(feature.id)}
-        className={cn(
-          'text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded',
-          !hasChildren && 'invisible',
-        )}
+        className={cn('text-muted-foreground shrink-0', !hasChildren && 'invisible')}
       >
-        <ChevronRight className={cn('size-4 transition-transform', expanded && 'rotate-90')} />
-      </button>
+        <ChevronRight
+          className={cn('size-4 transition-transform', expanded && 'rotate-90')}
+          aria-hidden="true"
+        />
+      </Button>
 
-      <button
-        type="button"
+      {/* dnd-kit needs its listeners and attributes on the element itself, so they are
+          spread onto Button rather than a wrapper. */}
+      <Button
+        variant="ghost"
+        size="icon-xs"
         aria-label="Drag to reorder"
         className={cn(
-          'text-muted-foreground/60 hover:text-foreground shrink-0 cursor-grab opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+          'text-muted-foreground/60 shrink-0 cursor-grab opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
           filtering && 'pointer-events-none opacity-0',
         )}
         {...attributes}
         {...listeners}
       >
-        <GripVertical className="size-4" />
-      </button>
+        <GripVertical className="size-4" aria-hidden="true" />
+      </Button>
 
       {renaming ? (
         <Input
