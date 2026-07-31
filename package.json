@@ -1,9 +1,17 @@
 {
-  "name": "chocks",
+  "name": "@mattobee/chocks",
   "version": "0.1.0",
   "type": "module",
   "description": "Track planned and existing features as a tree, stored in your repo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattobee/chocks.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
   "packageManager": "pnpm@10.33.0",
   "bin": {
     "chocks": "./dist/cli.mjs"
