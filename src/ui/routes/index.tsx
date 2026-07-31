@@ -130,7 +130,7 @@ function TreePage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl p-6">
+      <>
         <div className="mb-5 flex items-center gap-3">
           <h1 className="flex-1 text-2xl font-semibold tracking-tight">Features</h1>
           <Button onClick={() => openCreate(ROOT_PARENT)}>
@@ -189,7 +189,7 @@ function TreePage() {
             onMove={handleMove}
           />
         )}
-      </div>
+      </>
 
       <FeatureDialog
         open={dialogOpen}

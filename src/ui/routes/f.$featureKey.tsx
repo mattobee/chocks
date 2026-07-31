@@ -78,7 +78,7 @@ function FeaturePage() {
   if (features.isPending) {
     return (
       <AppShell>
-        <div className="mx-auto grid max-w-3xl gap-3 p-6">
+        <div className="grid gap-3">
           <Skeleton className="h-5 w-64" />
           <Skeleton className="h-9 w-96" />
           <Skeleton className="h-32 w-full" />
@@ -90,7 +90,7 @@ function FeaturePage() {
   if (!feature) {
     return (
       <AppShell>
-        <div className="mx-auto max-w-3xl p-6">
+        <>
           <p className="text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
             No feature matching <code className="font-mono">{key}</code>. It may have been deleted.
           </p>
@@ -99,7 +99,7 @@ function FeaturePage() {
               Back to the tree
             </Button>
           </div>
-        </div>
+        </>
       </AppShell>
     )
   }
@@ -129,7 +129,7 @@ function FeaturePage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-3xl p-6">
+      <>
         <Breadcrumb className="mb-4">
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -267,7 +267,7 @@ function FeaturePage() {
 
         <h2 className="mb-3 text-sm font-medium">History</h2>
         <FeatureHistory featureId={featureId} />
-      </div>
+      </>
 
       <FeatureDialog
         open={childDialogOpen}
