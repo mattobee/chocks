@@ -100,16 +100,20 @@ export const api = {
     request<void>(`/api/features/${encodeId(id)}`, { method: 'DELETE' }),
 }
 
+/** What the server is telling us changed. */
+export type ChangeEvent = 'changed' | 'git'
+
 /**
- * Subscribes to file changes on disk.
+ * Subscribes to changes on disk.
  *
- * This is what makes editing a feature file in your editor show up in the open UI.
- * Returns an unsubscribe function.
+ * `changed` means a feature file was written — by the UI, or by your editor. `git` means
+ * the repo moved: a commit, a staging change or a branch switch, none of which modify the
+ * feature files themselves. Returns an unsubscribe function.
  */
-export function subscribeToChanges(onChange: () => void): () => void {
+export function subscribeToChanges(onChange: (event: ChangeEvent) => void): () => void {
   const source = new EventSource('/api/events')
   source.onmessage = (event) => {
-    if (event.data === 'changed') onChange()
+    if (event.data === 'changed' || event.data === 'git') onChange(event.data)
   }
   // EventSource reconnects on its own; swallow the error so it isn't logged on every retry.
   source.onerror = () => {}

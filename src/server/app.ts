@@ -5,7 +5,7 @@ import { Hono } from 'hono'
 import { create, move, read, remove, scan, StoreError, update } from '../store/store'
 import { isValidStatusId } from '../lib/status'
 import { loadConfig } from '../store/config'
-import { watchFeatures } from './watch'
+import { watchFeatures, watchGit } from './watch'
 import { featureHistory } from './git'
 import { FEATURE_SUFFIX, isValidId } from '../lib/ids'
 
@@ -119,12 +119,15 @@ export function createApp(options: ServerOptions) {
 
         send('connected')
         const stopWatching = watchFeatures(root, () => send('changed'))
+        // A commit does not touch the feature files, so git activity is its own signal.
+        const stopWatchingGit = watchGit(options.repoRoot ?? root, () => send('git'))
         // Proxies and load balancers drop idle connections; this keeps it warm.
         const heartbeat = setInterval(() => send('ping'), 30_000)
 
         c.req.raw.signal.addEventListener('abort', () => {
           clearInterval(heartbeat)
           stopWatching()
+          stopWatchingGit()
           try {
             controller.close()
           } catch {

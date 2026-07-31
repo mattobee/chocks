@@ -10,13 +10,22 @@ function message(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback
 }
 
-/** Refetches the tree whenever a feature file changes on disk. */
+/**
+ * Keeps the open UI in step with the repo.
+ *
+ * A feature write changes the tree and also its git status, so both are refetched. A git
+ * event leaves the files alone but changes their history, which is what makes the
+ * "uncommitted changes" indicator clear itself the moment you commit.
+ */
 export function useWatchFiles(): void {
   const queryClient = useQueryClient()
   useEffect(
     () =>
-      subscribeToChanges(() => {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.features })
+      subscribeToChanges((event) => {
+        if (event === 'changed') {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.features })
+        }
+        void queryClient.invalidateQueries({ queryKey: ['history'] })
       }),
     [queryClient],
   )

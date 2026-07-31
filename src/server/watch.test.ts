@@ -2,7 +2,9 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { watchFeatures } from './watch'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { watchFeatures, watchGit } from './watch'
 
 let root: string
 let stop: (() => void) | undefined
@@ -64,5 +66,92 @@ describe('watchFeatures', () => {
     await writeFile(path.join(root, 'late.md'), '---\ntitle: Late\n---\n', 'utf8')
     await new Promise((resolve) => setTimeout(resolve, 400))
     expect(calls).toBe(0)
+  })
+})
+
+describe('watchGit', () => {
+  const run = promisify(execFile)
+  let repo: string
+  let teardown: (() => void) | undefined
+
+  beforeEach(async () => {
+    repo = await mkdtemp(path.join(tmpdir(), 'chocks-gitwatch-'))
+    await run('git', ['-C', repo, 'init', '-q', '-b', 'main'])
+  })
+
+  afterEach(async () => {
+    teardown?.()
+    teardown = undefined
+    await rm(repo, { recursive: true, force: true })
+  })
+
+  async function commit(message: string, file: string, contents: string): Promise<void> {
+    await writeFile(path.join(repo, file), contents, 'utf8')
+    await run('git', ['-C', repo, 'add', '-A'])
+    await run('git', [
+      '-C',
+      repo,
+      '-c',
+      'user.email=t@example.com',
+      '-c',
+      'user.name=Tester',
+      'commit',
+      '-m',
+      message,
+    ])
+  }
+
+  it('fires on a commit, which never touches the feature files', async () => {
+    // Commit once first, so `.git/index` already exists when the watcher starts. Watching
+    // a not-yet-created file takes a different path through chokidar and passed even when
+    // the real case — an existing index replaced by rename — did not.
+    await commit('first', 'a.txt', 'one')
+
+    const { promise, fire } = nextChange()
+    teardown = watchGit(repo, fire)
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    await commit('second', 'a.txt', 'two')
+
+    await expect(promise).resolves.toBeUndefined()
+  })
+
+  it('fires on a branch switch', async () => {
+    await commit('first', 'a.txt', 'one')
+    await run('git', ['-C', repo, 'branch', 'other'])
+
+    const { promise, fire } = nextChange()
+    teardown = watchGit(repo, fire)
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    await run('git', ['-C', repo, 'checkout', '-q', 'other'])
+
+    await expect(promise).resolves.toBeUndefined()
+  })
+
+  it('is a no-op outside a repo rather than throwing', async () => {
+    const loose = await mkdtemp(path.join(tmpdir(), 'chocks-loose-'))
+    try {
+      const stop = watchGit(loose, () => {
+        throw new Error('should never fire')
+      })
+      expect(typeof stop).toBe('function')
+      stop()
+    } finally {
+      await rm(loose, { recursive: true, force: true })
+    }
+  })
+
+  it('is a no-op when .git is a file, as in a worktree', async () => {
+    const linked = await mkdtemp(path.join(tmpdir(), 'chocks-linked-'))
+    try {
+      await writeFile(path.join(linked, '.git'), 'gitdir: /elsewhere\n', 'utf8')
+      const stop = watchGit(linked, () => {
+        throw new Error('should never fire')
+      })
+      stop()
+    } finally {
+      await rm(linked, { recursive: true, force: true })
+    }
   })
 })

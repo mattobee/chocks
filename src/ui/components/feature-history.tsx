@@ -37,12 +37,26 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {data.uncommitted && (
-        <Badge variant="outline" className="w-fit gap-1.5">
-          <PencilLine className="size-3.5" />
-          Uncommitted changes
-        </Badge>
-      )}
+      {/*
+        This flips on its own — a file watcher drives it, not a user action — so the change
+        has to be announced. The container is rendered unconditionally because a live
+        region only announces content that changes *after* it is in the DOM; toggling the
+        region itself would announce nothing.
+
+        The committed state is visually silent but still has text, so the announcement
+        works in both directions and a screen reader user can read the current state on
+        arrival rather than only hearing it change.
+      */}
+      <div role="status" aria-live="polite" className="empty:hidden">
+        {data.uncommitted ? (
+          <Badge variant="outline" className="w-fit gap-1.5">
+            <PencilLine className="size-3.5" aria-hidden="true" />
+            Uncommitted changes
+          </Badge>
+        ) : (
+          <span className="sr-only">All changes committed</span>
+        )}
+      </div>
 
       {data.commits.length === 0 ? (
         <p className="text-muted-foreground text-sm">
