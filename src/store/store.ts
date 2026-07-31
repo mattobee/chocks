@@ -4,7 +4,8 @@ import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
 import { siblingsOf, sortKeyForIndex } from '../lib/tree'
-import type { Feature, FeatureStatus } from '../lib/types'
+import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
+import type { Feature } from '../lib/types'
 
 /**
  * Ten hex characters, always starting with a letter.
@@ -141,9 +142,11 @@ function humanise(slug: string): string {
 export interface CreateInput {
   parent: string
   title: string
-  status?: FeatureStatus
+  status?: string
   tags?: string[]
   description?: string
+  /** Used only to pick the default status for a new feature. */
+  statuses?: StatusDefinition[]
 }
 
 export async function create(root: string, input: CreateInput): Promise<Feature> {
@@ -170,7 +173,7 @@ export async function create(root: string, input: CreateInput): Promise<Feature>
     parent: input.parent,
     title,
     description: input.description ?? '',
-    status: input.status ?? 'planned',
+    status: input.status ?? defaultStatusId(input.statuses ?? DEFAULT_STATUSES),
     tags: input.tags ?? [],
     sort: sortKeyForIndex(siblings, siblings.length),
   }
@@ -183,7 +186,7 @@ export async function create(root: string, input: CreateInput): Promise<Feature>
 
 export interface UpdateInput {
   title?: string
-  status?: FeatureStatus
+  status?: string
   tags?: string[]
   description?: string
   sort?: string

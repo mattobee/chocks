@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Hono } from 'hono'
 import { create, move, read, remove, scan, StoreError, update } from '../store/store'
-import { isFeatureStatus } from '../lib/types'
+import { isValidStatusId } from '../lib/status'
+import { loadConfig } from '../store/config'
 import { watchFeatures } from './watch'
 
 export interface ServerOptions {
@@ -32,7 +33,12 @@ export function createApp(options: ServerOptions) {
     return c.json({ message: 'Internal error' }, 500)
   })
 
-  app.get('/api/workspace', (c) => c.json({ root, name: options.name }))
+  app.get('/api/workspace', async (c) => {
+    // Read per request rather than caching: editing config.yaml should take effect on the
+    // next refresh, the same as editing a feature file.
+    const { config } = await loadConfig(root)
+    return c.json({ root, name: options.name, config })
+  })
 
   app.get('/api/features', async (c) => c.json(await scan(root)))
 
@@ -43,7 +49,8 @@ export function createApp(options: ServerOptions) {
     const feature = await create(root, {
       parent: typeof body.parent === 'string' ? body.parent : '',
       title: typeof body.title === 'string' ? body.title : '',
-      status: isFeatureStatus(body.status) ? body.status : undefined,
+      statuses: (await loadConfig(root)).config.statuses,
+      status: isValidStatusId(body.status) ? body.status : undefined,
       tags: asStringArray(body.tags),
       description: typeof body.description === 'string' ? body.description : undefined,
     })
@@ -54,7 +61,7 @@ export function createApp(options: ServerOptions) {
     const body = await c.req.json<Record<string, unknown>>()
     const feature = await update(root, c.req.param('id'), {
       title: typeof body.title === 'string' ? body.title : undefined,
-      status: isFeatureStatus(body.status) ? body.status : undefined,
+      status: isValidStatusId(body.status) ? body.status : undefined,
       tags: asStringArray(body.tags),
       description: typeof body.description === 'string' ? body.description : undefined,
       sort: typeof body.sort === 'string' ? body.sort : undefined,

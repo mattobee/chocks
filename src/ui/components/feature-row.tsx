@@ -17,12 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/component
 import { StatusBadge } from '@/ui/components/status-badge'
 import { cn } from '@/lib/utils'
 import { featureKey } from '@/lib/ids'
-import { FEATURE_STATUSES, STATUS_LABELS, type Feature, type FeatureStatus } from '@/lib/types'
+import type { Feature } from '@/lib/types'
+import type { StatusDefinition } from '@/lib/status'
 
 export const INDENT_WIDTH = 24
 
 export interface FeatureRowProps {
   feature: Feature
+  statuses: StatusDefinition[]
   depth: number
   hasChildren: boolean
   expanded: boolean
@@ -32,7 +34,7 @@ export interface FeatureRowProps {
   filtering: boolean
   onToggle: (id: string) => void
   onRename: (id: string, title: string) => void
-  onStatusChange: (id: string, status: FeatureStatus) => void
+  onStatusChange: (id: string, status: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
@@ -40,6 +42,7 @@ export interface FeatureRowProps {
 
 export function FeatureRow({
   feature,
+  statuses,
   depth,
   hasChildren,
   expanded,
@@ -146,7 +149,7 @@ export function FeatureRow({
       {/* Status is the most-changed field, so it gets a control on the row itself. */}
       <Select
         value={feature.status}
-        onValueChange={(value) => onStatusChange(feature.id, value as FeatureStatus)}
+        onValueChange={(value) => onStatusChange(feature.id, String(value))}
       >
         {/* The badge is the trigger content directly. Routing it through SelectValue
             would apply Base UI's pointer-events:none to it, leaving nothing clickable. */}
@@ -154,12 +157,12 @@ export function FeatureRow({
           aria-label={`Status of ${feature.title}`}
           className="h-7 w-auto border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
         >
-          <StatusBadge status={feature.status} />
+          <StatusBadge statuses={statuses} status={feature.status} />
         </SelectTrigger>
         <SelectContent>
-          {FEATURE_STATUSES.map((status) => (
-            <SelectItem key={status} value={status}>
-              {STATUS_LABELS[status]}
+          {statuses.map((status) => (
+            <SelectItem key={status.id} value={status.id}>
+              {status.label}
             </SelectItem>
           ))}
         </SelectContent>

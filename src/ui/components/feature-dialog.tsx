@@ -20,12 +20,13 @@ import {
 } from '@/ui/components/ui/select'
 import { Badge } from '@/ui/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { FEATURE_STATUSES, STATUS_LABELS, type Feature, type FeatureStatus } from '@/lib/types'
+import type { Feature } from '@/lib/types'
+import { defaultStatusId, type StatusDefinition } from '@/lib/status'
 
 export interface FeatureDraft {
   title: string
   description: string
-  status: FeatureStatus
+  status: string
   tags: string[]
 }
 
@@ -34,6 +35,7 @@ export function FeatureDialog({
   onOpenChange,
   feature,
   availableTags,
+  statuses,
   busy,
   onSubmit,
 }: {
@@ -42,10 +44,11 @@ export function FeatureDialog({
   /** Undefined when creating. */
   feature?: Feature
   availableTags: string[]
+  statuses: StatusDefinition[]
   busy: boolean
   onSubmit: (draft: FeatureDraft) => void
 }) {
-  const [draft, setDraft] = useState<FeatureDraft>(emptyDraft())
+  const [draft, setDraft] = useState<FeatureDraft>(() => emptyDraft(defaultStatusId(statuses)))
 
   // Reset whenever the dialog opens so a previous edit never leaks into the next one.
   useEffect(() => {
@@ -58,9 +61,9 @@ export function FeatureDialog({
             status: feature.status,
             tags: feature.tags,
           }
-        : emptyDraft(),
+        : emptyDraft(defaultStatusId(statuses)),
     )
-  }, [open, feature])
+  }, [open, feature, statuses])
 
   const isEdit = feature !== undefined
 
@@ -109,15 +112,15 @@ export function FeatureDialog({
               <Label htmlFor="feature-status">Status</Label>
               <Select
                 value={draft.status}
-                onValueChange={(value) => setDraft({ ...draft, status: value as FeatureStatus })}
+                onValueChange={(value) => setDraft({ ...draft, status: String(value) })}
               >
                 <SelectTrigger id="feature-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {FEATURE_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {STATUS_LABELS[status]}
+                  {statuses.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>
+                      {status.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -188,6 +191,6 @@ function parseTags(value: string): string[] {
   return [...new Set(tags)]
 }
 
-function emptyDraft(): FeatureDraft {
-  return { title: '', description: '', status: 'planned', tags: [] }
+function emptyDraft(status: string): FeatureDraft {
+  return { title: '', description: '', status, tags: [] }
 }

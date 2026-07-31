@@ -1,6 +1,7 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { isValidUid } from '../lib/ids'
-import { isFeatureStatus, type Feature, type FeatureStatus } from '../lib/types'
+import { isValidStatusId } from '../lib/status'
+import type { Feature } from '../lib/types'
 
 /**
  * Pure conversions between a feature and the text of its markdown file.
@@ -14,7 +15,7 @@ const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 export interface ParsedFile {
   uid: string
   title: string
-  status: FeatureStatus
+  status: string
   tags: string[]
   sort: string
   description: string
@@ -47,7 +48,9 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
     // An invalid uid is treated as absent so it gets replaced rather than trusted.
     uid: isValidUid(data.uid) ? data.uid : '',
     title: typeof data.title === 'string' && data.title.trim() !== '' ? data.title : fallbackTitle,
-    status: isFeatureStatus(data.status) ? data.status : 'planned',
+    // Deliberately not checked against the configured list. A status from a branch with
+    // different config, or a hand-typed one, must survive being read and written back.
+    status: isValidStatusId(data.status) ? data.status : '',
     tags: normaliseTags(data.tags),
     sort: typeof data.sort === 'string' && data.sort !== '' ? data.sort : '',
     description: body.replace(/^\r?\n/, '').trimEnd(),

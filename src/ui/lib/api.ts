@@ -1,4 +1,4 @@
-import type { Feature, FeatureStatus, Workspace } from '../../lib/types'
+import type { Feature, Workspace } from '../../lib/types'
 
 /**
  * Client for the local chocks server.
@@ -50,7 +50,7 @@ export const api = {
   createFeature: (input: {
     parent: string
     title: string
-    status?: FeatureStatus
+    status?: string
     tags?: string[]
     description?: string
   }) => request<Feature>('/api/features', { method: 'POST', body: JSON.stringify(input) }),
@@ -59,7 +59,7 @@ export const api = {
     id: string,
     patch: {
       title?: string
-      status?: FeatureStatus
+      status?: string
       tags?: string[]
       description?: string
       sort?: string

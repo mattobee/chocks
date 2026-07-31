@@ -2,22 +2,24 @@ import { Search, X } from 'lucide-react'
 import { Input } from '@/ui/components/ui/input'
 import { Button } from '@/ui/components/ui/button'
 import { Badge } from '@/ui/components/ui/badge'
-import { FEATURE_STATUSES, STATUS_LABELS, type FeatureStatus } from '@/lib/types'
+import type { StatusDefinition } from '@/lib/status'
 import type { TreeFilters } from '@/lib/tree'
 
 export function FeatureFilters({
   filters,
+  statuses,
   tags,
   matchCount,
   onChange,
 }: {
   filters: TreeFilters
+  statuses: StatusDefinition[]
   /** Every tag currently in use anywhere in the tree. */
   tags: string[]
   matchCount: number | null
   onChange: (filters: TreeFilters) => void
 }) {
-  function toggleStatus(status: FeatureStatus) {
+  function toggleStatus(status: string) {
     onChange({
       ...filters,
       statuses: filters.statuses.includes(status)
@@ -64,17 +66,17 @@ export function FeatureFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        {FEATURE_STATUSES.map((status) => {
-          const selected = filters.statuses.includes(status)
+        {statuses.map((status) => {
+          const selected = filters.statuses.includes(status.id)
           return (
             <button
-              key={status}
+              key={status.id}
               type="button"
-              onClick={() => toggleStatus(status)}
+              onClick={() => toggleStatus(status.id)}
               aria-pressed={selected}
             >
               <Badge variant={selected ? 'default' : 'outline'} className="cursor-pointer">
-                {STATUS_LABELS[status]}
+                {status.label}
               </Badge>
             </button>
           )

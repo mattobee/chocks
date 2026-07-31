@@ -4,13 +4,13 @@ import { parseFeatureFile, serializeFeatureFile } from './format'
 describe('parseFeatureFile', () => {
   it('reads frontmatter and body', () => {
     const parsed = parseFeatureFile(
-      `---\ntitle: OAuth\nstatus: in-progress\ntags:\n  - api\n  - auth\nsort: a1\n---\n\nSupports GitHub and Google.\n`,
+      `---\ntitle: OAuth\nstatus: pre-release\ntags:\n  - api\n  - auth\nsort: a1\n---\n\nSupports GitHub and Google.\n`,
       'fallback',
     )
     expect(parsed).toEqual({
       uid: '',
       title: 'OAuth',
-      status: 'in-progress',
+      status: 'pre-release',
       tags: ['api', 'auth'],
       sort: 'a1',
       description: 'Supports GitHub and Google.',
@@ -25,19 +25,27 @@ describe('parseFeatureFile', () => {
     const parsed = parseFeatureFile('Just some notes.\n', 'notes')
     expect(parsed.title).toBe('notes')
     expect(parsed.description).toBe('Just some notes.')
-    expect(parsed.status).toBe('planned')
+    // Empty means "unset"; the store fills it from config when writing.
+    expect(parsed.status).toBe('')
   })
 
   it('survives malformed YAML rather than breaking the tree', () => {
     // A half-resolved merge conflict should still open in the UI.
     const parsed = parseFeatureFile('---\ntitle: [unclosed\n---\n\nBody survives.\n', 'fallback')
     expect(parsed.title).toBe('fallback')
-    expect(parsed.status).toBe('planned')
+    expect(parsed.status).toBe('')
     expect(parsed.description).toBe('Body survives.')
   })
 
-  it('rejects an unknown status instead of trusting it', () => {
-    expect(parseFeatureFile('---\nstatus: shipped\n---\n', 'x').status).toBe('planned')
+  it('preserves a status the local config does not define', () => {
+    // The value may come from a branch with different config; rewriting it would destroy
+    // the author's data. Rendering handles the unknown case instead.
+    expect(parseFeatureFile('---\nstatus: shipped\n---\n', 'x').status).toBe('shipped')
+  })
+
+  it('drops a status that is not slug-shaped', () => {
+    expect(parseFeatureFile('---\nstatus: "In Development"\n---\n', 'x').status).toBe('')
+    expect(parseFeatureFile('---\nstatus: 42\n---\n', 'x').status).toBe('')
   })
 
   it('accepts a single tag written as a bare string', () => {
@@ -70,7 +78,7 @@ describe('serializeFeatureFile', () => {
   it('round-trips through the parser', () => {
     const original = {
       title: 'OAuth providers',
-      status: 'in-progress' as const,
+      status: 'pre-release' as const,
       uid: 'a1b2c3d4e5',
       tags: ['api'],
       sort: 'a1',

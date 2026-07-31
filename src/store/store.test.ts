@@ -49,13 +49,13 @@ describe('scan', () => {
   })
 
   it('derives id, parent and title from the path', async () => {
-    await given('auth.feature.md', 'title: Authentication\nstatus: done\nsort: a0')
+    await given('auth.feature.md', 'title: Authentication\nstatus: released\nsort: a0')
     const [feature] = await scan(root)
     expect(feature).toMatchObject({
       id: 'auth',
       parent: '',
       title: 'Authentication',
-      status: 'done',
+      status: 'released',
     })
   })
 
@@ -146,11 +146,11 @@ describe('create', () => {
 describe('update', () => {
   it('renames the file when the title changes, so the path never drifts', async () => {
     const created = await create(root, { parent: '', title: 'Auth' })
-    const updated = await update(root, created.id, { status: 'done', title: 'Authentication' })
+    const updated = await update(root, created.id, { status: 'released', title: 'Authentication' })
 
     expect(updated.id).toBe('authentication')
     expect(updated.title).toBe('Authentication')
-    expect(updated.status).toBe('done')
+    expect(updated.status).toBe('released')
     expect(existsSync(path.join(root, 'authentication.feature.md'))).toBe(true)
     expect(existsSync(path.join(root, 'auth.feature.md'))).toBe(false)
   })
@@ -196,11 +196,13 @@ describe('update', () => {
   })
 
   it('rejects an unknown feature', async () => {
-    await expect(update(root, 'nope', { status: 'done' })).rejects.toThrow(StoreError)
+    await expect(update(root, 'nope', { status: 'released' })).rejects.toThrow(StoreError)
   })
 
   it('rejects a traversing id', async () => {
-    await expect(update(root, '../../etc/passwd', { status: 'done' })).rejects.toThrow(StoreError)
+    await expect(update(root, '../../etc/passwd', { status: 'released' })).rejects.toThrow(
+      StoreError,
+    )
   })
 })
 
@@ -289,11 +291,11 @@ describe('move', () => {
   })
 
   it('preserves content across a move', async () => {
-    await update(root, 'auth/oauth', { description: 'Keep me', status: 'done', tags: ['api'] })
+    await update(root, 'auth/oauth', { description: 'Keep me', status: 'released', tags: ['api'] })
     await move(root, 'auth/oauth', { newParent: '', index: 0 })
     const moved = await read(root, 'oauth')
     expect(moved.description).toBe('Keep me')
-    expect(moved.status).toBe('done')
+    expect(moved.status).toBe('released')
     expect(moved.tags).toEqual(['api'])
   })
 })
@@ -324,7 +326,7 @@ describe('round trip', () => {
 
 describe('uid backfill', () => {
   it('gives hand-written files a permanent uid', async () => {
-    await given('legacy.feature.md', 'title: Legacy\nstatus: done\nsort: a0')
+    await given('legacy.feature.md', 'title: Legacy\nstatus: released\nsort: a0')
     expect((await scan(root))[0]?.uid).toBe('')
 
     expect(await ensureUids(root)).toBe(1)
@@ -347,14 +349,14 @@ describe('uid backfill', () => {
   it('leaves the rest of the file alone', async () => {
     await given(
       'legacy.feature.md',
-      'title: Legacy\nstatus: done\ntags: [api]\nsort: a3',
+      'title: Legacy\nstatus: released\ntags: [api]\nsort: a3',
       'Body text.',
     )
     await ensureUids(root)
     const feature = (await scan(root))[0]!
     expect(feature).toMatchObject({
       title: 'Legacy',
-      status: 'done',
+      status: 'released',
       tags: ['api'],
       sort: 'a3',
       description: 'Body text.',

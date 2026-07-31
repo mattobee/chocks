@@ -19,15 +19,17 @@ import {
 import { FeatureRow, INDENT_WIDTH } from '@/ui/components/feature-row'
 import { StatusBadge } from '@/ui/components/status-badge'
 import { projectDrop, rowsExcludingSubtree, type DropProjection, type FlatRow } from '@/lib/tree'
-import type { Feature, FeatureStatus } from '@/lib/types'
+import type { Feature } from '@/lib/types'
+import type { StatusDefinition } from '@/lib/status'
 
 export interface FeatureTreeProps {
   rows: FlatRow[]
+  statuses: StatusDefinition[]
   matchedIds: ReadonlySet<string>
   filtering: boolean
   onToggle: (id: string) => void
   onRename: (id: string, title: string) => void
-  onStatusChange: (id: string, status: FeatureStatus) => void
+  onStatusChange: (id: string, status: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
@@ -36,6 +38,7 @@ export interface FeatureTreeProps {
 
 export function FeatureTree({
   rows,
+  statuses,
   matchedIds,
   filtering,
   onToggle,
@@ -120,6 +123,7 @@ export function FeatureTree({
             <FeatureRow
               key={row.feature.id}
               feature={row.feature}
+              statuses={statuses}
               // Mid-drag the row previews the depth it would land at.
               depth={activeId === row.feature.id && projection ? projection.depth : row.depth}
               hasChildren={row.hasChildren}
@@ -141,7 +145,7 @@ export function FeatureTree({
         {activeFeature && (
           <div className="bg-background flex items-center gap-2 rounded-md border px-2 py-1 text-sm shadow-lg">
             <span className="truncate">{activeFeature.title}</span>
-            <StatusBadge status={activeFeature.status} />
+            <StatusBadge statuses={statuses} status={activeFeature.status} />
           </div>
         )}
       </DragOverlay>

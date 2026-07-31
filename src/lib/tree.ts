@@ -1,6 +1,6 @@
 import { generateKeyBetween } from 'fractional-indexing'
 import { slugFromKey, slugOf, uidFromKey } from './ids'
-import type { Feature, FeatureStatus } from './types'
+import type { Feature } from './types'
 
 export interface TreeNode {
   feature: Feature
@@ -78,7 +78,7 @@ export interface TreeFilters {
   /** Free text matched against title and description, case-insensitively. */
   query: string
   /** Empty means "any status". */
-  statuses: FeatureStatus[]
+  statuses: string[]
   /** Empty means "any tag". A feature matches if it carries at least one listed tag. */
   tags: string[]
 }

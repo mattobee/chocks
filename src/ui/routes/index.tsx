@@ -20,7 +20,7 @@ import {
 } from '@/ui/components/ui/alert-dialog'
 import { useExpanded } from '@/ui/hooks/use-expanded'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
-import { featuresQuery } from '@/ui/lib/queries'
+import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import {
   buildTree,
   collectExpandableIds,
@@ -32,7 +32,8 @@ import {
   type DropProjection,
   type TreeFilters,
 } from '@/lib/tree'
-import type { Feature, FeatureStatus } from '@/lib/types'
+import type { Feature } from '@/lib/types'
+import { DEFAULT_STATUSES } from '@/lib/status'
 
 type Search = { q?: string; status?: string; tag?: string }
 
@@ -51,6 +52,8 @@ function TreePage() {
   const navigate = Route.useNavigate()
 
   const features = useQuery(featuresQuery())
+  const workspace = useQuery(workspaceQuery())
+  const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
   useWatchFiles()
 
   const featureList = useMemo(() => features.data ?? [], [features.data])
@@ -65,7 +68,7 @@ function TreePage() {
   const filters: TreeFilters = useMemo(
     () => ({
       query: search.q ?? '',
-      statuses: (search.status?.split(',').filter(Boolean) ?? []) as FeatureStatus[],
+      statuses: search.status?.split(',').filter(Boolean) ?? [],
       tags: search.tag?.split(',').filter(Boolean) ?? [],
     }),
     [search.q, search.status, search.tag],
@@ -139,6 +142,7 @@ function TreePage() {
         <div className="mb-4">
           <FeatureFilters
             filters={filters}
+            statuses={statuses}
             tags={allTags}
             matchCount={filtering ? filtered.matchedIds.size : null}
             onChange={applyFilters}
@@ -170,6 +174,7 @@ function TreePage() {
         ) : (
           <FeatureTree
             rows={rows}
+            statuses={statuses}
             matchedIds={filtered.matchedIds}
             filtering={filtering}
             onToggle={toggle}
@@ -191,6 +196,7 @@ function TreePage() {
         onOpenChange={setDialogOpen}
         feature={editing}
         availableTags={allTags}
+        statuses={statuses}
         busy={create.isPending || update.isPending}
         onSubmit={handleSubmit}
       />

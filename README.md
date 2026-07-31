@@ -55,8 +55,8 @@ uid: a1b2c3d4e5
 Supports GitHub and Google. Needs a token refresh story before this is done.
 ```
 
-`status` is one of `planned`, `in-progress`, `done`, `dropped`. The markdown body is the
-description. Everything is editable by hand — the running UI picks up changes immediately.
+The markdown body is the description. Everything is editable by hand — the running UI
+picks up changes immediately.
 
 `uid` is generated once and never changes. It is what makes a link keep working after the
 feature is renamed or moved; hand-written files get one on next startup.
@@ -82,6 +82,38 @@ Ordering uses fractional index keys, so reordering rewrites one key in one file.
 people reordering different parts of the tree on different branches merge cleanly instead
 of fighting over renumbered siblings.
 
+## Statuses
+
+The defaults are a lifecycle, not a workflow:
+
+**Idea** → **Planned** → **Pre-release** → **Released** → **Deprecated**, plus **Dropped**
+for something considered and rejected.
+
+Every one of those describes _where a feature is_, never how much effort is going into it.
+That is deliberate: "in progress" collides with every other state, because a released
+feature is usually still being worked on. Activity is a separate axis — use a tag.
+
+Override them in `.chocks/config.yaml`:
+
+```yaml
+statuses:
+  - id: idea
+    label: Idea
+    color: slate
+  - id: shipped
+    label: Shipped
+    color: emerald
+  - discovery # shorthand: label and colour are derived
+```
+
+Order is the lifecycle order, and drives the filter bar and the status dropdown. Colours:
+`slate`, `blue`, `amber`, `emerald`, `orange`, `rose`, `violet`, `muted`.
+
+A status the config does not define is **preserved, not corrected** — it renders in a
+neutral dashed style. A branch with different config, or a hand-typed value, must survive
+a round trip rather than being silently rewritten. Malformed config falls back to the
+defaults and reports the problem instead of refusing to start.
+
 ## Usage
 
 ```
@@ -104,7 +136,7 @@ search and status/tag filters that prune the tree while keeping ancestors visibl
 the filter state in the URL so a filtered view is shareable. Every feature also has its
 own page at `/f/<slug>~<uid>`, showing its breadcrumb trail, description and sub-features.
 
-Editing a `.md` file in your editor updates the open UI, and vice versa.
+Editing a feature file in your editor updates the open UI, and vice versa.
 
 ## Development
 

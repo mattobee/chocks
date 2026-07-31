@@ -1,17 +1,4 @@
-export const FEATURE_STATUSES = ['planned', 'in-progress', 'done', 'dropped'] as const
-
-export type FeatureStatus = (typeof FEATURE_STATUSES)[number]
-
-export const STATUS_LABELS: Record<FeatureStatus, string> = {
-  planned: 'Planned',
-  'in-progress': 'In progress',
-  done: 'Done',
-  dropped: 'Dropped',
-}
-
-export function isFeatureStatus(value: unknown): value is FeatureStatus {
-  return typeof value === 'string' && (FEATURE_STATUSES as readonly string[]).includes(value)
-}
+import type { StatusDefinition } from './status'
 
 /**
  * A single feature — one markdown file on disk.
@@ -33,11 +20,20 @@ export interface Feature {
   title: string
   /** Markdown body of the file. */
   description: string
-  status: FeatureStatus
+  /**
+   * Status id. A plain string rather than a union, because the list is configurable and a
+   * value the current config does not define must survive rather than be corrected.
+   */
+  status: string
   /** Free-form labels from frontmatter — no separate tag records to keep in sync. */
   tags: string[]
   /** Fractional index key ordering this feature among its siblings. */
   sort: string
+}
+
+/** Project-level settings, read from `.chocks/config.yaml`. */
+export interface ChocksConfig {
+  statuses: StatusDefinition[]
 }
 
 /** Describes the checkout the server is pointed at. */
@@ -46,4 +42,5 @@ export interface Workspace {
   root: string
   /** Name to show in the UI, taken from the repo directory. */
   name: string
+  config: ChocksConfig
 }

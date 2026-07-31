@@ -31,8 +31,22 @@ async function createFeature(parent: string, title: string): Promise<Feature> {
 
 describe('GET /api/workspace', () => {
   it('reports the directory being served', async () => {
-    const body = (await (await app.request('/api/workspace')).json()) as Record<string, string>
-    expect(body).toEqual({ root, name: 'test-repo' })
+    const body = (await (await app.request('/api/workspace')).json()) as {
+      root: string
+      name: string
+      config: { statuses: { id: string }[] }
+    }
+    expect(body.root).toBe(root)
+    expect(body.name).toBe('test-repo')
+    // No config.yaml present, so the defaults are served.
+    expect(body.config.statuses.map((status) => status.id)).toEqual([
+      'idea',
+      'planned',
+      'pre-release',
+      'released',
+      'deprecated',
+      'dropped',
+    ])
   })
 })
 
@@ -71,10 +85,10 @@ describe('features API', () => {
     const response = await app.request(`/api/features/${feature.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'done', description: 'Shipped.', tags: ['api'] }),
+      body: JSON.stringify({ status: 'released', description: 'Shipped.', tags: ['api'] }),
     })
     const updated = (await response.json()) as Feature
-    expect(updated).toMatchObject({ status: 'done', description: 'Shipped.', tags: ['api'] })
+    expect(updated).toMatchObject({ status: 'released', description: 'Shipped.', tags: ['api'] })
   })
 
   it('moves a feature and rewrites descendant ids', async () => {
@@ -125,14 +139,25 @@ describe('features API', () => {
     expect(response.status).toBe(400)
   })
 
-  it('ignores an unknown status rather than writing it', async () => {
+  it('accepts a status the config does not define, rather than correcting it', async () => {
+    // A branch may use a different config; the value must survive a round trip.
     const feature = await createFeature('', 'Auth')
     const response = await app.request(`/api/features/${feature.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'shipped' }),
     })
-    expect(((await response.json()) as Feature).status).toBe('planned')
+    expect(((await response.json()) as Feature).status).toBe('shipped')
+  })
+
+  it('ignores a status that is not slug-shaped', async () => {
+    const feature = await createFeature('', 'Auth')
+    const response = await app.request(`/api/features/${feature.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'Not A Slug' }),
+    })
+    expect(((await response.json()) as Feature).status).toBe('idea')
   })
 })
 

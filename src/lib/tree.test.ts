@@ -14,7 +14,7 @@ import {
   subtreeIds,
   type TreeNode,
 } from './tree'
-import type { Feature, FeatureStatus } from './types'
+import type { Feature } from './types'
 
 function feature(
   id: string,
@@ -474,7 +474,7 @@ describe('drag projection feeds a valid move', () => {
 
 describe('status typing', () => {
   it('accepts every schema status', () => {
-    const statuses: FeatureStatus[] = ['planned', 'in-progress', 'done', 'dropped']
+    const statuses: string[] = ['planned', 'in-progress', 'done', 'dropped']
     const tree = buildTree(statuses.map((s, i) => feature(s, '', `a${i}`, { status: s })))
     expect(tree).toHaveLength(4)
   })

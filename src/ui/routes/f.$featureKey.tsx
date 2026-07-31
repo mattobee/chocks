@@ -24,10 +24,10 @@ import {
   AlertDialogTitle,
 } from '@/ui/components/ui/alert-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
-import { featuresQuery } from '@/ui/lib/queries'
 import { ancestorsOf, findByKey, siblingsOf, subtreeIds } from '@/lib/tree'
+import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
+import { DEFAULT_STATUSES } from '@/lib/status'
 import { featureKey, FEATURE_SUFFIX } from '@/lib/ids'
-import { FEATURE_STATUSES, STATUS_LABELS, type FeatureStatus } from '@/lib/types'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
 // keeps resolving after the feature is renamed or moved.
@@ -40,6 +40,8 @@ function FeaturePage() {
   const navigate = useNavigate()
 
   const features = useQuery(featuresQuery())
+  const workspace = useQuery(workspaceQuery())
+  const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
   useWatchFiles()
 
   const featureList = features.data ?? []
@@ -175,17 +177,15 @@ function FeaturePage() {
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <Select
             value={feature.status}
-            onValueChange={(value) =>
-              update.mutate({ id: featureId, status: value as FeatureStatus })
-            }
+            onValueChange={(value) => update.mutate({ id: featureId, status: String(value) })}
           >
             <SelectTrigger aria-label="Status" className="h-8 w-auto">
-              <StatusBadge status={feature.status} />
+              <StatusBadge statuses={statuses} status={feature.status} />
             </SelectTrigger>
             <SelectContent>
-              {FEATURE_STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {STATUS_LABELS[status]}
+              {statuses.map((status) => (
+                <SelectItem key={status.id} value={status.id}>
+                  {status.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -235,7 +235,7 @@ function FeaturePage() {
                   className="hover:bg-muted/50 flex items-center gap-3 p-3"
                 >
                   <span className="flex-1 truncate text-sm">{child.title}</span>
-                  <StatusBadge status={child.status} />
+                  <StatusBadge statuses={statuses} status={child.status} />
                   <ChevronRight className="text-muted-foreground size-4 shrink-0" />
                 </Link>
               </li>
@@ -252,6 +252,7 @@ function FeaturePage() {
         open={childDialogOpen}
         onOpenChange={setChildDialogOpen}
         availableTags={allTags}
+        statuses={statuses}
         busy={create.isPending}
         onSubmit={handleCreateChild}
       />

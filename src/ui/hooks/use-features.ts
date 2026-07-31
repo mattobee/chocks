@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { api, ApiError, subscribeToChanges } from '../lib/api'
 import { queryKeys } from '../lib/queries'
 import { indexAfter, siblingsOf } from '../../lib/tree'
-import type { Feature, FeatureStatus } from '../../lib/types'
+import type { Feature } from '../../lib/types'
 
 function message(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback
@@ -30,7 +30,7 @@ export function useFeatureMutations(features: Feature[]) {
     mutationFn: (input: {
       parent: string
       title: string
-      status?: FeatureStatus
+      status?: string
       tags?: string[]
       description?: string
     }) => api.createFeature(input),
