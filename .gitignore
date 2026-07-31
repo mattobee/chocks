@@ -12,3 +12,9 @@ src/ui/routeTree.gen.ts
 .idea
 .DS_Store
 .tanstack
+
+# playwright
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache

@@ -3,3 +3,5 @@ node_modules
 pnpm-lock.yaml
 src/ui/routeTree.gen.ts
 src/ui/components/ui
+test-results
+playwright-report
