@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc", "import"],
+  "ignorePatterns": ["dist", "src/ui/routeTree.gen.ts", "src/ui/components/ui"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    // warn, not error: oxlint's port still diverges from eslint-plugin-react-hooks
+    // (false positives on object members). Suppress with `oxlint-disable-next-line`,
+    // the eslint-disable form does not work for this rule.
+    "react/exhaustive-deps": "warn",
+    "typescript/no-explicit-any": "warn",
+    "import/no-duplicates": "error"
+  },
+  "overrides": [
+    {
+      // TanStack Router file routes must export both `Route` and their component.
+      "files": ["src/ui/routes/**"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    }
+  ]
+}

@@ -1,0 +1,226 @@
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
+import { Plus } from 'lucide-react'
+import { AppShell } from '@/ui/components/app-shell'
+import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
+import { FeatureFilters } from '@/ui/components/feature-filters'
+import { FeatureTree } from '@/ui/components/feature-tree'
+import { Button } from '@/ui/components/ui/button'
+import { Skeleton } from '@/ui/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/ui/components/ui/alert-dialog'
+import { useExpanded } from '@/ui/hooks/use-expanded'
+import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
+import { featuresQuery } from '@/ui/lib/queries'
+import {
+  buildTree,
+  collectExpandableIds,
+  filterTree,
+  flattenVisible,
+  isFiltering,
+  ROOT_PARENT,
+  subtreeIds,
+  type DropProjection,
+  type TreeFilters,
+} from '@/lib/tree'
+import type { Feature, FeatureStatus } from '@/lib/types'
+
+type Search = { q?: string; status?: string; tag?: string }
+
+export const Route = createFileRoute('/')({
+  // Filter state lives in the URL, so a filtered view is linkable and survives reload.
+  validateSearch: (search: Record<string, unknown>): Search => ({
+    q: typeof search.q === 'string' && search.q !== '' ? search.q : undefined,
+    status: typeof search.status === 'string' && search.status !== '' ? search.status : undefined,
+    tag: typeof search.tag === 'string' && search.tag !== '' ? search.tag : undefined,
+  }),
+  component: TreePage,
+})
+
+function TreePage() {
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+
+  const features = useQuery(featuresQuery())
+  useWatchFiles()
+
+  const featureList = useMemo(() => features.data ?? [], [features.data])
+  const { create, update, remove, move } = useFeatureMutations(featureList)
+  const { expanded, toggle, setExpanded } = useExpanded()
+
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<Feature | undefined>(undefined)
+  const [newParent, setNewParent] = useState<string>(ROOT_PARENT)
+  const [pendingDelete, setPendingDelete] = useState<Feature | null>(null)
+
+  const filters: TreeFilters = useMemo(
+    () => ({
+      query: search.q ?? '',
+      statuses: (search.status?.split(',').filter(Boolean) ?? []) as FeatureStatus[],
+      tags: search.tag?.split(',').filter(Boolean) ?? [],
+    }),
+    [search.q, search.status, search.tag],
+  )
+
+  // Tags are free-form strings in frontmatter, so the available set is whatever is in use.
+  const allTags = useMemo(
+    () => [...new Set(featureList.flatMap((feature) => feature.tags))].sort(),
+    [featureList],
+  )
+
+  const tree = useMemo(() => buildTree(featureList), [featureList])
+  const filtered = useMemo(() => filterTree(tree, filters), [tree, filters])
+  const filtering = isFiltering(filters)
+
+  const effectiveExpanded = useMemo(
+    () => (filtering ? collectExpandableIds(filtered.nodes) : expanded),
+    [filtering, filtered.nodes, expanded],
+  )
+
+  const rows = useMemo(
+    () => flattenVisible(filtered.nodes, effectiveExpanded),
+    [filtered.nodes, effectiveExpanded],
+  )
+
+  function applyFilters(next: TreeFilters) {
+    void navigate({
+      search: {
+        q: next.query || undefined,
+        status: next.statuses.length > 0 ? next.statuses.join(',') : undefined,
+        tag: next.tags.length > 0 ? next.tags.join(',') : undefined,
+      },
+      replace: true,
+    })
+  }
+
+  function openCreate(parentId: string) {
+    setEditing(undefined)
+    setNewParent(parentId)
+    setDialogOpen(true)
+    if (parentId !== ROOT_PARENT && !expanded.has(parentId)) {
+      setExpanded(new Set([...expanded, parentId]))
+    }
+  }
+
+  function handleSubmit(draft: FeatureDraft) {
+    if (editing) {
+      update.mutate({ id: editing.id, ...draft }, { onSuccess: () => setDialogOpen(false) })
+    } else {
+      create.mutate({ parent: newParent, ...draft }, { onSuccess: () => setDialogOpen(false) })
+    }
+  }
+
+  function handleMove(id: string, projection: DropProjection) {
+    move.mutate({ id, newParent: projection.parentId, afterId: projection.afterId })
+  }
+
+  const descendantCount = pendingDelete ? subtreeIds(featureList, pendingDelete.id).length - 1 : 0
+
+  return (
+    <AppShell>
+      <div className="mx-auto max-w-4xl p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <h1 className="flex-1 text-2xl font-semibold tracking-tight">Features</h1>
+          <Button onClick={() => openCreate(ROOT_PARENT)}>
+            <Plus className="size-4" />
+            New feature
+          </Button>
+        </div>
+
+        <div className="mb-4">
+          <FeatureFilters
+            filters={filters}
+            tags={allTags}
+            matchCount={filtering ? filtered.matchedIds.size : null}
+            onChange={applyFilters}
+          />
+        </div>
+
+        {features.isPending ? (
+          <div className="grid gap-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-5/6" />
+            <Skeleton className="h-8 w-4/6" />
+          </div>
+        ) : features.isError ? (
+          <p className="text-destructive rounded-lg border border-dashed p-10 text-center text-sm">
+            Could not read the feature directory. Is the chocks server still running?
+          </p>
+        ) : rows.length === 0 ? (
+          <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center">
+            <p className="mb-4 text-sm">
+              {filtering ? 'No features match these filters.' : 'No features yet.'}
+            </p>
+            {!filtering && (
+              <Button variant="outline" onClick={() => openCreate(ROOT_PARENT)}>
+                <Plus className="size-4" />
+                Add the first one
+              </Button>
+            )}
+          </div>
+        ) : (
+          <FeatureTree
+            rows={rows}
+            matchedIds={filtered.matchedIds}
+            filtering={filtering}
+            onToggle={toggle}
+            onRename={(id, title) => update.mutate({ id, title })}
+            onStatusChange={(id, status) => update.mutate({ id, status })}
+            onAddChild={openCreate}
+            onEdit={(feature) => {
+              setEditing(feature)
+              setDialogOpen(true)
+            }}
+            onDelete={setPendingDelete}
+            onMove={handleMove}
+          />
+        )}
+      </div>
+
+      <FeatureDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        feature={editing}
+        availableTags={allTags}
+        busy={create.isPending || update.isPending}
+        onSubmit={handleSubmit}
+      />
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{pendingDelete?.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {descendantCount > 0
+                ? `This deletes the file and ${descendantCount} nested ${descendantCount === 1 ? 'feature' : 'features'}. Recoverable with git if it is committed.`
+                : 'This deletes the file. Recoverable with git if it is committed.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDelete) remove.mutate(pendingDelete.id)
+                setPendingDelete(null)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AppShell>
+  )
+}
