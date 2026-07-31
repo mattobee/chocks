@@ -21,6 +21,7 @@
     "build": "pnpm routes && pnpm build:ui && pnpm build:server",
     "build:ui": "vite build",
     "build:server": "tsdown",
+    "prepare": "pnpm build",
     "start": "node dist/cli.mjs",
     "lint": "oxlint",
     "format": "prettier --write .",
