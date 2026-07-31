@@ -95,11 +95,15 @@ export function FeatureFilters({
           )
         })}
 
-        {matchCount !== null && (
-          <span className="text-muted-foreground ms-auto text-xs">
-            {matchCount} {matchCount === 1 ? 'match' : 'matches'}
-          </span>
-        )}
+        {/*
+          Typing in the search box silently rewrites the tree below, which a screen reader
+          user would otherwise have no way to notice. Rendered unconditionally so the
+          region exists before the count first appears — a live region added to the DOM
+          already populated announces nothing.
+        */}
+        <span role="status" aria-live="polite" className="text-muted-foreground ms-auto text-xs">
+          {matchCount !== null && `${matchCount} ${matchCount === 1 ? 'match' : 'matches'}`}
+        </span>
       </div>
     </div>
   )
