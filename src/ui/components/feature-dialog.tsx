@@ -20,6 +20,7 @@ import { Textarea } from '@/ui/components/ui/textarea'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -157,11 +158,13 @@ export function FeatureDialog({
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {statuses.map((status) => (
-                    <SelectItem key={status.id} value={status.id}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {statuses.map((status) => (
+                      <SelectItem key={status.id} value={status.id}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>

@@ -13,7 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/ui/components/ui/dropdown-menu'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+} from '@/ui/components/ui/select'
 import { StatusBadge } from '@/ui/components/status-badge'
 import { cn } from '@/lib/utils'
 import { featureKey } from '@/lib/ids'
@@ -168,11 +174,13 @@ export function FeatureRow({
           <StatusBadge statuses={statuses} status={feature.status} />
         </SelectTrigger>
         <SelectContent>
-          {statuses.map((status) => (
-            <SelectItem key={status.id} value={status.id}>
-              {status.label}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {statuses.map((status) => (
+              <SelectItem key={status.id} value={status.id}>
+                {status.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
 

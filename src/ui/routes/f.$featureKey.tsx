@@ -34,7 +34,13 @@ import {
   InputGroupTextarea,
 } from '@/ui/components/ui/input-group'
 import { Skeleton } from '@/ui/components/ui/skeleton'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+} from '@/ui/components/ui/select'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
 import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
@@ -320,11 +326,13 @@ export function FeaturePage() {
               <StatusBadge statuses={statuses} status={feature.status} />
             </SelectTrigger>
             <SelectContent>
-              {statuses.map((status) => (
-                <SelectItem key={status.id} value={status.id}>
-                  {status.label}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {statuses.map((status) => (
+                  <SelectItem key={status.id} value={status.id}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
 
