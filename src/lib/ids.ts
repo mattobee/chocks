@@ -51,6 +51,18 @@ export function slugify(title: string): string {
 }
 
 /**
+ * The rough inverse of `slugify`: `oauth-providers` -> `Oauth providers`.
+ *
+ * Used wherever a slug has to stand in for a label nobody wrote — a file with no title in
+ * its frontmatter, a status the config does not define. `fallback` covers a slug made of
+ * nothing but separators, which would otherwise humanise to an empty string.
+ */
+export function humanise(slug: string, fallback = slug): string {
+  const spaced = slug.replace(/[-_]+/g, ' ').trim()
+  return spaced === '' ? fallback : spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+/**
  * True when an id is safe to turn into a path inside the chocks directory.
  *
  * The id arrives from HTTP requests and is used to build a filesystem path, so this is a

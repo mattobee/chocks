@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { humanise } from '../lib/ids'
 import {
   DEFAULT_STATUSES,
   isValidStatusId,
@@ -136,9 +137,4 @@ function addStatus(
     label: typeof label === 'string' && label.trim() !== '' ? label.trim() : humanise(id),
     color: resolved,
   })
-}
-
-function humanise(id: string): string {
-  const spaced = id.replace(/-+/g, ' ')
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }

@@ -2,7 +2,7 @@ import { randomBytes, randomInt } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
-import { FEATURE_SUFFIX, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
+import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
 import { siblingsOf, sortKeyForIndex } from '../lib/tree'
 import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
 import type { Feature } from '../lib/types'
@@ -145,12 +145,6 @@ function uniqueSlug(desired: string, taken: ReadonlySet<string>): string {
   let suffix = 2
   while (taken.has(`${desired}-${suffix}`)) suffix++
   return `${desired}-${suffix}`
-}
-
-/** `oauth-providers` -> `Oauth providers`, for files with no title in frontmatter. */
-function humanise(slug: string): string {
-  const spaced = slug.replace(/[-_]+/g, ' ').trim()
-  return spaced === '' ? slug : spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
 export interface CreateInput {
