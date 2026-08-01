@@ -8,11 +8,7 @@ export function useExpanded() {
 
   const persist = useCallback((next: Set<string>) => {
     setExpandedState(next)
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
-    } catch {
-      // Private browsing or a full quota — not worth failing over.
-    }
+    save(next)
   }, [])
 
   const toggle = useCallback((id: string) => {
@@ -20,16 +16,20 @@ export function useExpanded() {
       const next = new Set(current)
       if (next.has(id)) next.delete(id)
       else next.add(id)
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
-      } catch {
-        // ignored, see above
-      }
+      save(next)
       return next
     })
   }, [])
 
   return { expanded, toggle, setExpanded: persist }
+}
+
+function save(expanded: ReadonlySet<string>): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...expanded]))
+  } catch {
+    // Private browsing or a full quota — not worth failing over.
+  }
 }
 
 function read(): Set<string> {
