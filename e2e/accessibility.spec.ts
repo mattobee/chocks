@@ -20,7 +20,7 @@ test.describe('axe', () => {
 
   test('finds nothing on a feature page', async ({ page, workspace }) => {
     await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
-    await expect(page.getByRole('textbox', { name: 'Feature title' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'OAuth providers' })).toBeVisible()
 
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

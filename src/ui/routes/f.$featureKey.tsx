@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { ChevronRight, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { AppShell } from '@/ui/components/app-shell'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusBadge } from '@/ui/components/status-badge'
@@ -17,9 +17,13 @@ import { FeatureHistory } from '@/ui/components/feature-history'
 import { Button } from '@/ui/components/ui/button'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
 import { Badge } from '@/ui/components/ui/badge'
-import { Input } from '@/ui/components/ui/input'
-import { Label } from '@/ui/components/ui/label'
-import { Textarea } from '@/ui/components/ui/textarea'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupTextarea,
+} from '@/ui/components/ui/input-group'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { Separator } from '@/ui/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
@@ -52,6 +56,14 @@ export function FeaturePage() {
 
   const [description, setDescription] = useState('')
   const [title, setTitle] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
+  const renameButtonRef = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef(false)
+  const [describing, setDescribing] = useState(false)
+  const describeInputRef = useRef<HTMLTextAreaElement>(null)
+  const describeButtonRef = useRef<HTMLButtonElement>(null)
+  const returnDescribeFocus = useRef(false)
   const [childDialogOpen, setChildDialogOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -68,6 +80,42 @@ export function FeaturePage() {
     setTitle(savedTitle ?? '')
     setDescription(savedDescription ?? '')
   }, [savedId, savedTitle, savedDescription])
+
+  /**
+   * Moves focus with the swap, in both directions.
+   *
+   * Going in: focus then select. A browser moves focus as a side effect of `select()`, but
+   * leaning on that leaves the important half implicit, and renaming usually means
+   * replacing the title rather than appending to it.
+   *
+   * Coming out: back to the button that opened it, rather than dropping focus on the body.
+   * It has to happen here because neither control exists until the swap has rendered.
+   */
+  useEffect(() => {
+    if (renaming) {
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    } else if (returnFocus.current) {
+      returnFocus.current = false
+      // After the current key sequence, not during it. Enter commits on keydown, and
+      // focusing the button straight away puts it under the keyup that follows, which
+      // activates it and reopens the very editor that just closed.
+      const timer = setTimeout(() => renameButtonRef.current?.focus())
+      return () => clearTimeout(timer)
+    }
+  }, [renaming])
+
+  // Same swap as the title: focus follows the control that replaced the one you used, and
+  // going back is deferred so a committing keystroke cannot land on the button behind it.
+  useEffect(() => {
+    if (describing) {
+      describeInputRef.current?.focus()
+    } else if (returnDescribeFocus.current) {
+      returnDescribeFocus.current = false
+      const timer = setTimeout(() => describeButtonRef.current?.focus())
+      return () => clearTimeout(timer)
+    }
+  }, [describing])
 
   if (features.isPending) {
     return (
@@ -129,7 +177,13 @@ export function FeaturePage() {
   const children = childrenOf(featureList, featureId)
   const tags = allTags(featureList)
 
+  function stopRenaming() {
+    returnFocus.current = true
+    setRenaming(false)
+  }
+
   function commitTitle() {
+    stopRenaming()
     const next = title.trim()
     if (next === '' || next === feature!.title) {
       setTitle(feature!.title)
@@ -138,9 +192,22 @@ export function FeaturePage() {
     update.mutate({ id: featureId, title: next })
   }
 
+  function cancelRename() {
+    stopRenaming()
+    setTitle(feature!.title)
+  }
+
   function commitDescription() {
+    returnDescribeFocus.current = true
+    setDescribing(false)
     if (description === feature!.description) return
     update.mutate({ id: featureId, description })
+  }
+
+  function cancelDescription() {
+    returnDescribeFocus.current = true
+    setDescribing(false)
+    setDescription(feature!.description)
   }
 
   function handleCreateChild(draft: FeatureDraft) {
@@ -178,30 +245,59 @@ export function FeaturePage() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div className="mb-2 flex items-start gap-3">
-          <Input
-            aria-label="Feature title"
-            value={title}
-            maxLength={300}
-            onChange={(event) => setTitle(event.target.value)}
-            onBlur={commitTitle}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur()
-              if (event.key === 'Escape') {
-                setTitle(feature.title)
-                event.currentTarget.blur()
-              }
-            }}
-            className="h-auto flex-1 border-0 bg-transparent p-0 !text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Delete feature"
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 />
-          </Button>
+        <div className="mb-2 flex items-center gap-3">
+          {renaming ? (
+            // Taller than the default inline field: this is the page title, and two
+            // buttons sit inside it.
+            <InputGroup className="h-10 flex-1">
+              <InputGroupInput
+                ref={renameInputRef}
+                aria-label="Feature title"
+                value={title}
+                maxLength={300}
+                onChange={(event) => setTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') commitTitle()
+                  if (event.key === 'Escape') cancelRename()
+                }}
+              />
+              {/* Deliberately no save on blur. Clicking Cancel blurs the field first, so
+                  saving there would commit the edit the click was asking to throw away. */}
+              {/* Only the negative margin is overridden, and with the same variant or
+                  tailwind-merge keeps both. It pulls buttons about 5px back toward the
+                  edge, which suits an icon but leaves a text button's focus ring on the
+                  border. The addon's own pr-2 then matches the vertical gap. */}
+              <InputGroupAddon align="inline-end" className="has-[>button]:mr-0">
+                <InputGroupButton onClick={cancelRename}>Cancel</InputGroupButton>
+                <InputGroupButton variant="default" onClick={commitTitle}>
+                  Save
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          ) : (
+            <>
+              {/* The page's heading, which it did not have before: the title was an input
+                  dressed as one, so there was nothing for a screen reader to navigate to. */}
+              <h1 className="flex-1 text-2xl font-semibold tracking-tight">{feature.title}</h1>
+              <Button
+                ref={renameButtonRef}
+                variant="ghost"
+                size="icon"
+                aria-label="Rename feature"
+                onClick={() => setRenaming(true)}
+              >
+                <Pencil />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Delete feature"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 />
+              </Button>
+            </>
+          )}
         </div>
 
         {/* The path is the identity, so showing it makes the file findable in the repo. */}
@@ -234,19 +330,62 @@ export function FeaturePage() {
           ))}
         </div>
 
-        <div className="mb-8 grid gap-2">
-          <Label htmlFor="feature-description">Description</Label>
-          <Textarea
-            id="feature-description"
-            rows={8}
-            maxLength={10000}
-            placeholder="Markdown. What is this feature, and what would done look like?"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            onBlur={commitDescription}
-            className="font-mono text-sm"
-          />
-          <p className="text-muted-foreground text-xs">Written to the file when you click away.</p>
+        <div className="mb-8">
+          {describing ? (
+            <>
+              <h2 className="mb-3 text-sm font-medium">Description</h2>
+              <InputGroup>
+                <InputGroupTextarea
+                  ref={describeInputRef}
+                  aria-label="Description"
+                  rows={8}
+                  maxLength={10000}
+                  placeholder="Markdown. What is this feature, and what would done look like?"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  onKeyDown={(event) => {
+                    // Enter belongs to the text here, so saving needs the modifier.
+                    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                      commitDescription()
+                    }
+                    if (event.key === 'Escape') cancelDescription()
+                  }}
+                  className="font-mono text-sm"
+                />
+                <InputGroupAddon align="block-end" className="justify-end">
+                  <InputGroupButton onClick={cancelDescription}>Cancel</InputGroupButton>
+                  <InputGroupButton variant="default" onClick={commitDescription}>
+                    Save
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </>
+          ) : (
+            // No heading out here. A "Description" label sitting above the description is a
+            // row of chrome that tells you nothing the text does not.
+            <div className="flex items-start gap-3">
+              {feature.description ? (
+                // Held as markdown but shown as written, since rendering it is still an
+                // idea. The whitespace matters either way: a description is mostly line
+                // breaks.
+                <p className="flex-1 text-sm whitespace-pre-wrap">{feature.description}</p>
+              ) : (
+                <p className="text-muted-foreground flex-1 text-sm">No description yet.</p>
+              )}
+              {/* Pulled up to sit on the first line rather than level with its top: the
+                  button is 32px and the line is 20px. */}
+              <Button
+                ref={describeButtonRef}
+                variant="ghost"
+                size="icon"
+                className="-mt-1.5"
+                aria-label="Edit description"
+                onClick={() => setDescribing(true)}
+              >
+                <Pencil />
+              </Button>
+            </div>
+          )}
         </div>
 
         <Separator className="mb-6" />
