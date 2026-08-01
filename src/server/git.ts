@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import type { FeatureHistory, HistoryUnavailable } from '../lib/types'
 
 const run = promisify(execFile)
 
@@ -12,25 +13,8 @@ const run = promisify(execFile)
  * This just surfaces it.
  */
 
-export interface Commit {
-  sha: string
-  shortSha: string
-  author: string
-  /** ISO 8601. */
-  date: string
-  subject: string
-}
-
-export type HistoryUnavailable = 'not-a-repo' | 'git-missing' | 'failed'
-
-export interface FeatureHistory {
-  commits: Commit[]
-  /** Set when history could not be read at all; `commits` is then empty. */
-  unavailable?: HistoryUnavailable
-  /** True when the file has changes that are not committed yet. */
-  uncommitted: boolean
-}
-
+// ASCII unit and record separators. Invisible in an editor, but they cannot occur in a
+// commit subject or an author name, so splitting on them is exact.
 const FIELD = ''
 const RECORD = ''
 const TIMEOUT = 5_000

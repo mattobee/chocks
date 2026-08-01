@@ -29,10 +29,10 @@ function compareSortKeys(a: Feature, b: Feature): number {
  * Features whose `parent` is missing from the list are treated as roots, so a partial
  * fetch degrades to a flat list instead of silently dropping rows.
  *
- * Cycles should be impossible — `canMove` rejects them before any write — but could still
- * arrive from a hand-edited database. Rather than recursing forever, or dropping the
- * cyclic records so they become invisible and therefore unfixable, members of a cycle are
- * surfaced as roots.
+ * Cycles cannot occur in a list read from disk, where the hierarchy is the directory
+ * structure, but this also runs against whatever a caller hands it. Rather than recursing
+ * forever, or dropping the cyclic entries so they become invisible and therefore
+ * unfixable, members of a cycle are surfaced as roots.
  */
 export function buildTree(features: Feature[]): TreeNode[] {
   const byId = new Map<string, Feature>()
@@ -278,8 +278,10 @@ export function indexAfter(siblings: Feature[], afterId: string | null): number 
  * True when `featureId` may be reparented under `newParentId`.
  *
  * Walks up from the target: if we reach the dragged feature, the move would close a cycle.
- * PocketBase would happily store that — nothing in the schema prevents it — so the check
- * has to happen here, before the write.
+ *
+ * The store cannot represent one — ids are paths, and `move` refuses a destination under
+ * the feature itself — so this is really about the UI: it stops a drag being offered as a
+ * legal drop when the request behind it would only be rejected.
  */
 export function canMove(features: Feature[], featureId: string, newParentId: string): boolean {
   if (newParentId === ROOT_PARENT) return true
@@ -339,12 +341,6 @@ export function siblingsOf(features: Feature[], parentId: string): Feature[] {
 }
 
 /**
- * The chain of ancestors above a feature, outermost first — the breadcrumb trail.
- *
- * Stops at a missing parent rather than failing, so a partially loaded list still yields
- * the part of the path it can prove.
- */
-/**
  * Resolves a URL key to a feature.
  *
  * Prefers the uid, which survives renames and moves, and falls back to matching the final
@@ -360,6 +356,12 @@ export function findByKey(features: Feature[], key: string): Feature | undefined
   return features.find((feature) => slugOf(feature.id) === slug)
 }
 
+/**
+ * The chain of ancestors above a feature, outermost first — the breadcrumb trail.
+ *
+ * Stops at a missing parent rather than failing, so a partially loaded list still yields
+ * the part of the path it can prove.
+ */
 export function ancestorsOf(features: Feature[], featureId: string): Feature[] {
   const byId = new Map(features.map((feature) => [feature.id, feature]))
   const chain: Feature[] = []

@@ -3,9 +3,10 @@ import type { StatusDefinition } from './status'
 /**
  * A single feature — one markdown file on disk.
  *
- * There is deliberately no stored `parent`: `id` is the file's path relative to the chocks
- * directory (`auth/oauth/github`), so the parent is just its dirname. The hierarchy cannot
- * disagree with the filesystem, and a cycle is unrepresentable.
+ * Nothing here records the hierarchy: `id` is the file's path relative to the chocks
+ * directory (`auth/oauth/github`), and `parent` below is derived from it rather than
+ * stored. That is why the tree can never disagree with the filesystem, and why a cycle is
+ * unrepresentable.
  */
 export interface Feature {
   /** Path-derived identity, e.g. `auth/oauth/github`. Changes when moved or retitled. */
@@ -34,6 +35,27 @@ export interface Feature {
 /** Project-level settings, read from `.chocks/config.yaml`. */
 export interface ChocksConfig {
   statuses: StatusDefinition[]
+}
+
+/** One commit touching a feature's file. */
+export interface Commit {
+  sha: string
+  shortSha: string
+  author: string
+  /** ISO 8601. */
+  date: string
+  subject: string
+}
+
+export type HistoryUnavailable = 'not-a-repo' | 'git-missing' | 'failed'
+
+/** What `/api/history/:id` returns — chocks has no revision model beyond the repo. */
+export interface FeatureHistory {
+  commits: Commit[]
+  /** Set when history could not be read at all; `commits` is then empty. */
+  unavailable?: HistoryUnavailable
+  /** True when the file has changes that are not committed yet. */
+  uncommitted: boolean
 }
 
 /** Describes the checkout the server is pointed at. */

@@ -8,6 +8,15 @@ import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib
 import type { Feature } from '../lib/types'
 
 /**
+ * Reads and writes the `.chocks` directory.
+ *
+ * The layout is `<slug>.feature.md` for a feature and a sibling `<slug>/` directory for its
+ * children, so gaining children never moves the parent's own file. A feature's id is its
+ * path without the extension, which makes the filesystem the single source of truth for
+ * the hierarchy.
+ */
+
+/**
  * Ten hex characters, always starting with a letter.
  *
  * The leading letter is not cosmetic: an all-digit uid is a YAML number, so it would be
@@ -19,15 +28,7 @@ export function generateUid(): string {
   return `${first}${randomBytes(5).toString('hex').slice(1)}`
 }
 
-/**
- * Reads and writes the `.chocks` directory.
- *
- * The layout is `<slug>.md` for a feature and a sibling `<slug>/` directory for its
- * children, so gaining children never moves the parent's own file. A feature's id is its
- * path without the extension, which makes the filesystem the single source of truth for
- * the hierarchy.
- */
-
+/** Thrown for anything the server should answer with a 4xx rather than a 500. */
 export class StoreError extends Error {
   /** HTTP status the server should map this to. */
   readonly status: number
@@ -133,6 +134,19 @@ export async function scanWithIgnored(
   return { features, ignored }
 }
 
+/**
+ * `desired`, or `desired-2`, `desired-3`… until nothing under the same parent claims it.
+ *
+ * Slugs are filenames, so two siblings with the same slug resolve to the same path and the
+ * second write silently overwrites the first.
+ */
+function uniqueSlug(desired: string, taken: ReadonlySet<string>): string {
+  if (!taken.has(desired)) return desired
+  let suffix = 2
+  while (taken.has(`${desired}-${suffix}`)) suffix++
+  return `${desired}-${suffix}`
+}
+
 /** `oauth-providers` -> `Oauth providers`, for files with no title in frontmatter. */
 function humanise(slug: string): string {
   const spaced = slug.replace(/[-_]+/g, ' ').trim()
@@ -160,15 +174,8 @@ export async function create(root: string, input: CreateInput): Promise<Feature>
   const siblings = siblingsOf(existing, input.parent)
   const taken = new Set(siblings.map((feature) => slugOf(feature.id)))
 
-  let slug = slugify(title)
-  if (taken.has(slug)) {
-    let suffix = 2
-    while (taken.has(`${slug}-${suffix}`)) suffix++
-    slug = `${slug}-${suffix}`
-  }
-
   const feature: Feature = {
-    id: joinId(input.parent, slug),
+    id: joinId(input.parent, uniqueSlug(slugify(title), taken)),
     uid: generateUid(),
     parent: input.parent,
     title,
@@ -225,13 +232,7 @@ export async function update(root: string, id: string, patch: UpdateInput): Prom
           .filter((feature) => feature.id !== id)
           .map((feature) => slugOf(feature.id)),
       )
-      let slug = desired
-      if (taken.has(slug)) {
-        let suffix = 2
-        while (taken.has(`${slug}-${suffix}`)) suffix++
-        slug = `${slug}-${suffix}`
-      }
-      next.id = joinId(current.parent, slug)
+      next.id = joinId(current.parent, uniqueSlug(desired, taken))
       await relocate(root, id, next.id)
     }
   }
@@ -328,27 +329,22 @@ export async function move(root: string, id: string, input: MoveInput): Promise<
     throw new StoreError('A feature cannot be moved inside itself', 400)
   }
 
-  const current = await read(root, id)
+  // Reading first so an unknown or malformed id fails cleanly, before anything is renamed.
+  await read(root, id)
   const all = await scan(root)
-  const slug = slugOf(id)
 
   const destinationSiblings = siblingsOf(all, newParent).filter((feature) => feature.id !== id)
   const taken = new Set(destinationSiblings.map((feature) => slugOf(feature.id)))
-  let targetSlug = slug
-  if (taken.has(targetSlug)) {
-    let suffix = 2
-    while (taken.has(`${targetSlug}-${suffix}`)) suffix++
-    targetSlug = `${targetSlug}-${suffix}`
-  }
 
-  const newId = joinId(newParent, targetSlug)
+  const newId = joinId(newParent, uniqueSlug(slugOf(id), taken))
   const sort = sortKeyForIndex(destinationSiblings, index)
 
   // Children live in a sibling directory, which has to follow the file.
   if (newId !== id) await relocate(root, id, newId)
 
-  // The title is passed through unchanged, so update() will not re-slug the file here.
-  return update(root, newId, { ...current, sort })
+  // Only the sort key changes: with no title in the patch, update() leaves the file where
+  // relocate just put it.
+  return update(root, newId, { sort })
 }
 
 /**
