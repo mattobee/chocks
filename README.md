@@ -66,16 +66,20 @@ the repo and asking it to read the code for you.
 Read this codebase and populate .chocks with a feature tree.
 
 A feature is a capability someone outside the team would recognise, not a file, a
-function or an internal system. One feature per capability, nested only where one
-genuinely makes sense in the context of another. If you're about to write ten sibling
-files that only make sense to someone reading the source, they're not ten features,
-they're your evidence for one.
+function or an internal system. Split down to individual actions where each has its own
+lifecycle: creating, editing and deleting a thing usually ship at different times, so
+`create-audit`, `edit-audit` and `delete-audit` belong under `audits/` as three features,
+not one. Stop splitting once you'd be naming something no user or PM would ever refer to
+separately, or that only exists because of how the code happens to be organised.
 
 A feature is <slug>.feature.md; its children live in a sibling <slug>/ directory. For
-each feature, write a title, a status guessed from whether it looks unbuilt,
-half-finished or shipped, tags for cross-cutting concerns such as "api" or "billing", and
-a couple of sentences describing it in the markdown body. Skip uid and sort: chocks fills
-those in the first time it runs. For example:
+each feature, write a title, a status, tags for cross-cutting concerns such as "api" or
+"billing", and a couple of sentences describing it in the markdown body. The status must
+be one of idea, planned, pre-release, released, deprecated or dropped, unless
+.chocks/config.yaml defines a different set, in which case use those ids exactly. Guess
+released for something that looks fully built, pre-release for something still missing
+pieces, and idea for something referenced but not started. Skip uid and sort: chocks
+fills those in the first time it runs. For example:
 
 ---
 title: OAuth providers
@@ -90,6 +94,10 @@ Supports GitHub and Google. Needs a token refresh story before this is done.
 Review the result before committing it. An agent can only see what's in the repo, so it
 will get statuses wrong for anything still in your head and miss features that were
 deliberately dropped. That's a starting point to edit, not a finished tree.
+
+If chocks was already running with the UI open while the agent worked, it backfills uids
+for the new files live. If it was running headless with no tab connected, restart it
+before committing: nothing is watching to backfill until something is.
 
 For a big or unfamiliar codebase, narrow the same prompt to one directory or one PR's
 diff at a time rather than asking for the whole tree in one pass.
