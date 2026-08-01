@@ -63,8 +63,7 @@ A new install has no tree. The fastest way to fill one in is pointing a coding a
 the repo and asking it to read the code for you.
 
 ```
-Read this codebase and populate .chocks with a feature tree, following the file format
-and layout described in this repo's README.
+Read this codebase and populate .chocks with a feature tree.
 
 A feature is a capability someone outside the team would recognise, not a file, a
 function or an internal system. One feature per capability, nested only where one
@@ -72,10 +71,20 @@ genuinely makes sense in the context of another. If you're about to write ten si
 files that only make sense to someone reading the source, they're not ten features,
 they're your evidence for one.
 
-For each feature, write a <slug>.feature.md with a title, a status guessed from whether
-it looks unbuilt, half-finished or shipped, tags for cross-cutting concerns such as "api"
-or "billing", and a couple of sentences describing it. Skip uid and sort: chocks fills
-those in the first time it runs.
+A feature is <slug>.feature.md; its children live in a sibling <slug>/ directory. For
+each feature, write a title, a status guessed from whether it looks unbuilt,
+half-finished or shipped, tags for cross-cutting concerns such as "api" or "billing", and
+a couple of sentences describing it in the markdown body. Skip uid and sort: chocks fills
+those in the first time it runs. For example:
+
+---
+title: OAuth providers
+status: in-progress
+tags:
+  - api
+---
+
+Supports GitHub and Google. Needs a token refresh story before this is done.
 ```
 
 Review the result before committing it. An agent can only see what's in the repo, so it
