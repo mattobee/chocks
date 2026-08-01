@@ -170,7 +170,7 @@ function FeaturePage() {
             aria-label="Delete feature"
             onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 className="size-4" />
+            <Trash2 />
           </Button>
         </div>
 
@@ -226,7 +226,7 @@ function FeaturePage() {
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
           <Button variant="outline" size="sm" onClick={() => setChildDialogOpen(true)}>
-            <Plus className="size-4" />
+            <Plus data-icon="inline-start" />
             Add
           </Button>
         </div>
