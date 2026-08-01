@@ -15,6 +15,7 @@ import {
   update,
 } from './store'
 import { buildTree, isValidSortKey } from '../lib/tree'
+import type { Feature } from '../lib/types'
 
 let root: string
 
@@ -32,6 +33,9 @@ async function given(relativePath: string, frontmatter: string, body = ''): Prom
   await mkdir(path.dirname(file), { recursive: true })
   await writeFile(file, `---\n${frontmatter}\n---\n\n${body}\n`, 'utf8')
 }
+
+const idOf = (feature: Feature) => feature.id
+const bySort = (a: Feature, b: Feature) => (a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0)
 
 /** Renders the scanned tree as indented ids, so assertions read like the structure. */
 function shape(features: Awaited<ReturnType<typeof scan>>): string[] {
@@ -386,6 +390,40 @@ describe('backfill', () => {
     const byId = new Map((await scan(root)).map((feature) => [feature.id, feature.sort]))
     expect(byId.get('one')).toBe('a0')
     expect(byId.get('two')! > 'a0').toBe(true)
+  })
+
+  it('keeps the displayed order when an unusable key sorts before a usable one', async () => {
+    // `~<slug>` is not the only key that can fail. A hand-edited one can sort anywhere,
+    // so appending the unusable ones would quietly move this feature down the list.
+    await given('first.feature.md', 'title: First\nsort: "9bad"')
+    await given('second.feature.md', 'title: Second\nsort: a0')
+    expect((await scan(root)).sort(bySort).map(idOf)).toEqual(['first', 'second'])
+
+    await backfill(root)
+
+    const after = (await scan(root)).sort(bySort)
+    expect(after.map(idOf)).toEqual(['first', 'second'])
+    expect(after.every((feature) => isValidSortKey(feature.sort))).toBe(true)
+  })
+
+  it('fills a run of unusable keys in the middle of a group', async () => {
+    // `a10` and `a20` sort between the two good keys but are not valid keys themselves.
+    await given('a.feature.md', 'title: A\nsort: a0')
+    await given('b.feature.md', 'title: B\nsort: a10')
+    await given('c.feature.md', 'title: C\nsort: a20')
+    await given('d.feature.md', 'title: D\nsort: a5')
+    const before = (await scan(root)).sort(bySort).map(idOf)
+    expect(before).toEqual(['a', 'b', 'c', 'd'])
+
+    await backfill(root)
+
+    const after = (await scan(root)).sort(bySort)
+    expect(after.map(idOf)).toEqual(before)
+    expect(after.every((feature) => isValidSortKey(feature.sort))).toBe(true)
+    // The usable keys were left alone, so those files stay out of the diff.
+    const byId = new Map(after.map((feature) => [feature.id, feature.sort]))
+    expect(byId.get('a')).toBe('a0')
+    expect(byId.get('d')).toBe('a5')
   })
 
   it('backfills each sibling group independently', async () => {

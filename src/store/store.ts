@@ -285,24 +285,41 @@ export async function backfill(root: string): Promise<Backfilled> {
 }
 
 /**
- * Real sort keys for the features that only have a placeholder, keyed by id.
+ * Real sort keys for the features whose own key is unusable, keyed by id.
  *
- * Siblings that already carry a usable key keep it, so a backfill leaves their files
- * untouched and out of the diff. A placeholder starts with `~`, which sorts after every
- * character a real key can contain, so the features needing one are always the tail of
- * their sibling group and can be generated as a single run after the last good key.
+ * Records the order the tree already displays in rather than imposing a new one. Siblings
+ * with a usable key keep it, so their files stay out of the diff, and each run of unusable
+ * ones is generated into the gap between the usable keys either side of it.
+ *
+ * Walking runs rather than treating the unusable ones as a single tail matters because
+ * `~<slug>` is not the only key that can fail. A hand-edited `sort: 9bad` is unusable too,
+ * and sorts *before* a real key rather than after it, so appending would silently move it
+ * down the list.
  */
 function plannedSortKeys(features: Feature[]): Map<string, string> {
   const planned = new Map<string, string>()
 
   for (const parent of new Set(features.map((feature) => feature.parent))) {
     const siblings = childrenOf(features, parent)
-    const missing = siblings.filter((feature) => !isValidSortKey(feature.sort))
-    if (missing.length === 0) continue
 
-    const lastUsable = siblings.findLast((feature) => isValidSortKey(feature.sort))
-    const keys = generateNKeysBetween(lastUsable?.sort ?? null, null, missing.length)
-    missing.forEach((feature, index) => planned.set(feature.id, keys[index]!))
+    let index = 0
+    while (index < siblings.length) {
+      if (isValidSortKey(siblings[index]!.sort)) {
+        index++
+        continue
+      }
+
+      let end = index
+      while (end < siblings.length && !isValidSortKey(siblings[end]!.sort)) end++
+
+      // Everything before `index` and from `end` on is usable, so these bound the gap.
+      const previous = index > 0 ? siblings[index - 1]!.sort : null
+      const following = end < siblings.length ? siblings[end]!.sort : null
+      const keys = generateNKeysBetween(previous, following, end - index)
+      keys.forEach((key, offset) => planned.set(siblings[index + offset]!.id, key))
+
+      index = end
+    }
   }
 
   return planned
