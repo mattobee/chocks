@@ -160,7 +160,10 @@ export function FeatureRow({
             would apply Base UI's pointer-events:none to it, leaving nothing clickable. */}
         <SelectTrigger
           aria-label={`Status of ${feature.title}`}
-          className="h-7 w-auto border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
+          // Rounded to follow the badge, which is all this trigger shows. The ring is left
+          // alone: the trigger has no border or background, so suppressing it left the
+          // control with no focus indicator at all.
+          className="h-7 w-auto rounded-full border-0 bg-transparent px-1 shadow-none"
         >
           <StatusBadge statuses={statuses} status={feature.status} />
         </SelectTrigger>
