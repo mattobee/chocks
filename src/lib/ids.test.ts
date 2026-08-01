@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   featureKey,
+  humanise,
   isValidId,
   isValidUid,
   joinId,
@@ -31,6 +32,22 @@ describe('slugify', () => {
 
   it('caps length', () => {
     expect(slugify('x'.repeat(200)).length).toBeLessThanOrEqual(60)
+  })
+})
+
+describe('humanise', () => {
+  it('turns a slug back into a label', () => {
+    expect(humanise('oauth-providers')).toBe('Oauth providers')
+    expect(humanise('pre_release')).toBe('Pre release')
+  })
+
+  it('collapses runs of separators', () => {
+    expect(humanise('sign--in__up')).toBe('Sign in up')
+  })
+
+  it('falls back when a slug humanises to nothing', () => {
+    expect(humanise('---')).toBe('---')
+    expect(humanise('---', '(none)')).toBe('(none)')
   })
 })
 
