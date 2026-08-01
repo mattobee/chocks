@@ -31,7 +31,7 @@ export function UndoProvider({ children }: { children: ReactNode }) {
   const apply = useCallback(
     (
       from: UndoEntry[],
-      setFrom: (next: UndoEntry[]) => void,
+      setFrom: (update: (stack: UndoEntry[]) => UndoEntry[]) => void,
       pushTo: (entry: UndoEntry) => void,
       verb: 'Undid' | 'Redid',
       nothingLeft: string,
@@ -56,16 +56,19 @@ export function UndoProvider({ children }: { children: ReactNode }) {
           }
 
           const opposite = await entry.undo(features)
-          setFrom(from.slice(0, -1))
+          // Remove this entry specifically, rather than whatever is on the end now. An
+          // edit made while the undo was in flight would otherwise be the one dropped.
+          setFrom((stack) => stack.filter((other) => other !== entry))
           pushTo(opposite)
           toast(`${verb}: ${entry.label}`)
         } catch (error) {
           // A refused entry stays on the stack. Dropping it would lose the only record of
           // what the user was trying to get back to.
+          const attempt = verb === 'Undid' ? 'undo' : 'redo'
           const why =
             error instanceof StaleUndoError
-              ? `Can't undo ${entry.label}, ${error.message}`
-              : `Could not undo ${entry.label}. ${describeError(error)}`
+              ? `Can't ${attempt} ${entry.label}, ${error.message}`
+              : `Could not ${attempt} ${entry.label}. ${describeError(error)}`
           toast.error(why)
         } finally {
           running.current = false

@@ -150,7 +150,7 @@ why, usually in the same commit as the code the feature describes.
 `Cmd+Z` undoes the last change, `Cmd+Shift+Z` redoes it, and both work several steps back.
 That is a safety net for the edit you regret a second later, not a history: it lives in the
 tab and goes when you close it, and nothing extra is written to `.chocks`. Undoing a delete
-puts the whole subtree back with the same ids, so links to it keep working. If a feature
+puts the whole subtree back with the same uids, so links to it keep working. If a feature
 has changed on disk since, the undo is refused rather than applied over the top.
 
 ## Development

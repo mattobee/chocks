@@ -59,12 +59,19 @@ export function useFeatureMutations(features: Feature[]) {
   const update = useMutation({
     mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateFeature>[1]) =>
       api.updateFeature(id, patch),
-    onSuccess: (_updated, variables) => {
+    // Captured before the request goes out, not after it returns. The file watcher pushes
+    // a refetch the moment the write lands, so by `onSuccess` the list this hook closed
+    // over can already be the new one, and the entry would record the state we just left
+    // as the state to go back to.
+    onMutate: (variables) => ({ previous: before(variables.id), features }),
+    onSuccess: (_updated, variables, context) => {
       // A bare sort change is a reorder the move mutation already recorded, so recording
       // it again would need two undos to put one drag back.
-      const previous = before(variables.id)
-      if (previous && Object.keys(variables).some((key) => key !== 'id' && key !== 'sort')) {
-        record(updatedEntry(previous, features))
+      const changesMoreThanOrder = Object.keys(variables).some(
+        (key) => key !== 'id' && key !== 'sort',
+      )
+      if (context.previous && changesMoreThanOrder) {
+        record(updatedEntry(context.previous, context.features))
       }
       return invalidate()
     },
@@ -100,9 +107,10 @@ export function useFeatureMutations(features: Feature[]) {
       const siblings = childrenOf(features, newParent).filter((feature) => feature.id !== id)
       return api.moveFeature(id, { newParent, index: indexAfter(siblings, afterId) })
     },
-    onSuccess: (_moved, variables) => {
-      const previous = before(variables.id)
-      if (previous) record(movedEntry(previous, features))
+    // Before the request, for the same reason as update above.
+    onMutate: (variables) => ({ previous: before(variables.id), features }),
+    onSuccess: (_moved, _variables, context) => {
+      if (context.previous) record(movedEntry(context.previous, context.features))
       return invalidate()
     },
     onError: (error) => toast.error(message(error, 'Could not move feature')),

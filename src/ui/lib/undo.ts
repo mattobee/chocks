@@ -1,6 +1,7 @@
+import { toast } from 'sonner'
 import { api } from './api'
 import { childrenOf, indexAfter } from '@/lib/tree'
-import { slugOf } from '@/lib/ids'
+import { joinId, slugOf } from '@/lib/ids'
 import type { Feature } from '@/lib/types'
 
 /**
@@ -15,7 +16,13 @@ import type { Feature } from '@/lib/types'
  * the operations undo has to reverse.
  */
 export interface UndoEntry {
-  /** Shown in the toast: "Undid: renamed OAuth providers". */
+  /**
+   * The action, named once and carried both ways.
+   *
+   * Undoing a create gives back an entry that re-creates it, so both directions describe
+   * the same thing: "Undid: created Auth", then "Redid: created Auth". Naming each entry
+   * after what it does instead would have redo announcing the opposite of what happened.
+   */
   label: string
   /** Uids this entry expects to still be there, checked before it is applied. */
   touches: string[]
@@ -65,8 +72,9 @@ function snapshot(features: Feature[], feature: Feature): Snapshot {
  * subtree with it, and quietly discarding someone's later work is worse than refusing.
  */
 export function createdEntry(created: Feature): UndoEntry {
+  const label = `created ${created.title}`
   return {
-    label: `created ${created.title}`,
+    label,
     touches: [created.uid],
     undo: async (features) => {
       const current = byUid(features, created.uid)
@@ -74,7 +82,30 @@ export function createdEntry(created: Feature): UndoEntry {
         throw new StaleUndoError('it has sub-features now, so undoing would delete them')
       }
       await api.deleteFeature(current.id)
-      return deletedEntry([snapshot(features, current)])
+      return deletedEntry([snapshot(features, current)], label)
+    },
+  }
+}
+
+/**
+ * Deletes a feature and everything under it, then offers to put it back.
+ *
+ * This is what redoing a restore does. It cannot go through `createdEntry`, which refuses
+ * to delete anything with children on the grounds that it would take work nobody asked it
+ * to take. Here the children are the very things that were just restored, so removing
+ * them again is the whole point.
+ */
+function deleteAgainEntry(uid: string, label: string): UndoEntry {
+  return {
+    label,
+    touches: [uid],
+    undo: async (features) => {
+      const current = byUid(features, uid)
+      // Snapshot afresh rather than reusing the old one: the subtree may have been edited
+      // since it came back.
+      const captured = subtreeSnapshot(features, current)
+      await api.deleteFeature(current.id)
+      return deletedEntry(captured, label)
     },
   }
 }
@@ -137,10 +168,10 @@ export function movedEntry(before: Feature, features: Feature[]): UndoEntry {
  * original uid, which is the whole reason `create` accepts one: without it every link to
  * a restored feature would point at nothing.
  */
-export function deletedEntry(subtree: Snapshot[]): UndoEntry {
+export function deletedEntry(subtree: Snapshot[], name?: string): UndoEntry {
   const root = subtree[0]
   return {
-    label: root ? `deleted ${root.title}` : 'deleted a feature',
+    label: name ?? (root ? `deleted ${root.title}` : 'deleted a feature'),
     // The features are gone, so there is nothing to check for. The parent is checked as
     // the restore walks, and a missing one fails the entry before anything is written.
     touches: [],
@@ -163,7 +194,15 @@ export function deletedEntry(subtree: Snapshot[]): UndoEntry {
         live = [...live, feature]
       }
       const first = restored[0]
-      return first ? createdEntry(first) : deletedEntry(subtree)
+      if (!first) return deletedEntry(subtree, name)
+
+      // Redoing takes the subtree away again, children and all.
+      const renamed =
+        first.id !== joinId(parentIdOf(features, subtree[0]!.parentUid), subtree[0]!.slug)
+      if (renamed) {
+        toast(`Restored as ${first.id}, because something else had taken its place`)
+      }
+      return deleteAgainEntry(first.uid, name ?? `deleted ${first.title}`)
     },
   }
 }

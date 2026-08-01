@@ -182,6 +182,35 @@ describe('undoing a delete', () => {
     expect(createFeature.mock.calls[2]?.[0].parent).toBe('auth/oauth')
   })
 
+  it('can be redone, taking the restored subtree away again', async () => {
+    // createdEntry refuses to delete anything with children, so routing redo through it
+    // meant redo failed for every subtree that had any.
+    const features = tree()
+    const captured = subtreeSnapshot(features, find(features, 'auth'))
+    createFeature.mockImplementation((input: { uid: string; title: string; parent: string }) =>
+      Promise.resolve(makeFeature({ id: 'auth', uid: input.uid, title: input.title })),
+    )
+
+    const redo = await deletedEntry(captured).undo([])
+    await redo.undo(features)
+
+    expect(deleteFeature).toHaveBeenCalledWith('auth')
+  })
+
+  it('names the action the same way in both directions', async () => {
+    const features = tree()
+    const created = find(features, 'billing')
+    const entry = createdEntry(created)
+    expect(entry.label).toBe('created Billing')
+
+    createFeature.mockResolvedValue(created)
+    const redo = await entry.undo(features)
+
+    // Not "deleted Billing": redoing re-creates it, so the toast must not say the opposite
+    // of what just happened.
+    expect(redo.label).toBe('created Billing')
+  })
+
   it('carries the sort key, so the subtree comes back in its old order', async () => {
     const features = tree()
     const captured = subtreeSnapshot(features, find(features, 'billing'))
