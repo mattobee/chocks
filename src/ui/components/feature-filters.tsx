@@ -42,7 +42,9 @@ export function FeatureFilters({
     })
   }
 
-  const active = filters.query !== '' || filters.statuses.length > 0 || filters.tags.length > 0
+  // Deliberately not `isFiltering`, which trims the query: a box holding nothing but
+  // spaces narrows nothing, but there is still something in it worth offering to clear.
+  const hasInput = filters.query !== '' || filters.statuses.length > 0 || filters.tags.length > 0
 
   return (
     <div className="flex flex-col gap-3">
@@ -58,7 +60,7 @@ export function FeatureFilters({
             onChange={(event) => onChange({ ...filters, query: event.target.value })}
           />
         </div>
-        {active && (
+        {hasInput && (
           <Button
             variant="ghost"
             size="sm"
