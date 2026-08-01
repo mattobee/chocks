@@ -24,7 +24,7 @@ import { Separator } from '@/ui/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
-import { allTags, ancestorsOf, findByKey, siblingsOf } from '@/lib/tree'
+import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES } from '@/lib/status'
 import { featureKey, FEATURE_SUFFIX } from '@/lib/ids'
@@ -96,7 +96,7 @@ function FeaturePage() {
   }
 
   const ancestors = ancestorsOf(featureList, featureId)
-  const children = siblingsOf(featureList, featureId)
+  const children = childrenOf(featureList, featureId)
   const tags = allTags(featureList)
 
   function commitTitle() {

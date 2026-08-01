@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
-import { siblingsOf, sortKeyForIndex } from '../lib/tree'
+import { childrenOf, sortKeyForIndex } from '../lib/tree'
 import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
 import type { Feature } from '../lib/types'
 
@@ -165,7 +165,7 @@ export async function create(root: string, input: CreateInput): Promise<Feature>
   }
 
   const existing = await scan(root)
-  const siblings = siblingsOf(existing, input.parent)
+  const siblings = childrenOf(existing, input.parent)
   const taken = new Set(siblings.map((feature) => slugOf(feature.id)))
 
   const feature: Feature = {
@@ -222,7 +222,7 @@ export async function update(root: string, id: string, patch: UpdateInput): Prom
     if (desired !== slugOf(id)) {
       const all = await scan(root)
       const taken = new Set(
-        siblingsOf(all, current.parent)
+        childrenOf(all, current.parent)
           .filter((feature) => feature.id !== id)
           .map((feature) => slugOf(feature.id)),
       )
@@ -327,7 +327,7 @@ export async function move(root: string, id: string, input: MoveInput): Promise<
   await read(root, id)
   const all = await scan(root)
 
-  const destinationSiblings = siblingsOf(all, newParent).filter((feature) => feature.id !== id)
+  const destinationSiblings = childrenOf(all, newParent).filter((feature) => feature.id !== id)
   const taken = new Set(destinationSiblings.map((feature) => slugOf(feature.id)))
 
   const newId = joinId(newParent, uniqueSlug(slugOf(id), taken))

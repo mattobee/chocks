@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api, ApiError, subscribeToChanges } from '../lib/api'
 import { queryKeys } from '../lib/queries'
-import { indexAfter, siblingsOf } from '../../lib/tree'
+import { childrenOf, indexAfter } from '../../lib/tree'
 import type { Feature } from '../../lib/types'
 
 function message(error: unknown, fallback: string): string {
@@ -70,7 +70,7 @@ export function useFeatureMutations(features: Feature[]) {
       newParent: string
       afterId: string | null
     }) => {
-      const siblings = siblingsOf(features, newParent).filter((feature) => feature.id !== id)
+      const siblings = childrenOf(features, newParent).filter((feature) => feature.id !== id)
       return api.moveFeature(id, { newParent, index: indexAfter(siblings, afterId) })
     },
     onSuccess: invalidate,
