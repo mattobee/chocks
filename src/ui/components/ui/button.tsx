@@ -16,8 +16,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         // Diverges from the registry only in the text colour. Its text-destructive on this
-        // tint is 3.98:1, under WCAG AA. Dark already passes, so the token matches
-        // --destructive there and the tints are left alone.
+        // tint is 3.98:1 in light and 4.24:1 in dark, both under WCAG AA. Measure any change
+        // inside a dialog as well as on the page: the popup background is lighter, so the
+        // same tint composites paler there and dark mode fails on it while the page passes.
         destructive:
           "bg-destructive/10 text-destructive-on-tint hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",

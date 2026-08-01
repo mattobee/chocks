@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -6,6 +7,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
 } from '@/ui/components/ui/alert-dialog'
 import { subtreeIds } from '@/lib/tree'
@@ -36,6 +38,9 @@ export function DeleteFeatureDialog({
     <AlertDialog open={feature !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
+          <AlertDialogMedia className="bg-destructive/10 text-destructive-on-tint dark:bg-destructive/20">
+            <Trash2 aria-hidden="true" />
+          </AlertDialogMedia>
           <AlertDialogTitle>Delete “{feature?.title}”?</AlertDialogTitle>
           <AlertDialogDescription>
             {descendantCount > 0
@@ -46,6 +51,7 @@ export function DeleteFeatureDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
+            variant="destructive"
             onClick={() => {
               if (!feature) return
               // Base UI's AlertDialogAction does not dismiss the dialog itself.

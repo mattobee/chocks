@@ -110,8 +110,10 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  /* Dark already clears AA on the same tint, so this is only darkened in light mode. */
-  --destructive-on-tint: var(--destructive);
+  /* Lighter here for the same reason. --destructive on this tint is 4.24:1 once the tint
+     sits on a dialog rather than the page, which is lighter than the page background.
+     4.95:1 in a dialog, 6.50:1 on the page. */
+  --destructive-on-tint: oklch(0.78 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
