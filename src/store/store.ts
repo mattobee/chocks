@@ -136,8 +136,8 @@ export async function scanWithIgnored(
 /**
  * `desired`, or `desired-2`, `desired-3`… until nothing under the same parent claims it.
  *
- * A slug is a filename, so two features sharing one under the same parent would resolve to
- * the same path and the second write would silently overwrite the first.
+ * Slugs are filenames, so two siblings with the same slug resolve to the same path and the
+ * second write silently overwrites the first.
  */
 function uniqueSlug(desired: string, taken: ReadonlySet<string>): string {
   if (!taken.has(desired)) return desired
