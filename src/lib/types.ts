@@ -3,9 +3,10 @@ import type { StatusDefinition } from './status'
 /**
  * A single feature — one markdown file on disk.
  *
- * There is deliberately no stored `parent`: `id` is the file's path relative to the chocks
- * directory (`auth/oauth/github`), so the parent is just its dirname. The hierarchy cannot
- * disagree with the filesystem, and a cycle is unrepresentable.
+ * Nothing here records the hierarchy: `id` is the file's path relative to the chocks
+ * directory (`auth/oauth/github`), and `parent` below is derived from it rather than
+ * stored. That is why the tree can never disagree with the filesystem, and why a cycle is
+ * unrepresentable.
  */
 export interface Feature {
   /** Path-derived identity, e.g. `auth/oauth/github`. Changes when moved or retitled. */
