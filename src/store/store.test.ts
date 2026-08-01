@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  backfill,
   create,
-  ensureUids,
   move,
   read,
   remove,
@@ -14,7 +14,7 @@ import {
   StoreError,
   update,
 } from './store'
-import { buildTree } from '../lib/tree'
+import { buildTree, isValidSortKey } from '../lib/tree'
 
 let root: string
 
@@ -324,23 +324,23 @@ describe('round trip', () => {
   })
 })
 
-describe('uid backfill', () => {
+describe('backfill', () => {
   it('gives hand-written files a permanent uid', async () => {
     await given('legacy.feature.md', 'title: Legacy\nstatus: released\nsort: a0')
     expect((await scan(root))[0]?.uid).toBe('')
 
-    expect(await ensureUids(root)).toBe(1)
+    expect((await backfill(root)).uids).toBe(1)
     const uid = (await scan(root))[0]?.uid
     expect(uid).toMatch(/^[a-f][0-9a-f]{9}$/)
 
     // Idempotent, and the uid must not change on a second run.
-    expect(await ensureUids(root)).toBe(0)
+    expect((await backfill(root)).uids).toBe(0)
     expect((await scan(root))[0]?.uid).toBe(uid)
   })
 
   it('writes the uid unquoted, so it stays a string', async () => {
     await given('legacy.feature.md', 'title: Legacy\nsort: a0')
-    await ensureUids(root)
+    await backfill(root)
     const text = await readFile(path.join(root, 'legacy.feature.md'), 'utf8')
     expect(text).toMatch(/\nuid: [a-f][0-9a-f]{9}\n/)
     expect(text).not.toContain('uid: "')
@@ -352,7 +352,7 @@ describe('uid backfill', () => {
       'title: Legacy\nstatus: released\ntags: [api]\nsort: a3',
       'Body text.',
     )
-    await ensureUids(root)
+    await backfill(root)
     const feature = (await scan(root))[0]!
     expect(feature).toMatchObject({
       title: 'Legacy',
@@ -361,6 +361,66 @@ describe('uid backfill', () => {
       sort: 'a3',
       description: 'Body text.',
     })
+  })
+
+  it('gives files with no sort key a real one', async () => {
+    // An agent seeding the tree writes title, status and description, not a sort key.
+    await given('audits.feature.md', 'title: Audits')
+    await given('billing.feature.md', 'title: Billing')
+    expect((await scan(root)).map((feature) => feature.sort)).toEqual(['~audits', '~billing'])
+
+    expect((await backfill(root)).sortKeys).toBe(2)
+
+    const sorts = (await scan(root)).map((feature) => feature.sort)
+    expect(sorts.every(isValidSortKey)).toBe(true)
+    // The order they already displayed in is the order they keep.
+    expect(sorts[0]! < sorts[1]!).toBe(true)
+  })
+
+  it('keeps the sort keys that are already usable', async () => {
+    await given('one.feature.md', 'title: One\nsort: a0')
+    await given('two.feature.md', 'title: Two')
+
+    expect((await backfill(root)).sortKeys).toBe(1)
+
+    const byId = new Map((await scan(root)).map((feature) => [feature.id, feature.sort]))
+    expect(byId.get('one')).toBe('a0')
+    expect(byId.get('two')! > 'a0').toBe(true)
+  })
+
+  it('backfills each sibling group independently', async () => {
+    await given('parent.feature.md', 'title: Parent\nsort: a0')
+    await given('parent/child.feature.md', 'title: Child')
+
+    await backfill(root)
+
+    const child = (await scan(root)).find((feature) => feature.id === 'parent/child')!
+    expect(isValidSortKey(child.sort)).toBe(true)
+  })
+})
+
+describe('reordering a tree that was seeded without sort keys', () => {
+  // The bug this covers: `scan` stands in `~<slug>` for a missing sort key, which is not a
+  // fractional index, so generating a key next to it threw and every drag returned a 500.
+  it('moves a feature after the keys have been backfilled', async () => {
+    await given('audits.feature.md', 'title: Audits')
+    await given('billing.feature.md', 'title: Billing')
+    await backfill(root)
+
+    const moved = await move(root, 'billing', { newParent: '', index: 0 })
+
+    expect(isValidSortKey(moved.sort)).toBe(true)
+    expect((await scan(root)).sort((a, b) => (a.sort < b.sort ? -1 : 1))[0]?.id).toBe('billing')
+  })
+
+  it('moves a feature even without a backfill first', async () => {
+    // A file can land while chocks is running, so the move path must not depend on it.
+    await given('audits.feature.md', 'title: Audits')
+    await given('billing.feature.md', 'title: Billing')
+
+    const moved = await move(root, 'billing', { newParent: '', index: 0 })
+
+    expect(isValidSortKey(moved.sort)).toBe(true)
   })
 })
 

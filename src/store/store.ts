@@ -3,7 +3,8 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
-import { childrenOf, sortKeyForIndex } from '../lib/tree'
+import { generateNKeysBetween } from 'fractional-indexing'
+import { childrenOf, isValidSortKey, sortKeyForIndex } from '../lib/tree'
 import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
 import type { Feature } from '../lib/types'
 
@@ -249,24 +250,62 @@ async function relocate(root: string, fromId: string, toId: string): Promise<voi
   }
 }
 
+export interface Backfilled {
+  /** Features given a permanent uid. */
+  uids: number
+  /** Features given a real sort key in place of the scanned placeholder. */
+  sortKeys: number
+}
+
 /**
- * Gives every feature that lacks a uid a permanent one.
+ * Fills in what a hand-written or agent-written file leaves out.
  *
- * Runs once at startup rather than during `scan`, so reads stay free of side effects.
- * Files created by hand, or predating uids, are backfilled with a one-line change.
+ * Runs at startup and whenever files change on disk, rather than during `scan`, so reads
+ * stay free of side effects.
+ *
+ * A missing uid costs you a stable URL. A missing sort key is worse: `scan` stands in
+ * `~<slug>`, which orders sensibly but is not a fractional index, so the first attempt to
+ * reorder anything alongside it fails.
  */
-export async function ensureUids(root: string): Promise<number> {
+export async function backfill(root: string): Promise<Backfilled> {
   const features = await scan(root)
-  let written = 0
+  const sortKeys = plannedSortKeys(features)
+
+  const counts: Backfilled = { uids: 0, sortKeys: 0 }
   for (const feature of features) {
-    if (feature.uid !== '') continue
-    await writeAtomic(
-      fileFor(root, feature.id),
-      serializeFeatureFile({ ...feature, uid: generateUid() }),
-    )
-    written++
+    const uid = feature.uid || generateUid()
+    const sort = sortKeys.get(feature.id) ?? feature.sort
+    if (uid === feature.uid && sort === feature.sort) continue
+
+    await writeAtomic(fileFor(root, feature.id), serializeFeatureFile({ ...feature, uid, sort }))
+    if (uid !== feature.uid) counts.uids++
+    if (sort !== feature.sort) counts.sortKeys++
   }
-  return written
+  return counts
+}
+
+/**
+ * Real sort keys for the features that only have a placeholder, keyed by id.
+ *
+ * Siblings that already carry a usable key keep it, so a backfill leaves their files
+ * untouched and out of the diff. A placeholder starts with `~`, which sorts after every
+ * character a real key can contain, so the features needing one are always the tail of
+ * their sibling group and can be generated as a single run after the last good key.
+ */
+function plannedSortKeys(features: Feature[]): Map<string, string> {
+  const planned = new Map<string, string>()
+
+  for (const parent of new Set(features.map((feature) => feature.parent))) {
+    const siblings = childrenOf(features, parent)
+    const missing = siblings.filter((feature) => !isValidSortKey(feature.sort))
+    if (missing.length === 0) continue
+
+    const lastUsable = siblings.findLast((feature) => isValidSortKey(feature.sort))
+    const keys = generateNKeysBetween(lastUsable?.sort ?? null, null, missing.length)
+    missing.forEach((feature, index) => planned.set(feature.id, keys[index]!))
+  }
+
+  return planned
 }
 
 export async function read(root: string, id: string): Promise<Feature> {

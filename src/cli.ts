@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process'
 import { serve } from '@hono/node-server'
 import { createApp } from './server/app'
 import { FEATURE_SUFFIX } from './lib/ids'
-import { ensureUids, scanWithIgnored } from './store/store'
+import { backfill, scanWithIgnored } from './store/store'
 
 const HELP = `
 chocks — track planned and existing features as a tree, in your repo
@@ -106,9 +106,9 @@ async function main(): Promise<void> {
   const created = !existsSync(root)
   if (created) await mkdir(root, { recursive: true })
 
-  // Hand-written files, and anything predating uids, get a permanent one now. Done at
-  // startup rather than during a read so that GETs stay free of side effects.
-  const backfilled = await ensureUids(root)
+  // Hand-written files get their uid and sort key now. Done at startup rather than during
+  // a read so that GETs stay free of side effects.
+  const backfilled = await backfill(root)
 
   // A file named `auth.md` instead of `auth.feature.md` would otherwise just not appear,
   // with nothing to explain why.
@@ -128,8 +128,11 @@ async function main(): Promise<void> {
     console.log(
       `  features  ${path.relative(process.cwd(), root) || root}${created ? '  (created)' : ''}`,
     )
-    if (backfilled > 0) {
-      console.log(`  backfilled a stable id into ${backfilled} feature file(s)`)
+    if (backfilled.uids > 0) {
+      console.log(`  backfilled a stable id into ${backfilled.uids} feature file(s)`)
+    }
+    if (backfilled.sortKeys > 0) {
+      console.log(`  backfilled a sort key into ${backfilled.sortKeys} feature file(s)`)
     }
     if (ignored.length > 0) {
       const names = ignored.map((file) => path.relative(root, file))

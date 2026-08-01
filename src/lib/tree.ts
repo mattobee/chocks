@@ -311,16 +311,39 @@ export function sortKeyBetween(prev: string | null, next: string | null): string
 }
 
 /**
+ * True when `key` can be used as a neighbour when generating a new key.
+ *
+ * Asks the generator rather than matching the alphabet here, so there is one definition of
+ * a valid key. A file written without a `sort` is scanned as `~<slug>`, which orders fine
+ * but is not a fractional index.
+ */
+export function isValidSortKey(key: string): boolean {
+  try {
+    generateKeyBetween(key, null)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Sort key placing a feature at `index` within `siblings` (already in display order).
  *
  * `siblings` must exclude the feature being moved, otherwise it would be compared
  * against its own current key and could produce a no-op move.
+ *
+ * An unusable neighbour is treated as absent rather than thrown on. `backfill` replaces
+ * placeholder keys at startup, so this only catches a file hand-edited since, where
+ * landing next to the wrong sibling beats failing the whole move.
  */
 export function sortKeyForIndex(siblings: Feature[], index: number): string {
   const clamped = Math.max(0, Math.min(index, siblings.length))
-  const prev = clamped > 0 ? (siblings[clamped - 1]?.sort ?? null) : null
-  const next = clamped < siblings.length ? (siblings[clamped]?.sort ?? null) : null
-  return sortKeyBetween(prev, next)
+  const previous = clamped > 0 ? siblings[clamped - 1]?.sort : undefined
+  const following = clamped < siblings.length ? siblings[clamped]?.sort : undefined
+  return sortKeyBetween(
+    previous && isValidSortKey(previous) ? previous : null,
+    following && isValidSortKey(following) ? following : null,
+  )
 }
 
 /**
