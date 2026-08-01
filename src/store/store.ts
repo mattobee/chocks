@@ -8,6 +8,15 @@ import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib
 import type { Feature } from '../lib/types'
 
 /**
+ * Reads and writes the `.chocks` directory.
+ *
+ * The layout is `<slug>.feature.md` for a feature and a sibling `<slug>/` directory for its
+ * children, so gaining children never moves the parent's own file. A feature's id is its
+ * path without the extension, which makes the filesystem the single source of truth for
+ * the hierarchy.
+ */
+
+/**
  * Ten hex characters, always starting with a letter.
  *
  * The leading letter is not cosmetic: an all-digit uid is a YAML number, so it would be
@@ -19,15 +28,7 @@ export function generateUid(): string {
   return `${first}${randomBytes(5).toString('hex').slice(1)}`
 }
 
-/**
- * Reads and writes the `.chocks` directory.
- *
- * The layout is `<slug>.md` for a feature and a sibling `<slug>/` directory for its
- * children, so gaining children never moves the parent's own file. A feature's id is its
- * path without the extension, which makes the filesystem the single source of truth for
- * the hierarchy.
- */
-
+/** Thrown for anything the server should answer with a 4xx rather than a 500. */
 export class StoreError extends Error {
   /** HTTP status the server should map this to. */
   readonly status: number
