@@ -9,6 +9,7 @@ import {
   useSensors,
   type DragEndEvent,
   type DragMoveEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
 import {
@@ -50,6 +51,7 @@ export function FeatureTree({
   onMove,
 }: FeatureTreeProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
   const [offsetX, setOffsetX] = useState(0)
 
   const sensors = useSensors(
@@ -65,18 +67,31 @@ export function FeatureTree({
     [rows, activeId],
   )
 
+  // The hovered row picks the slot, horizontal travel picks the depth. Falling back to the
+  // dragged row keeps the projection sane before the first hover event arrives.
   const projection = useMemo(() => {
     if (!activeId) return null
-    const overIndex = visibleRows.findIndex((row) => row.feature.id === activeId)
+    const overIndex = visibleRows.findIndex((row) => row.feature.id === (overId ?? activeId))
     if (overIndex === -1) return null
     return projectDrop(visibleRows, activeId, overIndex, Math.round(offsetX / INDENT_WIDTH))
-  }, [activeId, visibleRows, offsetX])
+  }, [activeId, overId, visibleRows, offsetX])
 
   const activeFeature = rows.find((row) => row.feature.id === activeId)?.feature
 
+  function reset() {
+    setActiveId(null)
+    setOverId(null)
+    setOffsetX(0)
+  }
+
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id))
+    setOverId(null)
     setOffsetX(0)
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    setOverId(event.over ? String(event.over.id) : null)
   }
 
   function handleDragMove(event: DragMoveEvent) {
@@ -85,20 +100,10 @@ export function FeatureTree({
 
   function handleDragEnd(event: DragEndEvent) {
     const draggedId = String(event.active.id)
-    const overId = event.over ? String(event.over.id) : null
-    setActiveId(null)
-    setOffsetX(0)
-    if (!overId) return
-
-    const overIndex = visibleRows.findIndex((row) => row.feature.id === overId)
-    if (overIndex === -1) return
-
-    const result = projectDrop(
-      visibleRows,
-      draggedId,
-      overIndex,
-      Math.round(event.delta.x / INDENT_WIDTH),
-    )
+    // Commit the projection the row was previewing rather than recomputing one, so the
+    // drop cannot land at a different depth from the one shown.
+    const result = event.over ? projection : null
+    reset()
     if (result) onMove(draggedId, result)
   }
 
@@ -107,12 +112,10 @@ export function FeatureTree({
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => {
-        setActiveId(null)
-        setOffsetX(0)
-      }}
+      onDragCancel={reset}
     >
       <SortableContext
         items={visibleRows.map((row) => row.feature.id)}
