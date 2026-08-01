@@ -37,6 +37,27 @@ export interface ChocksConfig {
   statuses: StatusDefinition[]
 }
 
+/** One commit touching a feature's file. */
+export interface Commit {
+  sha: string
+  shortSha: string
+  author: string
+  /** ISO 8601. */
+  date: string
+  subject: string
+}
+
+export type HistoryUnavailable = 'not-a-repo' | 'git-missing' | 'failed'
+
+/** What `/api/history/:id` returns — chocks has no revision model beyond the repo. */
+export interface FeatureHistory {
+  commits: Commit[]
+  /** Set when history could not be read at all; `commits` is then empty. */
+  unavailable?: HistoryUnavailable
+  /** True when the file has changes that are not committed yet. */
+  uncommitted: boolean
+}
+
 /** Describes the checkout the server is pointed at. */
 export interface Workspace {
   /** Absolute path of the chocks directory being served. */

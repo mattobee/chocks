@@ -1,18 +1,4 @@
-import type { Feature, Workspace } from '../../lib/types'
-
-export interface Commit {
-  sha: string
-  shortSha: string
-  author: string
-  date: string
-  subject: string
-}
-
-export interface FeatureHistory {
-  commits: Commit[]
-  unavailable?: 'not-a-repo' | 'git-missing' | 'failed'
-  uncommitted: boolean
-}
+import type { Feature, FeatureHistory, Workspace } from '../../lib/types'
 
 /**
  * Client for the local chocks server.
