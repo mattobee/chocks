@@ -8,27 +8,18 @@ import { FeatureFilters } from '@/ui/components/feature-filters'
 import { FeatureTree } from '@/ui/components/feature-tree'
 import { Button } from '@/ui/components/ui/button'
 import { Skeleton } from '@/ui/components/ui/skeleton'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/ui/components/ui/alert-dialog'
+import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useExpanded } from '@/ui/hooks/use-expanded'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import {
+  allTags,
   buildTree,
   collectExpandableIds,
   filterTree,
   flattenVisible,
   isFiltering,
   ROOT_PARENT,
-  subtreeIds,
   type DropProjection,
   type TreeFilters,
 } from '@/lib/tree'
@@ -74,11 +65,7 @@ function TreePage() {
     [search.q, search.status, search.tag],
   )
 
-  // Tags are free-form strings in frontmatter, so the available set is whatever is in use.
-  const allTags = useMemo(
-    () => [...new Set(featureList.flatMap((feature) => feature.tags))].sort(),
-    [featureList],
-  )
+  const tags = useMemo(() => allTags(featureList), [featureList])
 
   const tree = useMemo(() => buildTree(featureList), [featureList])
   const filtered = useMemo(() => filterTree(tree, filters), [tree, filters])
@@ -126,8 +113,6 @@ function TreePage() {
     move.mutate({ id, newParent: projection.parentId, afterId: projection.afterId })
   }
 
-  const descendantCount = pendingDelete ? subtreeIds(featureList, pendingDelete.id).length - 1 : 0
-
   return (
     <AppShell>
       <>
@@ -143,7 +128,7 @@ function TreePage() {
           <FeatureFilters
             filters={filters}
             statuses={statuses}
-            tags={allTags}
+            tags={tags}
             matchCount={filtering ? filtered.matchedIds.size : null}
             onChange={applyFilters}
           />
@@ -195,38 +180,18 @@ function TreePage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         feature={editing}
-        availableTags={allTags}
+        availableTags={tags}
         statuses={statuses}
         busy={create.isPending || update.isPending}
         onSubmit={handleSubmit}
       />
 
-      <AlertDialog
-        open={pendingDelete !== null}
+      <DeleteFeatureDialog
+        feature={pendingDelete}
+        features={featureList}
         onOpenChange={(open) => !open && setPendingDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{pendingDelete?.title}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {descendantCount > 0
-                ? `This deletes the file and ${descendantCount} nested ${descendantCount === 1 ? 'feature' : 'features'}. Recoverable with git if it is committed.`
-                : 'This deletes the file. Recoverable with git if it is committed.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingDelete) remove.mutate(pendingDelete.id)
-                setPendingDelete(null)
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={(feature) => remove.mutate(feature.id)}
+      />
     </AppShell>
   )
 }
