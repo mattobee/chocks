@@ -364,9 +364,13 @@ export function FeaturePage() {
                   }}
                   className="font-mono text-sm"
                 />
+                {/* Not the default xs. That is sized for a button tucked inside a one-line
+                    field; this is a footer bar with room, and 24px is small for a target. */}
                 <InputGroupAddon align="block-end" className="justify-end">
-                  <InputGroupButton onClick={cancelDescription}>Cancel</InputGroupButton>
-                  <InputGroupButton variant="default" onClick={commitDescription}>
+                  <InputGroupButton size="sm" onClick={cancelDescription}>
+                    Cancel
+                  </InputGroupButton>
+                  <InputGroupButton size="sm" variant="default" onClick={commitDescription}>
                     Save
                   </InputGroupButton>
                 </InputGroupAddon>
