@@ -11,14 +11,8 @@ pnpm add -D @mattobee/chocks
 pnpm chocks
 ```
 
-The package is private, published to GitHub Packages. To install it you need read
-access to this repo and a personal access token with the `read:packages` scope, then
-two lines in the consuming repo's `.npmrc`:
-
-```
-@mattobee:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
+Published to npm. The source lives in a private repo, but the package itself is public,
+so installing it needs no registry config and no token.
 
 ## Why files
 
