@@ -66,3 +66,17 @@ technical detail only where a reviewer would otherwise be confused.
 
 `README.md` documents user-facing behaviour (file format, statuses, CLI flags). If a
 change alters any of that, update the README in the same PR, not as a follow-up.
+
+## Releases
+
+`CHANGELOG.md` is written by hand, in the release commit rather than per PR. Most changes
+here are internal and shouldn't appear in it at all, so deciding what a user would notice
+is a judgement call made once, with the whole release in view. Don't paper over the
+omissions with a line like "general improvements". Each entry ends with a compare link to
+the previous tag, which shows everything precisely for anyone who wants it.
+
+To release: bump the version in `package.json`, add the matching `## <version>` section to
+the changelog, commit both, then push a `v<version>` tag. The tag triggers the release
+workflow, which reruns everything, refuses to publish if the tag, `package.json` and the
+changelog disagree, publishes to npm, and opens a GitHub release using that changelog
+section as the notes.

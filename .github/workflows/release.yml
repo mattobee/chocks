@@ -8,7 +8,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # Write, because this job opens a GitHub release once npm has accepted the publish.
+      contents: write
 
     steps:
       - uses: actions/checkout@v7
@@ -42,7 +43,29 @@ jobs:
             exit 1
           fi
 
+      # A release with no changelog entry is a release nobody can read, so treat a missing
+      # section as a failure rather than publishing with empty notes.
+      - name: Take the release notes from the changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## $version" '
+            $0 == heading { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md has no '## $version' section" >&2
+            exit 1
+          fi
+
       - name: Publish
         run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # After publishing, so a failed publish doesn't leave a release pointing at a version
+      # that isn't on npm.
+      - name: Open the GitHub release
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
