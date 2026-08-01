@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 
-// Builds only the UI. The CLI and server are bundled separately by tsdown.
+// Builds only the UI. The server and its entry point are bundled separately by tsdown.
 export default defineConfig({
   plugins: [
     tanstackRouter({

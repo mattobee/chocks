@@ -27,7 +27,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true
   },
-  /* CLI, server and store, plus the build config files. */
+  /* Entry point, server and store, plus the build config files. */
   "include": [
     "src/cli.ts",
     "src/server",

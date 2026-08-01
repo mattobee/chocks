@@ -10,8 +10,11 @@ export default defineConfig({
   outDir: 'dist',
   clean: false,
   dts: false,
+  // Everything is bundled, so the published package has no dependencies at all. A CLI
+  // gains nothing from resolving its own tree in someone else's repo, and it costs them:
+  // pnpm's release-age guard fires on any transitive dependency published in the last day.
   deps: {
-    // Resolve these from node_modules at runtime rather than inlining them.
-    neverBundle: ['hono', '@hono/node-server', 'chokidar', 'yaml'],
+    // A wildcard rather than a list that rots as dependencies change.
+    onlyBundle: ['*', '@*/*'],
   },
 })
