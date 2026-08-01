@@ -194,6 +194,27 @@ describe('features API', () => {
   })
 })
 
+describe('error responses', () => {
+  it('names the problem rather than saying "Internal error"', async () => {
+    // What made the sort-key bug slow to find: the UI said "Internal error" while the
+    // sentence naming the problem only ever reached the server's terminal.
+    const failing = createApp({ root, name: 'test-repo' })
+    failing.get('/api/boom', () => {
+      throw new Error('the disk caught fire')
+    })
+
+    const response = await failing.request('/api/boom')
+    expect(response.status).toBe(500)
+    expect(((await response.json()) as { message: string }).message).toBe('the disk caught fire')
+  })
+
+  it('still maps a store error to its own status and message', async () => {
+    const response = await app.request('/api/features/ghost')
+    expect(response.status).toBe(404)
+    expect(((await response.json()) as { message: string }).message).toContain('No such feature')
+  })
+})
+
 describe('path traversal', () => {
   // The id becomes a filesystem path, so these are the requests that matter.
   it('refuses a traversing read', async () => {

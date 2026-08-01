@@ -8,6 +8,7 @@ import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
 import { featureHistory } from './git'
 import { FEATURE_SUFFIX, isValidId } from '../lib/ids'
+import { describeError } from '../lib/errors'
 
 export interface ServerOptions {
   /** Absolute path of the chocks directory holding the feature files. */
@@ -52,8 +53,11 @@ export function createApp(options: ServerOptions) {
     if (error instanceof StoreError) {
       return c.json({ message: error.message }, error.status as 400 | 404)
     }
-    console.error(error)
-    return c.json({ message: 'Internal error' }, 500)
+    console.error('chocks: request failed', error)
+    // Hand the real message back rather than "Internal error". chocks binds to localhost
+    // and has no accounts, so there is no one to keep it from, and the difference is
+    // between a bug report that names the problem and one that says it broke.
+    return c.json({ message: describeError(error) }, 500)
   })
 
   app.get('/api/workspace', async (c) => {
@@ -149,7 +153,14 @@ export function createApp(options: ServerOptions) {
         // do it here too, before telling the client to refetch, rather than leaving them
         // unlinkable and unsortable until the next restart.
         const stopWatching = watchFeatures(root, () => {
-          void backfill(root).finally(() => send('changed'))
+          // Catch before finally, not after. A rejection here has no other handler, so an
+          // unwritable file would take the whole server down rather than costing one
+          // backfill. Tell the client to refetch either way: the files still changed.
+          void backfill(root)
+            .catch((error: unknown) => {
+              console.error('chocks: could not backfill after a change on disk', error)
+            })
+            .finally(() => send('changed'))
         })
         // A commit does not touch the feature files, so git activity is its own signal.
         const stopWatchingGit = watchGit(options.repoRoot ?? root, () => send('git'))

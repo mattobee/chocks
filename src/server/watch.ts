@@ -36,8 +36,10 @@ export function watchFeatures(root: string, onChange: () => void): () => void {
   watcher.on('unlink', schedule)
   watcher.on('addDir', schedule)
   watcher.on('unlinkDir', schedule)
-  watcher.on('error', () => {
-    // A watch failure should degrade to "no live reload", not crash the server.
+  watcher.on('error', (error) => {
+    // Degrade to "no live reload" rather than crashing, but say so. Failing silently means
+    // edits just stop appearing, with nothing to connect that to.
+    console.warn('chocks: no longer watching for file changes', error)
   })
 
   return () => {
@@ -87,8 +89,9 @@ export function watchGit(repoRoot: string, onChange: () => void): () => void {
   watcher.on('add', schedule)
   watcher.on('change', schedule)
   watcher.on('unlink', schedule)
-  watcher.on('error', () => {
+  watcher.on('error', (error) => {
     // Losing git notifications should degrade to a stale badge, not crash the server.
+    console.warn('chocks: no longer watching git', error)
   })
 
   return () => {

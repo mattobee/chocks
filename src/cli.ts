@@ -10,6 +10,7 @@ import { serve } from '@hono/node-server'
 import { createApp } from './server/app'
 import { FEATURE_SUFFIX } from './lib/ids'
 import { backfill, scanWithIgnored } from './store/store'
+import { CONFIG_FILENAME, loadConfig } from './store/config'
 
 const HELP = `
 chocks — track planned and existing features as a tree, in your repo
@@ -135,6 +136,10 @@ async function main(): Promise<void> {
   // with nothing to explain why.
   const { ignored } = await scanWithIgnored(root)
 
+  // Bad config falls back to the defaults rather than refusing to start, so without this
+  // a misspelled colour is indistinguishable from a colour that does nothing.
+  const { problems } = await loadConfig(root)
+
   // In the published package the UI sits next to the compiled server.
   const here = path.dirname(fileURLToPath(import.meta.url))
   const uiDir = path.join(here, 'ui')
@@ -171,6 +176,19 @@ async function main(): Promise<void> {
           (names.length > 5 ? `\n    …and ${names.length - 5} more` : ''),
       )
     }
+    if (backfilled.failures.length > 0) {
+      console.log(
+        `\n  Could not write ${backfilled.failures.length} feature file(s). Links and` +
+          ` reordering will not work for them until they are writable:` +
+          `\n    ${backfilled.failures.join('\n    ')}`,
+      )
+    }
+    if (problems.length > 0) {
+      console.log(
+        `\n  ${CONFIG_FILENAME} has ${problems.length} problem(s), using the defaults for those:` +
+          `\n    ${problems.join('\n    ')}`,
+      )
+    }
 
     if (isExposed(host)) {
       // chocks has no authentication, and its API creates, edits and deletes files in the
@@ -188,6 +206,16 @@ async function main(): Promise<void> {
     if (values.open && !values['no-open']) openBrowser(local)
   })
 
+  // Bind failures arrive here rather than on the promise above. A port already in use is
+  // the one common enough to name, rather than making someone read a stack to find it.
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`\nchocks: port ${port} is already in use. Pass --port to pick another.`)
+      process.exit(1)
+    }
+    reportFatal('could not start', error)
+  })
+
   const shutdown = () => {
     server.close(() => process.exit(0))
     // Don't hang on a held-open SSE connection.
@@ -197,7 +225,20 @@ async function main(): Promise<void> {
   process.on('SIGTERM', shutdown)
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
-})
+/**
+ * Last resort for anything that escapes a handler.
+ *
+ * Node's own output for an unhandled rejection doesn't say which program produced it, and
+ * a message with no stack rarely says enough to act on. Print both, name chocks, then let
+ * it exit rather than carrying on in a state nothing planned for.
+ */
+function reportFatal(what: string, error: unknown): never {
+  console.error(`\nchocks: ${what}`)
+  console.error(error instanceof Error ? (error.stack ?? error.message) : error)
+  process.exit(1)
+}
+
+process.on('uncaughtException', (error) => reportFatal('crashed', error))
+process.on('unhandledRejection', (reason) => reportFatal('crashed', reason))
+
+main().catch((error: unknown) => reportFatal('could not start', error))

@@ -5,6 +5,7 @@ import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
 import { generateNKeysBetween } from 'fractional-indexing'
 import { childrenOf, isValidSortKey, sortKeyForIndex } from '../lib/tree'
+import { describeError } from '../lib/errors'
 import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
 import type { Feature } from '../lib/types'
 
@@ -255,6 +256,8 @@ export interface Backfilled {
   uids: number
   /** Features given a real sort key in place of the scanned placeholder. */
   sortKeys: number
+  /** Files that could not be written, each as `<id>: <reason>`. */
+  failures: string[]
 }
 
 /**
@@ -266,18 +269,27 @@ export interface Backfilled {
  * A missing uid costs you a stable URL. A missing sort key is worse: `scan` stands in
  * `~<slug>`, which orders sensibly but is not a fractional index, so the first attempt to
  * reorder anything alongside it fails.
+ *
+ * A file that cannot be written is collected rather than thrown. Backfilling is a
+ * convenience, and one read-only file is no reason to abandon the rest of the tree or to
+ * stop chocks starting.
  */
 export async function backfill(root: string): Promise<Backfilled> {
   const features = await scan(root)
   const sortKeys = plannedSortKeys(features)
 
-  const counts: Backfilled = { uids: 0, sortKeys: 0 }
+  const counts: Backfilled = { uids: 0, sortKeys: 0, failures: [] }
   for (const feature of features) {
     const uid = feature.uid || generateUid()
     const sort = sortKeys.get(feature.id) ?? feature.sort
     if (uid === feature.uid && sort === feature.sort) continue
 
-    await writeAtomic(fileFor(root, feature.id), serializeFeatureFile({ ...feature, uid, sort }))
+    try {
+      await writeAtomic(fileFor(root, feature.id), serializeFeatureFile({ ...feature, uid, sort }))
+    } catch (error) {
+      counts.failures.push(`${feature.id}: ${describeError(error)}`)
+      continue
+    }
     if (uid !== feature.uid) counts.uids++
     if (sort !== feature.sort) counts.sortKeys++
   }
