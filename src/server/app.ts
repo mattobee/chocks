@@ -4,10 +4,11 @@ import path from 'node:path'
 import { Hono } from 'hono'
 import { backfill, create, move, read, remove, scan, StoreError, update } from '../store/store'
 import { isValidStatusId } from '../lib/status'
+import { isValidSortKey } from '../lib/tree'
 import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
 import { featureHistory } from './git'
-import { FEATURE_SUFFIX, isValidId } from '../lib/ids'
+import { FEATURE_SUFFIX, isValidId, isValidUid } from '../lib/ids'
 import { describeError } from '../lib/errors'
 
 export interface ServerOptions {
@@ -51,7 +52,7 @@ export function createApp(options: ServerOptions) {
 
   app.onError((error, c) => {
     if (error instanceof StoreError) {
-      return c.json({ message: error.message }, error.status as 400 | 404)
+      return c.json({ message: error.message }, error.status as 400 | 404 | 409)
     }
     console.error('chocks: request failed', error)
     // Hand the real message back rather than "Internal error". chocks binds to localhost
@@ -103,6 +104,12 @@ export function createApp(options: ServerOptions) {
       status: isValidStatusId(body.status) ? body.status : undefined,
       tags: asStringArray(body.tags),
       description: typeof body.description === 'string' ? body.description : undefined,
+      // Only honoured when they are the real thing, so a restore puts back an identity
+      // rather than inventing one. Anything else falls through to a fresh uid and a place
+      // at the end, the same as an ordinary create.
+      uid: isValidUid(body.uid) ? body.uid : undefined,
+      sort: typeof body.sort === 'string' && isValidSortKey(body.sort) ? body.sort : undefined,
+      slug: typeof body.slug === 'string' ? body.slug : undefined,
     })
     return c.json(feature, 201)
   })

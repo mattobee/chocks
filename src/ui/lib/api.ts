@@ -47,12 +47,16 @@ export const api = {
 
   listFeatures: () => request<Feature[]>('/api/features'),
 
+  /** `uid`, `sort` and `slug` put a deleted feature back as itself. Not for new ones. */
   createFeature: (input: {
     parent: string
     title: string
     status?: string
     tags?: string[]
     description?: string
+    uid?: string
+    sort?: string
+    slug?: string
   }) => request<Feature>('/api/features', { method: 'POST', body: JSON.stringify(input) }),
 
   updateFeature: (

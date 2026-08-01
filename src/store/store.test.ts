@@ -145,6 +145,41 @@ describe('create', () => {
   it('rejects a traversing parent id', async () => {
     await expect(create(root, { parent: '../escape', title: 'X' })).rejects.toThrow(StoreError)
   })
+
+  it('restores a given uid and sort key rather than minting new ones', async () => {
+    // What undoing a delete needs: links resolve on uid, so a restored feature has to
+    // come back as the same feature, in the same place.
+    const restored = await create(root, {
+      parent: '',
+      title: 'Auth',
+      uid: 'a1b2c3d4e5',
+      sort: 'a5',
+    })
+
+    expect(restored.uid).toBe('a1b2c3d4e5')
+    expect(restored.sort).toBe('a5')
+    const onDisk = (await scan(root))[0]!
+    expect(onDisk.uid).toBe('a1b2c3d4e5')
+    expect(onDisk.sort).toBe('a5')
+  })
+
+  it('refuses a uid another feature already answers to', async () => {
+    await create(root, { parent: '', title: 'First', uid: 'a1b2c3d4e5' })
+
+    await expect(create(root, { parent: '', title: 'Second', uid: 'a1b2c3d4e5' })).rejects.toThrow(
+      /already has the uid/,
+    )
+    expect((await scan(root)).length).toBe(1)
+  })
+
+  it('still mints its own identity when none is given', async () => {
+    const first = await create(root, { parent: '', title: 'One' })
+    const second = await create(root, { parent: '', title: 'Two' })
+
+    expect(first.uid).toMatch(/^[a-f][0-9a-f]{9}$/)
+    expect(second.uid).not.toBe(first.uid)
+    expect(first.sort < second.sort).toBe(true)
+  })
 })
 
 describe('update', () => {

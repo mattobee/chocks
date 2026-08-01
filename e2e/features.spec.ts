@@ -123,3 +123,118 @@ test.describe('uncommitted indicator', () => {
     await expect(status).toHaveText('All changes committed', { timeout: 10_000 })
   })
 })
+
+test.describe('undo', () => {
+  /**
+   * How many entries the undo stack holds.
+   *
+   * Tests wait on this rather than on the files, because the file is written server-side
+   * well before the client hears back and records anything. Pressing undo on the strength
+   * of the file alone races the entry being stored, which is reliably lost on a loaded
+   * machine and only sometimes lost on a fast one.
+   */
+  const undoStackSize = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const raw = sessionStorage.getItem('chocks:undo')
+      return raw ? ((JSON.parse(raw) as { undo: unknown[] }).undo.length ?? 0) : 0
+    })
+
+  test('puts a renamed feature back, file and all', async ({ page, workspace }) => {
+    await page.goto(workspace.url)
+    await page.getByRole('link', { name: 'Billing' }).click()
+
+    const heading = page.getByRole('textbox', { name: 'Feature title' })
+    await heading.fill('Invoicing')
+    await heading.blur()
+    await expect.poll(() => undoStackSize(page), { timeout: 10_000 }).toBe(1)
+
+    // Focus has to be out of the input, or Cmd+Z is the browser undoing the typing.
+    await page.getByRole('button', { name: 'Delete feature' }).focus()
+    await page.keyboard.press('ControlOrMeta+z')
+
+    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Billing')
+    await expect
+      .poll(async () => (await workspace.read('billing')).includes('title: Billing'), {
+        timeout: 5000,
+      })
+      .toBe(true)
+  })
+
+  test('restores a deleted subtree with its uids intact', async ({ page, workspace }) => {
+    await page.goto(workspace.url)
+    await page.getByRole('button', { name: 'Expand' }).first().click()
+
+    await page.getByRole('button', { name: 'Actions for OAuth providers' }).click()
+    await page.getByRole('menuitem', { name: 'Delete…' }).click()
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect(page.getByRole('link', { name: 'OAuth providers' })).toBeHidden()
+    await expect.poll(() => undoStackSize(page), { timeout: 10_000 }).toBe(1)
+
+    // Straight after confirming, which is when you actually reach for undo. The dialog is
+    // still in the DOM at this point, closed but mounted.
+    await page.keyboard.press('ControlOrMeta+z')
+
+    await expect(page.getByRole('link', { name: 'OAuth providers' })).toBeVisible()
+
+    // Poll rather than read once. Restoring is one create per feature, so the parent's row
+    // is back on screen while its children are still being written.
+    const uids = ['auth/oauth', 'auth/oauth/github', 'auth/oauth/google']
+    await expect
+      .poll(
+        async () =>
+          Promise.all(uids.map((id) => workspace.read(id).catch(() => ''))).then((files) =>
+            files.every((file) => file.includes('uid: aaa')),
+          ),
+        { timeout: 10_000 },
+      )
+      .toBe(true)
+
+    // The uid is the whole point: a restored feature has to be the same feature, or every
+    // link to it is broken.
+    expect(await workspace.read('auth/oauth')).toContain('uid: aaa0000002')
+    expect(await workspace.read('auth/oauth/github')).toContain('uid: aaa0000003')
+    expect(await workspace.read('auth/oauth/google')).toContain('uid: aaa0000004')
+  })
+
+  test('survives a refresh', async ({ page, workspace }) => {
+    await page.goto(workspace.url)
+    await page.getByRole('link', { name: 'Billing' }).click()
+
+    const heading = page.getByRole('textbox', { name: 'Feature title' })
+    await heading.fill('Invoicing')
+    await heading.blur()
+    await expect.poll(() => undoStackSize(page), { timeout: 10_000 }).toBe(1)
+
+    await page.reload()
+    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Invoicing')
+
+    await page.getByRole('button', { name: 'Delete feature' }).focus()
+    await page.keyboard.press('ControlOrMeta+z')
+
+    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Billing')
+    await expect
+      .poll(async () => (await workspace.read('billing')).includes('title: Billing'), {
+        timeout: 5000,
+      })
+      .toBe(true)
+  })
+
+  test('leaves typing to the browser', async ({ page, workspace }) => {
+    await page.goto(workspace.url)
+    await page.getByRole('link', { name: 'Billing' }).click()
+
+    const heading = page.getByRole('textbox', { name: 'Feature title' })
+    await heading.click()
+    await heading.press('End')
+    await heading.pressSequentially(' and invoicing')
+    await page.keyboard.press('ControlOrMeta+z')
+
+    // The browser took it, so some of the typing went. Exactly how much is Chromium's
+    // business and not worth pinning.
+    await expect(heading).not.toHaveValue('Billing and invoicing')
+    // What matters is that the app kept out of it: no toast, and nothing written. Had the
+    // shortcut fired with an empty stack it would have said "Nothing left to undo".
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
+    expect(await workspace.changed()).toHaveLength(0)
+  })
+})
