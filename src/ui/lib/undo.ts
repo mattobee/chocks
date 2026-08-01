@@ -8,41 +8,68 @@ import type { Feature } from '@/lib/types'
  * Reversing what the UI just did.
  *
  * chocks keeps no history of its own — the repo does that. This is the smaller thing: a
- * way back from the edit you regret a second later, held in memory for as long as the tab
- * is open and no further.
+ * way back from the edit you regret a second later, which lasts as long as the tab does
+ * and no longer.
  *
- * Every entry refers to features by `uid`. Ids are paths, so a rename or a move changes
- * them, and changes them for every descendant too. A uid is the only handle that survives
- * the operations undo has to reverse.
+ * Entries are plain data rather than closures, so the stack can be written to
+ * sessionStorage and survive a refresh. They refer to features by `uid`: ids are paths, so
+ * a rename or a move changes them, and changes them for every descendant too. A uid is the
+ * only handle that survives the operations undo has to reverse.
  */
-export interface UndoEntry {
-  /**
-   * The action, named once and carried both ways.
-   *
-   * Undoing a create gives back an entry that re-creates it, so both directions describe
-   * the same thing: "Undid: created Auth", then "Redid: created Auth". Naming each entry
-   * after what it does instead would have redo announcing the opposite of what happened.
-   */
-  label: string
-  /** Uids this entry expects to still be there, checked before it is applied. */
-  touches: string[]
-  /** Puts the world back. Runs against the current feature list. */
-  undo: (features: Feature[]) => Promise<UndoEntry>
-}
 
 /**
  * A feature as it was.
  *
  * The id is left out because it is a path and a path moves. The slug is kept, because a
- * hand-written file's name need not match its title and restoring it under a name derived
+ * hand-written file's name need not match its title, and restoring it under a name derived
  * from the title would rename it behind the user's back.
  */
-type Snapshot = Omit<Feature, 'id' | 'parent'> & { parentUid: string | null; slug: string }
+export interface Snapshot {
+  uid: string
+  title: string
+  description: string
+  status: string
+  tags: string[]
+  sort: string
+  slug: string
+  /** Null for a feature at the root. */
+  parentUid: string | null
+}
+
+/**
+ * What happened, named once and carried both ways.
+ *
+ * `label` describes the original action rather than what the entry does, so undo and redo
+ * read as two sides of one thing: "Undid: created Auth", then "Redid: created Auth".
+ */
+export type UndoEntry =
+  | { kind: 'created'; label: string; uid: string }
+  | { kind: 'updated'; label: string; before: Snapshot }
+  | { kind: 'moved'; label: string; before: Snapshot }
+  | { kind: 'deleted'; label: string; subtree: Snapshot[] }
+  /** The other side of a delete: it is back, and can be taken away again. */
+  | { kind: 'restored'; label: string; uid: string }
 
 export class StaleUndoError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'StaleUndoError'
+  }
+}
+
+/** Uids the entry needs to still find, checked before anything is written. */
+export function touchedUids(entry: UndoEntry): string[] {
+  switch (entry.kind) {
+    case 'created':
+    case 'restored':
+      return [entry.uid]
+    case 'updated':
+    case 'moved':
+      return [entry.before.uid]
+    // The features are gone, so there is nothing to look for. The parent is checked as the
+    // restore walks, and a missing one fails before anything is written.
+    case 'deleted':
+      return []
   }
 }
 
@@ -59,160 +86,21 @@ function parentIdOf(features: Feature[], parentUid: string | null): string {
   return byUid(features, parentUid).id
 }
 
-function snapshot(features: Feature[], feature: Feature): Snapshot {
+export function snapshot(features: Feature[], feature: Feature): Snapshot {
   const parent = features.find((other) => other.id === feature.parent)
-  const { id: _id, parent: _parent, ...rest } = feature
-  return { ...rest, parentUid: parent?.uid ?? null, slug: slugOf(feature.id) }
-}
-
-/**
- * Undoing a create is deleting it again.
- *
- * Deliberately does not put back anything added underneath it since. Deleting takes the
- * subtree with it, and quietly discarding someone's later work is worse than refusing.
- */
-export function createdEntry(created: Feature): UndoEntry {
-  const label = `created ${created.title}`
   return {
-    label,
-    touches: [created.uid],
-    undo: async (features) => {
-      const current = byUid(features, created.uid)
-      if (childrenOf(features, current.id).length > 0) {
-        throw new StaleUndoError('it has sub-features now, so undoing would delete them')
-      }
-      await api.deleteFeature(current.id)
-      return deletedEntry([snapshot(features, current)], label)
-    },
+    uid: feature.uid,
+    title: feature.title,
+    description: feature.description,
+    status: feature.status,
+    tags: feature.tags,
+    sort: feature.sort,
+    slug: slugOf(feature.id),
+    parentUid: parent?.uid ?? null,
   }
 }
 
-/**
- * Deletes a feature and everything under it, then offers to put it back.
- *
- * This is what redoing a restore does. It cannot go through `createdEntry`, which refuses
- * to delete anything with children on the grounds that it would take work nobody asked it
- * to take. Here the children are the very things that were just restored, so removing
- * them again is the whole point.
- */
-function deleteAgainEntry(uid: string, label: string): UndoEntry {
-  return {
-    label,
-    touches: [uid],
-    undo: async (features) => {
-      const current = byUid(features, uid)
-      // Snapshot afresh rather than reusing the old one: the subtree may have been edited
-      // since it came back.
-      const captured = subtreeSnapshot(features, current)
-      await api.deleteFeature(current.id)
-      return deletedEntry(captured, label)
-    },
-  }
-}
-
-/** Undoing an edit is writing the old fields back. The file renames itself if the title moved. */
-export function updatedEntry(before: Feature, features: Feature[]): UndoEntry {
-  const previous = snapshot(features, before)
-  return {
-    label: `edited ${before.title}`,
-    touches: [before.uid],
-    undo: async (currentFeatures) => {
-      const current = byUid(currentFeatures, before.uid)
-      // Captured before the write, so redoing puts back what is on screen right now.
-      const redo = updatedEntry(current, currentFeatures)
-      await api.updateFeature(current.id, {
-        title: previous.title,
-        status: previous.status,
-        tags: previous.tags,
-        description: previous.description,
-      })
-      return redo
-    },
-  }
-}
-
-/**
- * Undoing a move is two calls, not one.
- *
- * `move` generates a fresh sort key from whatever the destination's neighbours are at the
- * time, so asking for the old position would not reproduce the old key. Move it home,
- * then write the exact key back.
- */
-export function movedEntry(before: Feature, features: Feature[]): UndoEntry {
-  const previous = snapshot(features, before)
-  return {
-    label: `moved ${before.title}`,
-    touches: [before.uid],
-    undo: async (currentFeatures) => {
-      const current = byUid(currentFeatures, before.uid)
-      const redo = movedEntry(current, currentFeatures)
-      const parentId = parentIdOf(currentFeatures, previous.parentUid)
-      const siblings = childrenOf(currentFeatures, parentId).filter(
-        (feature) => feature.uid !== before.uid,
-      )
-
-      const moved = await api.moveFeature(current.id, {
-        newParent: parentId,
-        index: indexAfter(siblings, null),
-      })
-      await api.updateFeature(moved.id, { sort: previous.sort })
-      return redo
-    },
-  }
-}
-
-/**
- * Undoing a delete is writing the subtree back from what the browser was holding.
- *
- * Parents first, so each child has somewhere to land. Each feature comes back with its
- * original uid, which is the whole reason `create` accepts one: without it every link to
- * a restored feature would point at nothing.
- */
-export function deletedEntry(subtree: Snapshot[], name?: string): UndoEntry {
-  const root = subtree[0]
-  return {
-    label: name ?? (root ? `deleted ${root.title}` : 'deleted a feature'),
-    // The features are gone, so there is nothing to check for. The parent is checked as
-    // the restore walks, and a missing one fails the entry before anything is written.
-    touches: [],
-    undo: async (features) => {
-      const restored: Feature[] = []
-      let live = features
-      for (const item of subtree) {
-        const parentId = parentIdOf([...live, ...restored], item.parentUid)
-        const feature = await api.createFeature({
-          parent: parentId,
-          title: item.title,
-          status: item.status,
-          tags: item.tags,
-          description: item.description,
-          uid: item.uid,
-          sort: item.sort,
-          slug: item.slug,
-        })
-        restored.push(feature)
-        live = [...live, feature]
-      }
-      const first = restored[0]
-      if (!first) return deletedEntry(subtree, name)
-
-      // Redoing takes the subtree away again, children and all.
-      const renamed =
-        first.id !== joinId(parentIdOf(features, subtree[0]!.parentUid), subtree[0]!.slug)
-      if (renamed) {
-        toast(`Restored as ${first.id}, because something else had taken its place`)
-      }
-      return deleteAgainEntry(first.uid, name ?? `deleted ${first.title}`)
-    },
-  }
-}
-
-/**
- * A feature and everything under it, ordered parents first.
- *
- * Captured before the delete, because afterwards there is nothing left to read: `remove`
- * takes the whole children directory with it and returns nothing.
- */
+/** A feature and everything under it, parents first, ready to be written back. */
 export function subtreeSnapshot(features: Feature[], feature: Feature): Snapshot[] {
   const collected: Snapshot[] = []
   const walk = (current: Feature) => {
@@ -221,4 +109,128 @@ export function subtreeSnapshot(features: Feature[], feature: Feature): Snapshot
   }
   walk(feature)
   return collected
+}
+
+export const createdEntry = (created: Feature): UndoEntry => ({
+  kind: 'created',
+  label: `created ${created.title}`,
+  uid: created.uid,
+})
+
+export const updatedEntry = (before: Feature, features: Feature[]): UndoEntry => ({
+  kind: 'updated',
+  label: `edited ${before.title}`,
+  before: snapshot(features, before),
+})
+
+export const movedEntry = (before: Feature, features: Feature[]): UndoEntry => ({
+  kind: 'moved',
+  label: `moved ${before.title}`,
+  before: snapshot(features, before),
+})
+
+export const deletedEntry = (subtree: Snapshot[], label?: string): UndoEntry => ({
+  kind: 'deleted',
+  label: label ?? (subtree[0] ? `deleted ${subtree[0].title}` : 'deleted a feature'),
+  subtree,
+})
+
+/**
+ * Reverses one entry and hands back the entry that would reverse it in turn.
+ *
+ * `features` is the tree as it is right now, read fresh, because files change on disk from
+ * the user's editor at any time.
+ */
+export async function applyEntry(entry: UndoEntry, features: Feature[]): Promise<UndoEntry> {
+  switch (entry.kind) {
+    case 'created': {
+      const current = byUid(features, entry.uid)
+      // Deliberately does not take anything added underneath since. Deleting takes the
+      // subtree with it, and quietly discarding someone's later work is worse than
+      // refusing.
+      if (childrenOf(features, current.id).length > 0) {
+        throw new StaleUndoError('it has sub-features now, so undoing would delete them')
+      }
+      const captured = snapshot(features, current)
+      await api.deleteFeature(current.id)
+      return deletedEntry([captured], entry.label)
+    }
+
+    case 'updated': {
+      const current = byUid(features, entry.before.uid)
+      const redo = updatedEntry(current, features)
+      await api.updateFeature(current.id, {
+        title: entry.before.title,
+        status: entry.before.status,
+        tags: entry.before.tags,
+        description: entry.before.description,
+      })
+      return { ...redo, label: entry.label }
+    }
+
+    case 'moved': {
+      const current = byUid(features, entry.before.uid)
+      const redo = movedEntry(current, features)
+      const parentId = parentIdOf(features, entry.before.parentUid)
+      const siblings = childrenOf(features, parentId).filter(
+        (feature) => feature.uid !== entry.before.uid,
+      )
+
+      // Two calls, not one: `move` generates a fresh sort key from whatever the
+      // destination's neighbours are now, so position alone would not restore the old one.
+      const moved = await api.moveFeature(current.id, {
+        newParent: parentId,
+        index: indexAfter(siblings, null),
+      })
+      await api.updateFeature(moved.id, { sort: entry.before.sort })
+      return { ...redo, label: entry.label }
+    }
+
+    case 'deleted': {
+      const restored = await restoreSubtree(entry.subtree, features)
+      const first = restored[0]
+      if (!first) return entry
+      return { kind: 'restored', label: entry.label, uid: first.uid }
+    }
+
+    case 'restored': {
+      const current = byUid(features, entry.uid)
+      // Snapshot afresh: the subtree may have been edited since it came back. This cannot
+      // go through the 'created' case, which refuses to delete anything with children —
+      // here the children are the very things being taken away again.
+      const captured = subtreeSnapshot(features, current)
+      await api.deleteFeature(current.id)
+      return deletedEntry(captured, entry.label)
+    }
+  }
+}
+
+/** Writes a subtree back, parents first, so each child has somewhere to land. */
+async function restoreSubtree(subtree: Snapshot[], features: Feature[]): Promise<Feature[]> {
+  const restored: Feature[] = []
+  let live = features
+
+  for (const item of subtree) {
+    const parentId = parentIdOf(live, item.parentUid)
+    const feature = await api.createFeature({
+      parent: parentId,
+      title: item.title,
+      status: item.status,
+      tags: item.tags,
+      description: item.description,
+      // The uid is why `create` accepts an identity at all: without it, every link to a
+      // restored feature would point at nothing.
+      uid: item.uid,
+      sort: item.sort,
+      slug: item.slug,
+    })
+    restored.push(feature)
+    live = [...live, feature]
+
+    if (feature.id !== joinId(parentId, item.slug)) {
+      toast(`Restored as ${feature.id}, because something else had taken its place`)
+    }
+  }
+
+  return restored
 }

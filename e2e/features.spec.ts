@@ -169,6 +169,31 @@ test.describe('undo', () => {
     expect(await workspace.read('auth/oauth/google')).toContain('uid: aaa0000004')
   })
 
+  test('survives a refresh', async ({ page, workspace }) => {
+    await page.goto(workspace.url)
+    await page.getByRole('link', { name: 'Billing' }).click()
+
+    const heading = page.getByRole('textbox', { name: 'Feature title' })
+    await heading.fill('Invoicing')
+    await heading.blur()
+    await expect
+      .poll(async () => (await workspace.changed()).join(' '), { timeout: 5000 })
+      .toContain('invoicing')
+
+    await page.reload()
+    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Invoicing')
+
+    await page.getByRole('button', { name: 'Delete feature' }).focus()
+    await page.keyboard.press('ControlOrMeta+z')
+
+    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Billing')
+    await expect
+      .poll(async () => (await workspace.read('billing')).includes('title: Billing'), {
+        timeout: 5000,
+      })
+      .toBe(true)
+  })
+
   test('leaves typing to the browser', async ({ page, workspace }) => {
     await page.goto(workspace.url)
     await page.getByRole('link', { name: 'Billing' }).click()

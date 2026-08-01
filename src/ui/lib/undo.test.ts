@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  applyEntry,
   createdEntry,
   deletedEntry,
   movedEntry,
@@ -61,7 +62,7 @@ describe('undoing a create', () => {
     const features = tree()
     const entry = createdEntry(find(features, 'billing'))
 
-    await entry.undo(features)
+    await applyEntry(entry, features)
 
     expect(deleteFeature).toHaveBeenCalledWith('billing')
   })
@@ -70,7 +71,7 @@ describe('undoing a create', () => {
     const features = tree()
     const entry = createdEntry(find(features, 'auth'))
 
-    await expect(entry.undo(features)).rejects.toThrow(StaleUndoError)
+    await expect(applyEntry(entry, features)).rejects.toThrow(StaleUndoError)
     expect(deleteFeature).not.toHaveBeenCalled()
   })
 })
@@ -84,7 +85,7 @@ describe('undoing an edit', () => {
     const after = features.map((f) =>
       f.uid === before.uid ? { ...f, title: 'Renamed', id: 'auth/renamed' } : f,
     )
-    await entry.undo(after)
+    await applyEntry(entry, after)
 
     expect(updateFeature).toHaveBeenCalledWith('auth/renamed', {
       title: 'OAuth',
@@ -104,7 +105,7 @@ describe('undoing an edit', () => {
       { ...features[1]!, id: 'billing/identity', parent: 'billing' },
       features[3]!,
     ]
-    await entry.undo(after)
+    await applyEntry(entry, after)
 
     expect(updateFeature.mock.calls[0]?.[0]).toBe('billing/identity')
   })
@@ -113,9 +114,12 @@ describe('undoing an edit', () => {
     const features = tree()
     const entry = updatedEntry(find(features, 'billing'), features)
 
-    await expect(entry.undo(features.filter((f) => f.id !== 'billing'))).rejects.toThrow(
-      StaleUndoError,
-    )
+    await expect(
+      applyEntry(
+        entry,
+        features.filter((f) => f.id !== 'billing'),
+      ),
+    ).rejects.toThrow(StaleUndoError)
   })
 })
 
@@ -131,7 +135,7 @@ describe('undoing a move', () => {
       f.uid === before.uid ? { ...f, id: 'billing/oauth', parent: 'billing' } : f,
     )
     moveFeature.mockResolvedValue({ ...before, id: 'auth/oauth' })
-    await entry.undo(after)
+    await applyEntry(entry, after)
 
     expect(moveFeature).toHaveBeenCalledWith('billing/oauth', { newParent: 'auth', index: 0 })
     expect(updateFeature).toHaveBeenCalledWith('auth/oauth', { sort: 'a0' })
@@ -146,7 +150,7 @@ describe('undoing a move', () => {
       f.uid === before.uid ? { ...f, id: 'auth/billing', parent: 'auth' } : f,
     )
     moveFeature.mockResolvedValue({ ...before })
-    await entry.undo(after)
+    await applyEntry(entry, after)
 
     expect(moveFeature.mock.calls[0]?.[1]).toMatchObject({ newParent: '' })
   })
@@ -171,7 +175,7 @@ describe('undoing a delete', () => {
       ),
     )
 
-    await deletedEntry(captured).undo(remaining)
+    await applyEntry(deletedEntry(captured), remaining)
 
     const titles = createFeature.mock.calls.map((call) => call[0].title)
     expect(titles).toEqual(['Auth', 'OAuth', 'GitHub'])
@@ -191,8 +195,8 @@ describe('undoing a delete', () => {
       Promise.resolve(makeFeature({ id: 'auth', uid: input.uid, title: input.title })),
     )
 
-    const redo = await deletedEntry(captured).undo([])
-    await redo.undo(features)
+    const redo = await applyEntry(deletedEntry(captured), [])
+    await applyEntry(redo, features)
 
     expect(deleteFeature).toHaveBeenCalledWith('auth')
   })
@@ -204,7 +208,7 @@ describe('undoing a delete', () => {
     expect(entry.label).toBe('created Billing')
 
     createFeature.mockResolvedValue(created)
-    const redo = await entry.undo(features)
+    const redo = await applyEntry(entry, features)
 
     // Not "deleted Billing": redoing re-creates it, so the toast must not say the opposite
     // of what just happened.
@@ -216,7 +220,7 @@ describe('undoing a delete', () => {
     const captured = subtreeSnapshot(features, find(features, 'billing'))
     createFeature.mockResolvedValue(makeFeature({ id: 'billing', uid: 'aaaaaaaaa4' }))
 
-    await deletedEntry(captured).undo([])
+    await applyEntry(deletedEntry(captured), [])
 
     expect(createFeature.mock.calls[0]?.[0].sort).toBe('a1')
   })

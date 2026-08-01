@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/ui/lib/api'
 import { queryKeys } from '@/ui/lib/queries'
-import { StaleUndoError, type UndoEntry } from '@/ui/lib/undo'
+import { applyEntry, StaleUndoError, touchedUids, type UndoEntry } from '@/ui/lib/undo'
+import { readStacks, writeStacks } from '@/ui/lib/undo-storage'
 import { UndoContext } from '@/ui/lib/undo-context'
 import { describeError } from '@/lib/errors'
 
@@ -11,17 +12,20 @@ import { describeError } from '@/lib/errors'
 const LIMIT = 20
 
 /**
- * A session's worth of undo, held in memory and nowhere else.
+ * A session's worth of undo.
  *
- * Nothing is written to `.chocks` and nothing survives the tab closing, which keeps git
- * as the only durable record of what happened to the tree.
+ * Kept in sessionStorage, so a refresh does not lose it but closing the tab does. Nothing
+ * is written to `.chocks`, which keeps git the only durable record of what happened to the
+ * tree.
  */
 export function UndoProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const [undoStack, setUndoStack] = useState<UndoEntry[]>([])
-  const [redoStack, setRedoStack] = useState<UndoEntry[]>([])
+  const [undoStack, setUndoStack] = useState<UndoEntry[]>(() => readStacks().undo)
+  const [redoStack, setRedoStack] = useState<UndoEntry[]>(() => readStacks().redo)
   // Undo is a sequence of writes. Letting a second one start midway would interleave them.
   const running = useRef(false)
+
+  useEffect(() => writeStacks({ undo: undoStack, redo: redoStack }), [undoStack, redoStack])
 
   const record = useCallback((entry: UndoEntry) => {
     setUndoStack((stack) => [...stack, entry].slice(-LIMIT))
@@ -49,13 +53,13 @@ export function UndoProvider({ children }: { children: ReactNode }) {
           // Read the tree as it is now, not as it was when the entry was recorded. Files
           // change on disk from the user's editor at any time.
           const features = await api.listFeatures()
-          for (const uid of entry.touches) {
+          for (const uid of touchedUids(entry)) {
             if (!features.some((feature) => feature.uid === uid)) {
               throw new StaleUndoError('that feature is no longer here')
             }
           }
 
-          const opposite = await entry.undo(features)
+          const opposite = await applyEntry(entry, features)
           // Remove this entry specifically, rather than whatever is on the end now. An
           // edit made while the undo was in flight would otherwise be the one dropped.
           setFrom((stack) => stack.filter((other) => other !== entry))
