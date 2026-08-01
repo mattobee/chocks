@@ -1,6 +1,6 @@
 ---
 title: Undo and redo
-status: pre-release
+status: released
 tags:
   - ux
 sort: a2

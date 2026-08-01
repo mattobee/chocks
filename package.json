@@ -1,6 +1,6 @@
 {
   "name": "@mattobee/chocks",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "type": "module",
   "description": "Track planned and existing features as a tree, stored in your repo",
   "license": "MIT",
