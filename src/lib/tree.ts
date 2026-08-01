@@ -323,6 +323,16 @@ export function sortKeyForIndex(siblings: Feature[], index: number): string {
   return sortKeyBetween(prev, next)
 }
 
+/**
+ * Every tag in use anywhere in the list, sorted.
+ *
+ * Tags are free-form strings in frontmatter with no records of their own, so the set of
+ * available tags is only ever "whatever is currently written down somewhere".
+ */
+export function allTags(features: Feature[]): string[] {
+  return [...new Set(features.flatMap((feature) => feature.tags))].sort()
+}
+
 /** Direct children of `parentId`, in display order. */
 export function siblingsOf(features: Feature[], parentId: string): Feature[] {
   return features
