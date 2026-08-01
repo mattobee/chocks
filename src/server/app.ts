@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Hono } from 'hono'
-import { create, ensureUids, move, read, remove, scan, StoreError, update } from '../store/store'
+import { backfill, create, move, read, remove, scan, StoreError, update } from '../store/store'
 import { isValidStatusId } from '../lib/status'
 import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
@@ -144,12 +144,12 @@ export function createApp(options: ServerOptions) {
         const send = (event: string) => controller.enqueue(encoder.encode(`data: ${event}\n\n`))
 
         send('connected')
-        // Files can appear with no uid — hand-written, or written by an agent seeding the
-        // tree while chocks is already running. Startup only backfills once, so do it here
-        // too, before telling the client to refetch, rather than leaving them stranded
-        // until the next restart.
+        // Files can appear with no uid or sort key — hand-written, or written by an agent
+        // seeding the tree while chocks is already running. Startup only backfills once, so
+        // do it here too, before telling the client to refetch, rather than leaving them
+        // unlinkable and unsortable until the next restart.
         const stopWatching = watchFeatures(root, () => {
-          void ensureUids(root).finally(() => send('changed'))
+          void backfill(root).finally(() => send('changed'))
         })
         // A commit does not touch the feature files, so git activity is its own signal.
         const stopWatchingGit = watchGit(options.repoRoot ?? root, () => send('git'))

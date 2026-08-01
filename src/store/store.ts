@@ -3,7 +3,8 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
-import { childrenOf, sortKeyForIndex } from '../lib/tree'
+import { generateNKeysBetween } from 'fractional-indexing'
+import { childrenOf, isValidSortKey, sortKeyForIndex } from '../lib/tree'
 import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
 import type { Feature } from '../lib/types'
 
@@ -249,24 +250,79 @@ async function relocate(root: string, fromId: string, toId: string): Promise<voi
   }
 }
 
+export interface Backfilled {
+  /** Features given a permanent uid. */
+  uids: number
+  /** Features given a real sort key in place of the scanned placeholder. */
+  sortKeys: number
+}
+
 /**
- * Gives every feature that lacks a uid a permanent one.
+ * Fills in what a hand-written or agent-written file leaves out.
  *
- * Runs once at startup rather than during `scan`, so reads stay free of side effects.
- * Files created by hand, or predating uids, are backfilled with a one-line change.
+ * Runs at startup and whenever files change on disk, rather than during `scan`, so reads
+ * stay free of side effects.
+ *
+ * A missing uid costs you a stable URL. A missing sort key is worse: `scan` stands in
+ * `~<slug>`, which orders sensibly but is not a fractional index, so the first attempt to
+ * reorder anything alongside it fails.
  */
-export async function ensureUids(root: string): Promise<number> {
+export async function backfill(root: string): Promise<Backfilled> {
   const features = await scan(root)
-  let written = 0
+  const sortKeys = plannedSortKeys(features)
+
+  const counts: Backfilled = { uids: 0, sortKeys: 0 }
   for (const feature of features) {
-    if (feature.uid !== '') continue
-    await writeAtomic(
-      fileFor(root, feature.id),
-      serializeFeatureFile({ ...feature, uid: generateUid() }),
-    )
-    written++
+    const uid = feature.uid || generateUid()
+    const sort = sortKeys.get(feature.id) ?? feature.sort
+    if (uid === feature.uid && sort === feature.sort) continue
+
+    await writeAtomic(fileFor(root, feature.id), serializeFeatureFile({ ...feature, uid, sort }))
+    if (uid !== feature.uid) counts.uids++
+    if (sort !== feature.sort) counts.sortKeys++
   }
-  return written
+  return counts
+}
+
+/**
+ * Real sort keys for the features whose own key is unusable, keyed by id.
+ *
+ * Records the order the tree already displays in rather than imposing a new one. Siblings
+ * with a usable key keep it, so their files stay out of the diff, and each run of unusable
+ * ones is generated into the gap between the usable keys either side of it.
+ *
+ * Walking runs rather than treating the unusable ones as a single tail matters because
+ * `~<slug>` is not the only key that can fail. A hand-edited `sort: 9bad` is unusable too,
+ * and sorts *before* a real key rather than after it, so appending would silently move it
+ * down the list.
+ */
+function plannedSortKeys(features: Feature[]): Map<string, string> {
+  const planned = new Map<string, string>()
+
+  for (const parent of new Set(features.map((feature) => feature.parent))) {
+    const siblings = childrenOf(features, parent)
+
+    let index = 0
+    while (index < siblings.length) {
+      if (isValidSortKey(siblings[index]!.sort)) {
+        index++
+        continue
+      }
+
+      let end = index
+      while (end < siblings.length && !isValidSortKey(siblings[end]!.sort)) end++
+
+      // Everything before `index` and from `end` on is usable, so these bound the gap.
+      const previous = index > 0 ? siblings[index - 1]!.sort : null
+      const following = end < siblings.length ? siblings[end]!.sort : null
+      const keys = generateNKeysBetween(previous, following, end - index)
+      keys.forEach((key, offset) => planned.set(siblings[index + offset]!.id, key))
+
+      index = end
+    }
+  }
+
+  return planned
 }
 
 export async function read(root: string, id: string): Promise<Feature> {

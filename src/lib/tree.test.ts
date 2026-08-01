@@ -7,6 +7,7 @@ import {
   filterTree,
   flattenVisible,
   indexAfter,
+  isValidSortKey,
   projectDrop,
   childrenOf,
   sortKeyBetween,
@@ -302,6 +303,35 @@ describe('sortKeyForIndex', () => {
 
   it('handles an empty sibling list', () => {
     expect(sortKeyForIndex([], 0)).toBeTruthy()
+  })
+
+  it('treats an unusable neighbour as absent rather than throwing', () => {
+    // `~audits` is what scan stands in for a file with no sort key. Passing it to the
+    // generator throws, which surfaced as a 500 on every drag.
+    const unsorted = [feature('a', '', '~audits'), feature('b', '', '~billing')]
+    expect(isValidSortKey(sortKeyForIndex(unsorted, 0))).toBe(true)
+    expect(isValidSortKey(sortKeyForIndex(unsorted, 1))).toBe(true)
+    expect(isValidSortKey(sortKeyForIndex(unsorted, 2))).toBe(true)
+  })
+
+  it('still uses the usable half of a mismatched pair', () => {
+    const mixed = [feature('a', '', 'a0'), feature('b', '', '~later')]
+    expect(sortKeyForIndex(mixed, 1) > 'a0').toBe(true)
+  })
+})
+
+describe('isValidSortKey', () => {
+  it('accepts a generated key', () => {
+    expect(isValidSortKey(sortKeyBetween(null, null))).toBe(true)
+  })
+
+  it('rejects the placeholder scan uses for a file with no sort key', () => {
+    expect(isValidSortKey('~audits')).toBe(false)
+  })
+
+  it('rejects an empty or hand-typed key', () => {
+    expect(isValidSortKey('')).toBe(false)
+    expect(isValidSortKey('first')).toBe(false)
   })
 })
 
