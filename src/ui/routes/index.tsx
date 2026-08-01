@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { Plus } from 'lucide-react'
+import { Plus, TriangleAlert } from 'lucide-react'
 import { AppShell } from '@/ui/components/app-shell'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { FeatureFilters } from '@/ui/components/feature-filters'
 import { FeatureTree } from '@/ui/components/feature-tree'
 import { Button } from '@/ui/components/ui/button'
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useExpanded } from '@/ui/hooks/use-expanded'
@@ -24,6 +25,7 @@ import {
   type TreeFilters,
 } from '@/lib/tree'
 import type { Feature } from '@/lib/types'
+import { describeError } from '@/lib/errors'
 import { DEFAULT_STATUSES } from '@/lib/status'
 
 type Search = { q?: string; status?: string; tag?: string }
@@ -141,9 +143,18 @@ function TreePage() {
             <Skeleton className="h-8 w-4/6" />
           </div>
         ) : features.isError ? (
-          <p className="text-destructive rounded-lg border border-dashed p-10 text-center text-sm">
-            Could not read the feature directory. Is the chocks server still running?
-          </p>
+          // The server hands back the real message now, so say it rather than guessing at
+          // the cause. Nothing refetches on its own, hence the retry.
+          <Alert variant="destructive">
+            <TriangleAlert />
+            <AlertTitle>Could not load the feature tree</AlertTitle>
+            <AlertDescription>{describeError(features.error)}</AlertDescription>
+            <AlertAction>
+              <Button variant="outline" size="sm" onClick={() => void features.refetch()}>
+                Try again
+              </Button>
+            </AlertAction>
+          </Alert>
         ) : rows.length === 0 ? (
           <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center">
             <p className="mb-4 text-sm">
