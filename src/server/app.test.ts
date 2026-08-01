@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from './app'
-import type { Feature } from '../lib/types'
+import type { Feature, Workspace } from '../lib/types'
 
 let root: string
 let app: ReturnType<typeof createApp>
@@ -47,6 +47,39 @@ describe('GET /api/workspace', () => {
       'deprecated',
       'dropped',
     ])
+  })
+
+  it('reports the version it is running as, and where to read about it', async () => {
+    const versioned = createApp({
+      root,
+      name: 'test-repo',
+      version: '1.2.3',
+      repository: 'git+https://github.com/mattobee/chocks.git',
+    })
+    const body = (await (await versioned.request('/api/workspace')).json()) as Workspace
+
+    expect(body.version).toBe('1.2.3')
+    expect(body.releaseUrl).toBe('https://github.com/mattobee/chocks/releases/tag/v1.2.3')
+  })
+
+  it('offers no release link when it cannot know the version', async () => {
+    // Running from somewhere its own package.json isn't readable.
+    const body = (await (await app.request('/api/workspace')).json()) as Workspace
+    expect(body.version).toBe('')
+    expect(body.releaseUrl).toBe('')
+  })
+
+  it('offers no release link for a repository it cannot build one for', async () => {
+    const elsewhere = createApp({
+      root,
+      name: 'test-repo',
+      version: '1.2.3',
+      repository: 'git+https://gitlab.com/someone/chocks.git',
+    })
+    const body = (await (await elsewhere.request('/api/workspace')).json()) as Workspace
+
+    expect(body.version).toBe('1.2.3')
+    expect(body.releaseUrl).toBe('')
   })
 })
 
