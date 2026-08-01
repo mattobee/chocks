@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { AppShell } from '@/ui/components/app-shell'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusBadge } from '@/ui/components/status-badge'
@@ -15,6 +15,7 @@ import {
 } from '@/ui/components/ui/breadcrumb'
 import { FeatureHistory } from '@/ui/components/feature-history'
 import { Button } from '@/ui/components/ui/button'
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
 import { Badge } from '@/ui/components/ui/badge'
 import { Input } from '@/ui/components/ui/input'
 import { Label } from '@/ui/components/ui/label'
@@ -28,6 +29,7 @@ import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES } from '@/lib/status'
 import { featureKey, FEATURE_SUFFIX } from '@/lib/ids'
+import { describeError } from '@/lib/errors'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
 // keeps resolving after the feature is renamed or moved.
@@ -35,7 +37,8 @@ export const Route = createFileRoute('/f/$featureKey')({
   component: FeaturePage,
 })
 
-function FeaturePage() {
+/** Exported so its branch order can be tested; the route below is the only caller. */
+export function FeaturePage() {
   const { featureKey: key } = Route.useParams()
   const navigate = useNavigate()
 
@@ -74,6 +77,33 @@ function FeaturePage() {
           <Skeleton className="h-9 w-96" />
           <Skeleton className="h-32 w-full" />
         </div>
+      </AppShell>
+    )
+  }
+
+  // Before the not-found case, because they are not the same thing. Without this, a
+  // request that failed reads as a feature that was deleted, which sends you looking for
+  // the wrong problem — and there is no way back, since nothing retries on its own.
+  if (features.isError) {
+    return (
+      <AppShell>
+        <>
+          <Alert variant="destructive">
+            <TriangleAlert />
+            <AlertTitle>Could not load the feature tree</AlertTitle>
+            <AlertDescription>{describeError(features.error)}</AlertDescription>
+            <AlertAction>
+              <Button variant="outline" size="sm" onClick={() => void features.refetch()}>
+                Try again
+              </Button>
+            </AlertAction>
+          </Alert>
+          <div className="mt-4 text-center">
+            <Button variant="ghost" render={<Link to="/" />}>
+              Back to the tree
+            </Button>
+          </div>
+        </>
       </AppShell>
     )
   }
