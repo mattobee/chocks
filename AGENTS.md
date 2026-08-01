@@ -35,6 +35,22 @@ taste; if `pnpm check` is green, leave it. Locators in tests are role-based in b
 Testing Library and Playwright — an accessible-name change should fail a test, that's the
 point, don't loosen a locator to make a failure go away.
 
+## Comments
+
+Comment the why, not the what. A comment earns its place by recording a decision, a
+constraint, or a trap that isn't visible in the code beside it. Anything the code already
+says plainly comes out.
+
+Keep them short. Two or three lines is the normal ceiling, and a doc comment running past
+about six wants cutting rather than rewording. Say it once: don't state the point
+abstractly and then again with an example, and don't spell out what a named function
+alongside already proves.
+
+Where the same reasoning applies in more than one file, write it out once and point at
+that place from the others.
+
+If a comment is explaining what the code does, rename things until it isn't needed.
+
 ## Commits
 
 Conventional Commits (`feat:`, `fix:`, `docs:`, `build:`, ...). Imperative subject, no
