@@ -83,11 +83,11 @@ test.describe('renaming', () => {
 
     await renameTo(page, 'Billing and invoicing')
 
-    // The path is derived from the title, so the file moves. The page shows the id, which
-    // only changes once the client has been told about the write, so waiting on this waits
-    // for both sides rather than just the filesystem.
-    await expect(page.getByText('.chocks/billing-and-invoicing.feature.md')).toBeVisible()
-    expect((await workspace.changed()).join(' ')).toContain('billing-and-invoicing')
+    // The path is derived from the title, so the file moves. Polled rather than read once:
+    // the rename returns before the watcher has reported the write.
+    await expect
+      .poll(async () => (await workspace.changed()).join(' '), { timeout: 5000 })
+      .toContain('billing-and-invoicing')
 
     // The url is keyed on the uid, so the link survives the rename.
     await page.goto(before)

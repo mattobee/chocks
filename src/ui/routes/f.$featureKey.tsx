@@ -46,7 +46,7 @@ import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
 import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES } from '@/lib/status'
-import { featureKey, FEATURE_SUFFIX } from '@/lib/ids'
+import { featureKey } from '@/lib/ids'
 import { describeError } from '@/lib/errors'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
@@ -300,7 +300,7 @@ export function FeaturePage() {
                   so it still says what it renames when read out of context. */}
               <Button
                 ref={renameButtonRef}
-                variant="outline"
+                variant="secondary"
                 aria-label="Rename feature"
                 onClick={() => setRenaming(true)}
               >
@@ -311,18 +311,23 @@ export function FeaturePage() {
           )}
         </div>
 
-        {/* The path is the identity, so showing it makes the file findable in the repo. */}
-        <p className="text-muted-foreground mb-5 font-mono text-xs">
-          .chocks/{feature.id}
-          {FEATURE_SUFFIX}
-        </p>
+        {feature.tags.length > 0 && (
+          <ul className="mb-3 flex flex-wrap items-center gap-2">
+            {feature.tags.map((tag) => (
+              <li key={tag}>
+                <Badge variant="outline">{tag}</Badge>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <Select
             value={feature.status}
             onValueChange={(value) => update.mutate({ id: featureId, status: String(value) })}
           >
-            <SelectTrigger aria-label="Status" className="h-8 w-auto">
+            {/* Rounded to follow the badge inside it, which is the only thing it contains. */}
+            <SelectTrigger aria-label="Status" className="h-8 w-auto rounded-full">
               <StatusBadge statuses={statuses} status={feature.status} />
             </SelectTrigger>
             <SelectContent>
@@ -335,12 +340,6 @@ export function FeaturePage() {
               </SelectGroup>
             </SelectContent>
           </Select>
-
-          {feature.tags.map((tag) => (
-            <Badge key={tag} variant="outline">
-              {tag}
-            </Badge>
-          ))}
         </div>
 
         <div className="mb-8">
@@ -352,7 +351,7 @@ export function FeaturePage() {
             {!describing && (
               <Button
                 ref={describeButtonRef}
-                variant="outline"
+                variant="secondary"
                 aria-label="Edit description"
                 onClick={() => setDescribing(true)}
               >
@@ -364,10 +363,15 @@ export function FeaturePage() {
 
           {describing ? (
             <InputGroup>
+              {/* Three overrides, and a dragged height needs all of them. field-sizing-fixed,
+                  or it sizes to its content and ignores rows. flex-none, or the group's
+                  column flex computes the height and throws away the one you dragged.
+                  resize-y in place of its resize-none, vertical only so it cannot be pulled
+                  out through the group's border. */}
               <InputGroupTextarea
                 ref={describeInputRef}
                 aria-label="Description"
-                rows={8}
+                rows={16}
                 maxLength={10000}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -378,7 +382,7 @@ export function FeaturePage() {
                   }
                   if (event.key === 'Escape') cancelDescription()
                 }}
-                className="font-mono text-sm"
+                className="field-sizing-fixed flex-none resize-y font-mono text-sm"
               />
               {/* Not the default xs. That is sized for a button tucked inside a one-line
                     field; this is a footer bar with room, and 24px is small for a target. */}
@@ -402,9 +406,9 @@ export function FeaturePage() {
           <h2 className="flex-1 text-lg font-semibold">
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
-          <Button variant="outline" onClick={() => setChildDialogOpen(true)}>
+          <Button variant="secondary" onClick={() => setChildDialogOpen(true)}>
             <Plus data-icon="inline-start" />
-            Add
+            Add sub-feature
           </Button>
         </div>
 
@@ -446,7 +450,7 @@ export function FeaturePage() {
         {/* Last on the page and out of the way. It used to sit beside Rename at the top,
             one 32px target away from the button you reach for most. */}
         <div className="mt-10 border-t pt-6">
-          <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
+          <Button variant="ghost" onClick={() => setConfirmDelete(true)}>
             <Trash2 data-icon="inline-start" />
             Delete feature
           </Button>
