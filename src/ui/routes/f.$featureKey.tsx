@@ -290,22 +290,16 @@ export function FeaturePage() {
               {/* The page's heading, which it did not have before: the title was an input
                   dressed as one, so there was nothing for a screen reader to navigate to. */}
               <h1 className="flex-1 text-3xl font-semibold tracking-tight">{feature.title}</h1>
+              {/* Same as the description's Edit: short visible label, longer accessible one
+                  so it still says what it renames when read out of context. */}
               <Button
                 ref={renameButtonRef}
-                variant="ghost"
-                size="icon"
+                variant="outline"
                 aria-label="Rename feature"
                 onClick={() => setRenaming(true)}
               >
-                <Pencil />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Delete feature"
-                onClick={() => setConfirmDelete(true)}
-              >
-                <Trash2 />
+                <Pencil data-icon="inline-start" />
+                Rename
               </Button>
             </>
           )}
@@ -342,64 +336,57 @@ export function FeaturePage() {
         </div>
 
         <div className="mb-8">
-          {describing ? (
-            <>
-              {/* The input group makes it obvious enough what you are editing. The heading
-                  stays for anyone navigating the page by its structure. */}
-              <h2 className="sr-only">Description</h2>
-              <InputGroup>
-                <InputGroupTextarea
-                  ref={describeInputRef}
-                  aria-label="Description"
-                  rows={8}
-                  maxLength={10000}
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  onKeyDown={(event) => {
-                    // Enter belongs to the text here, so saving needs the modifier.
-                    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                      commitDescription()
-                    }
-                    if (event.key === 'Escape') cancelDescription()
-                  }}
-                  className="font-mono text-sm"
-                />
-                {/* Not the default xs. That is sized for a button tucked inside a one-line
-                    field; this is a footer bar with room, and 24px is small for a target. */}
-                <InputGroupAddon align="block-end" className="justify-end">
-                  <InputGroupButton size="sm" onClick={cancelDescription}>
-                    Cancel
-                  </InputGroupButton>
-                  <InputGroupButton size="sm" variant="default" onClick={commitDescription}>
-                    Save
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-            </>
-          ) : (
-            // No heading out here. A "Description" label sitting above the description is a
-            // row of chrome that tells you nothing the text does not.
-            <div className="flex items-start gap-3">
-              {feature.description ? (
-                <div className="min-w-0 flex-1">
-                  <Markdown>{feature.description}</Markdown>
-                </div>
-              ) : (
-                <p className="text-muted-foreground flex-1">No description yet.</p>
-              )}
-              {/* Pulled up to sit on the first line rather than level with its top: the
-                  button is 32px and the line is 20px. */}
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="flex-1 text-lg font-semibold">Description</h2>
+            {/* Visible text is Edit, to match Add above it. The longer accessible name is
+                for anyone listing the page's buttons, where Edit on its own says nothing
+                about what it edits. It contains the visible label, so the two agree. */}
+            {!describing && (
               <Button
                 ref={describeButtonRef}
-                variant="ghost"
-                size="icon"
-                className="-mt-1.5"
+                variant="outline"
                 aria-label="Edit description"
                 onClick={() => setDescribing(true)}
               >
-                <Pencil />
+                <Pencil data-icon="inline-start" />
+                Edit
               </Button>
-            </div>
+            )}
+          </div>
+
+          {describing ? (
+            <InputGroup>
+              <InputGroupTextarea
+                ref={describeInputRef}
+                aria-label="Description"
+                rows={8}
+                maxLength={10000}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter belongs to the text here, so saving needs the modifier.
+                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    commitDescription()
+                  }
+                  if (event.key === 'Escape') cancelDescription()
+                }}
+                className="font-mono text-sm"
+              />
+              {/* Not the default xs. That is sized for a button tucked inside a one-line
+                    field; this is a footer bar with room, and 24px is small for a target. */}
+              <InputGroupAddon align="block-end" className="justify-end">
+                <InputGroupButton size="sm" onClick={cancelDescription}>
+                  Cancel
+                </InputGroupButton>
+                <InputGroupButton size="sm" variant="default" onClick={commitDescription}>
+                  Save
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          ) : feature.description ? (
+            <Markdown>{feature.description}</Markdown>
+          ) : (
+            <p className="text-muted-foreground">No description yet.</p>
           )}
         </div>
 
@@ -407,7 +394,7 @@ export function FeaturePage() {
           <h2 className="flex-1 text-lg font-semibold">
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
-          <Button variant="outline" size="sm" onClick={() => setChildDialogOpen(true)}>
+          <Button variant="outline" onClick={() => setChildDialogOpen(true)}>
             <Plus data-icon="inline-start" />
             Add
           </Button>
@@ -447,6 +434,15 @@ export function FeaturePage() {
 
         <h2 className="mt-8 mb-3 text-lg font-semibold">History</h2>
         <FeatureHistory featureId={featureId} />
+
+        {/* Last on the page and out of the way. It used to sit beside Rename at the top,
+            one 32px target away from the button you reach for most. */}
+        <div className="mt-10 border-t pt-6">
+          <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
+            <Trash2 data-icon="inline-start" />
+            Delete feature
+          </Button>
+        </div>
       </>
 
       <FeatureDialog
