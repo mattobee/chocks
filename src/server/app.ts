@@ -16,8 +16,27 @@ export interface ServerOptions {
   repoRoot?: string
   /** Name shown in the UI, normally the repo directory. */
   name: string
+  /** Version of chocks itself, shown in the footer. */
+  version?: string
+  /** Where chocks itself lives, for linking a version to its release notes. */
+  repository?: string
   /** Directory of built UI assets. Omitted in dev, where Vite serves them instead. */
   uiDir?: string
+}
+
+/**
+ * Release notes for a version of chocks.
+ *
+ * Built from the repository recorded in its own `package.json` rather than a constant
+ * here, so moving the repo doesn't leave a link pointing at the old one.
+ */
+function releaseUrlFor(repository: string | undefined, version: string): string {
+  if (!repository || version === '') return ''
+  const web = repository
+    .replace(/^git\+/, '')
+    .replace(/^git:/, 'https:')
+    .replace(/\.git$/, '')
+  return /^https:\/\/github\.com\//.test(web) ? `${web}/releases/tag/v${version}` : ''
 }
 
 function asStringArray(value: unknown): string[] | undefined {
@@ -41,7 +60,14 @@ export function createApp(options: ServerOptions) {
     // Read per request rather than caching: editing config.yaml should take effect on the
     // next refresh, the same as editing a feature file.
     const { config } = await loadConfig(root)
-    return c.json({ root, name: options.name, config })
+    const version = options.version ?? ''
+    return c.json({
+      root,
+      name: options.name,
+      version,
+      releaseUrl: releaseUrlFor(options.repository, version),
+      config,
+    })
   })
 
   app.get('/api/features', async (c) => c.json(await scan(root)))

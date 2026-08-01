@@ -75,7 +75,8 @@ test.describe('keyboard', () => {
     await expect(page.getByRole('link', { name: 'Authentication' })).toBeVisible()
 
     await page.keyboard.press('Tab')
-    await expect(page.getByRole('link', { name: 'chocks' })).toBeFocused()
+    // Exact, because the footer links "chocks <version> release notes" from the same page.
+    await expect(page.getByRole('link', { name: 'chocks', exact: true })).toBeFocused()
 
     // Arrow keys move within the radio group, which is why it is a radio group.
     await page.getByRole('radio', { name: 'System' }).focus()

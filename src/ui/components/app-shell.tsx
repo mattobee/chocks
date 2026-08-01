@@ -35,6 +35,29 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main className={`${CONTAINER} flex-1 py-6`}>{children}</main>
+
+      {/* Which version is actually serving this, so a bug report can say so. Renders as
+          plain text when the version is unknown, rather than a link to nowhere. */}
+      <footer className="border-t">
+        <div className={`${CONTAINER} text-muted-foreground py-4 text-xs`}>
+          {workspace.data?.version ? (
+            workspace.data.releaseUrl ? (
+              <a
+                href={workspace.data.releaseUrl}
+                // Names the destination, so the link doesn't read as a second link home to
+                // anyone hearing it out of context. Starts with the visible text, so the
+                // two still match for anyone driving this by voice.
+                aria-label={`chocks ${workspace.data.version} release notes`}
+                className="hover:text-foreground underline"
+              >
+                chocks {workspace.data.version}
+              </a>
+            ) : (
+              <span>chocks {workspace.data.version}</span>
+            )
+          ) : null}
+        </div>
+      </footer>
     </div>
   )
 }
