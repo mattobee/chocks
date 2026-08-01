@@ -73,10 +73,13 @@ not one. Stop splitting once you'd be naming something no user or PM would ever 
 separately, or that only exists because of how the code happens to be organised.
 
 A feature is <slug>.feature.md; its children live in a sibling <slug>/ directory. For
-each feature, write a title, a status guessed from whether it looks unbuilt,
-half-finished or shipped, tags for cross-cutting concerns such as "api" or "billing", and
-a couple of sentences describing it in the markdown body. Skip uid and sort: chocks fills
-those in the first time it runs. For example:
+each feature, write a title, a status, tags for cross-cutting concerns such as "api" or
+"billing", and a couple of sentences describing it in the markdown body. The status must
+be one of idea, planned, pre-release, released, deprecated or dropped, unless
+.chocks/config.yaml defines a different set, in which case use those ids exactly. Guess
+released for something that looks fully built, pre-release for something still missing
+pieces, and idea for something referenced but not started. Skip uid and sort: chocks
+fills those in the first time it runs. For example:
 
 ---
 title: OAuth providers
