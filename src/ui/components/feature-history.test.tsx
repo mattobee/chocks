@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FeatureHistory } from './feature-history'
-import type { FeatureHistory as History } from '@/ui/lib/api'
+import type { FeatureHistory as History } from '@/lib/types'
 
 const featureHistory = vi.fn<() => Promise<History>>()
 

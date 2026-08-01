@@ -1,3 +1,5 @@
+import { humanise } from './ids'
+
 /**
  * Feature lifecycle statuses.
  *
@@ -67,12 +69,7 @@ export function findStatus(statuses: StatusDefinition[], id: string): StatusDefi
  * Silently rewriting it would destroy their data.
  */
 export function statusOrUnknown(statuses: StatusDefinition[], id: string): StatusDefinition {
-  return findStatus(statuses, id) ?? { id, label: humaniseStatus(id), color: 'unknown' }
-}
-
-function humaniseStatus(id: string): string {
-  const spaced = id.replace(/[-_]+/g, ' ').trim()
-  return spaced === '' ? '(none)' : spaced.charAt(0).toUpperCase() + spaced.slice(1)
+  return findStatus(statuses, id) ?? { id, label: humanise(id, '(none)'), color: 'unknown' }
 }
 
 /** A status id must be slug-shaped so it is safe in frontmatter and in a URL. */

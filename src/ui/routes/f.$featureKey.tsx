@@ -22,18 +22,9 @@ import { Textarea } from '@/ui/components/ui/textarea'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { Separator } from '@/ui/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/ui/components/ui/alert-dialog'
+import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
-import { ancestorsOf, findByKey, siblingsOf, subtreeIds } from '@/lib/tree'
+import { allTags, ancestorsOf, findByKey, siblingsOf } from '@/lib/tree'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES } from '@/lib/status'
 import { featureKey, FEATURE_SUFFIX } from '@/lib/ids'
@@ -106,8 +97,7 @@ function FeaturePage() {
 
   const ancestors = ancestorsOf(featureList, featureId)
   const children = siblingsOf(featureList, featureId)
-  const allTags = [...new Set(featureList.flatMap((item) => item.tags))].sort()
-  const descendantCount = subtreeIds(featureList, featureId).length - 1
+  const tags = allTags(featureList)
 
   function commitTitle() {
     const next = title.trim()
@@ -272,49 +262,30 @@ function FeaturePage() {
       <FeatureDialog
         open={childDialogOpen}
         onOpenChange={setChildDialogOpen}
-        availableTags={allTags}
+        availableTags={tags}
         statuses={statuses}
         busy={create.isPending}
         onSubmit={handleCreateChild}
       />
 
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{feature.title}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {descendantCount > 0
-                ? `This deletes the file and ${descendantCount} nested ${descendantCount === 1 ? 'feature' : 'features'}. Recoverable with git if it is committed.`
-                : 'This deletes the file. Recoverable with git if it is committed.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const parent = feature.parent
-                // Base UI's AlertDialogAction does not dismiss the dialog itself.
-                setConfirmDelete(false)
-                remove.mutate(featureId, {
-                  onSuccess: () => {
-                    const parentFeature = featureList.find((item) => item.id === parent)
-                    void navigate(
-                      parentFeature
-                        ? {
-                            to: '/f/$featureKey',
-                            params: { featureKey: featureKey(parentFeature) },
-                          }
-                        : { to: '/' },
-                    )
-                  },
-                })
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteFeatureDialog
+        feature={confirmDelete ? feature : null}
+        features={featureList}
+        onOpenChange={setConfirmDelete}
+        onConfirm={(target) => {
+          // The page being deleted is the one we are on, so go somewhere that still exists.
+          remove.mutate(target.id, {
+            onSuccess: () => {
+              const parentFeature = featureList.find((item) => item.id === target.parent)
+              void navigate(
+                parentFeature
+                  ? { to: '/f/$featureKey', params: { featureKey: featureKey(parentFeature) } }
+                  : { to: '/' },
+              )
+            },
+          })
+        }}
+      />
     </AppShell>
   )
 }
