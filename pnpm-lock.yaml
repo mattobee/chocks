@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@tanstack/markdown':
+        specifier: ^0.0.12
+        version: 0.0.12(react@19.2.8)
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.12.1
@@ -820,6 +824,17 @@ packages:
   '@tanstack/hotkeys@0.8.0':
     resolution: {integrity: sha512-vqH7X9nb0MTJ/O08++dB5bP9jgj4+BIPOUu/U+6myG86lDsirZSVSobpq5UQpE7nBuk62i8eIYeOhd+OMl/UrA==}
     engines: {node: '>=18'}
+
+  '@tanstack/markdown@0.0.12':
+    resolution: {integrity: sha512-xQdEIMzbMe5Bl4Wy+CE67nCkeoBUdMkUGa9iYDySV+6TvFBbZZEZmXwL/2JK2ZAJGpuC/XxVtNvRz5Ysdgf+Ww==}
+    peerDependencies:
+      octane: '>=0.1.12'
+      react: '>=18'
+    peerDependenciesMeta:
+      octane:
+        optional: true
+      react:
+        optional: true
 
   '@tanstack/query-core@5.101.4':
     resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
@@ -3762,6 +3777,10 @@ snapshots:
   '@tanstack/hotkeys@0.8.0':
     dependencies:
       '@tanstack/store': 0.11.0
+
+  '@tanstack/markdown@0.0.12(react@19.2.8)':
+    optionalDependencies:
+      react: 19.2.8
 
   '@tanstack/query-core@5.101.4': {}
 

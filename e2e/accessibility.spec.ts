@@ -27,6 +27,24 @@ test.describe('axe', () => {
       .analyze()
     expect(violations).toEqual([])
   })
+
+  test('finds nothing in a rendered description', async ({ page, workspace }) => {
+    // Descriptions are markdown, so the page carries whatever headings, links, tables and
+    // task lists someone wrote. axe sees the rendered result rather than the source.
+    await workspace.write(
+      'auth/oauth',
+      '---\ntitle: OAuth providers\nstatus: pre-release\nsort: a0\nuid: aaa0000002\n---\n\n' +
+        '# Overview\n\nAdds [Apple](https://example.com/apple) alongside the rest.\n\n' +
+        '- [x] GitHub\n- [ ] Apple\n\n| Provider | Status |\n| --- | --- |\n| GitHub | Live |\n',
+    )
+    await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
+    await expect(page.getByRole('heading', { level: 2, name: 'Overview' })).toBeVisible()
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    expect(violations).toEqual([])
+  })
 })
 
 test.describe('accessible names', () => {

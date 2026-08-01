@@ -84,5 +84,8 @@
     "vite": "^8.2.0",
     "vitest": "^4.1.10",
     "yaml": "^2.9.0"
+  },
+  "dependencies": {
+    "@tanstack/markdown": "^0.0.12"
   }
 }

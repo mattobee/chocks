@@ -14,6 +14,7 @@ import {
   BreadcrumbSeparator,
 } from '@/ui/components/ui/breadcrumb'
 import { FeatureHistory } from '@/ui/components/feature-history'
+import { Markdown } from '@/ui/components/markdown'
 import { Button } from '@/ui/components/ui/button'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
 import { Badge } from '@/ui/components/ui/badge'
@@ -333,7 +334,9 @@ export function FeaturePage() {
         <div className="mb-8">
           {describing ? (
             <>
-              <h2 className="mb-3 text-sm font-medium">Description</h2>
+              {/* The input group makes it obvious enough what you are editing. The heading
+                  stays for anyone navigating the page by its structure. */}
+              <h2 className="sr-only">Description</h2>
               <InputGroup>
                 <InputGroupTextarea
                   ref={describeInputRef}
@@ -365,12 +368,11 @@ export function FeaturePage() {
             // row of chrome that tells you nothing the text does not.
             <div className="flex items-start gap-3">
               {feature.description ? (
-                // Held as markdown but shown as written, since rendering it is still an
-                // idea. The whitespace matters either way: a description is mostly line
-                // breaks.
-                <p className="flex-1 text-sm whitespace-pre-wrap">{feature.description}</p>
+                <div className="min-w-0 flex-1">
+                  <Markdown>{feature.description}</Markdown>
+                </div>
               ) : (
-                <p className="text-muted-foreground flex-1 text-sm">No description yet.</p>
+                <p className="text-muted-foreground flex-1">No description yet.</p>
               )}
               {/* Pulled up to sit on the first line rather than level with its top: the
                   button is 32px and the line is 20px. */}
