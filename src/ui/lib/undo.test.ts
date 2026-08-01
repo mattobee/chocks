@@ -215,6 +215,33 @@ describe('undoing a delete', () => {
     expect(redo.label).toBe('created Billing')
   })
 
+  it('takes back what it wrote when a later create fails', async () => {
+    // Otherwise a failure partway leaves half a subtree on disk while the toast says the
+    // undo did not happen.
+    const features = tree()
+    const captured = subtreeSnapshot(features, find(features, 'auth'))
+    createFeature
+      .mockResolvedValueOnce(makeFeature({ id: 'auth', uid: 'aaaaaaaaa1', title: 'Auth' }))
+      .mockRejectedValueOnce(new Error('disk full'))
+
+    await expect(applyEntry(deletedEntry(captured), [])).rejects.toThrow('disk full')
+
+    // One delete of the root is enough: remove takes the children directory with it.
+    expect(deleteFeature).toHaveBeenCalledWith('auth')
+  })
+
+  it('reports what is left behind when the tidying up fails too', async () => {
+    const features = tree()
+    const captured = subtreeSnapshot(features, find(features, 'auth'))
+    createFeature
+      .mockResolvedValueOnce(makeFeature({ id: 'auth', uid: 'aaaaaaaaa1', title: 'Auth' }))
+      .mockRejectedValueOnce(new Error('disk full'))
+    deleteFeature.mockRejectedValue(new Error('read-only'))
+
+    // The original failure is what propagates; the leftovers are reported, not swallowed.
+    await expect(applyEntry(deletedEntry(captured), [])).rejects.toThrow('disk full')
+  })
+
   it('carries the sort key, so the subtree comes back in its old order', async () => {
     const features = tree()
     const captured = subtreeSnapshot(features, find(features, 'billing'))

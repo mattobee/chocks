@@ -205,32 +205,55 @@ export async function applyEntry(entry: UndoEntry, features: Feature[]): Promise
   }
 }
 
-/** Writes a subtree back, parents first, so each child has somewhere to land. */
+/**
+ * Writes a subtree back, parents first, so each child has somewhere to land.
+ *
+ * One create per feature, and any of them can fail. A failure partway would otherwise
+ * leave half a subtree on disk while the toast reported that nothing happened, so what has
+ * been written is taken away again before the error is passed on. Deleting the root of it
+ * is enough: `remove` takes the children directory with it.
+ */
 async function restoreSubtree(subtree: Snapshot[], features: Feature[]): Promise<Feature[]> {
   const restored: Feature[] = []
   let live = features
 
-  for (const item of subtree) {
-    const parentId = parentIdOf(live, item.parentUid)
-    const feature = await api.createFeature({
-      parent: parentId,
-      title: item.title,
-      status: item.status,
-      tags: item.tags,
-      description: item.description,
-      // The uid is why `create` accepts an identity at all: without it, every link to a
-      // restored feature would point at nothing.
-      uid: item.uid,
-      sort: item.sort,
-      slug: item.slug,
-    })
-    restored.push(feature)
-    live = [...live, feature]
+  try {
+    for (const item of subtree) {
+      const parentId = parentIdOf(live, item.parentUid)
+      const feature = await api.createFeature({
+        parent: parentId,
+        title: item.title,
+        status: item.status,
+        tags: item.tags,
+        description: item.description,
+        // The uid is why `create` accepts an identity at all: without it, every link to a
+        // restored feature would point at nothing.
+        uid: item.uid,
+        sort: item.sort,
+        slug: item.slug,
+      })
+      restored.push(feature)
+      live = [...live, feature]
 
-    if (feature.id !== joinId(parentId, item.slug)) {
-      toast(`Restored as ${feature.id}, because something else had taken its place`)
+      if (feature.id !== joinId(parentId, item.slug)) {
+        toast(`Restored as ${feature.id}, because something else had taken its place`)
+      }
     }
+  } catch (error) {
+    await rollBack(restored)
+    throw error
   }
 
   return restored
+}
+
+/** Best effort: if the tidying up fails too, say what is left rather than hiding it. */
+async function rollBack(restored: Feature[]): Promise<void> {
+  const first = restored[0]
+  if (!first) return
+  try {
+    await api.deleteFeature(first.id)
+  } catch {
+    toast.error(`Could not finish restoring, and ${first.id} has been left behind`)
+  }
 }
