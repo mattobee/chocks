@@ -95,9 +95,9 @@ Review the result before committing it. An agent can only see what's in the repo
 will get statuses wrong for anything still in your head and miss features that were
 deliberately dropped. That's a starting point to edit, not a finished tree.
 
-Restart chocks before committing, if it was already running while the agent worked: uids
-are backfilled once at startup, not as files are written, so freshly seeded features sit
-with no uid until the next boot picks them up.
+If chocks was already running with the UI open while the agent worked, it backfills uids
+for the new files live. If it was running headless with no tab connected, restart it
+before committing: nothing is watching to backfill until something is.
 
 For a big or unfamiliar codebase, narrow the same prompt to one directory or one PR's
 diff at a time rather than asking for the whole tree in one pass.

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -210,5 +210,44 @@ describe('history route', () => {
   it('refuses a traversing id', async () => {
     const response = await app.request('/api/history/..%2F..%2Fetc%2Fpasswd')
     expect(response.status).toBe(400)
+  })
+})
+
+describe('SSE /api/events', () => {
+  it('backfills a uid for a file written while connected, before telling clients to refetch', async () => {
+    const response = await app.request('/api/events')
+    expect(response.status).toBe(200)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+
+    async function nextEvent(): Promise<string> {
+      let buffer = ''
+      while (!buffer.includes('\n\n')) {
+        const { value, done } = await reader.read()
+        if (done) throw new Error('stream closed')
+        buffer += decoder.decode(value, { stream: true })
+      }
+      return buffer
+    }
+
+    await expect(nextEvent()).resolves.toContain('connected')
+    // Give chokidar a moment to finish its initial scan before touching anything, as in
+    // watch.test.ts.
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    // Written straight to disk, bypassing the store, the way an agent seeding the tree
+    // would — no uid, the way a hand-written file arrives.
+    await writeFile(
+      path.join(root, 'seeded.feature.md'),
+      '---\ntitle: Seeded\nstatus: idea\n---\n\nWritten with no uid.\n',
+      'utf8',
+    )
+
+    await expect(nextEvent()).resolves.toContain('changed')
+
+    const features = (await (await app.request('/api/features')).json()) as Feature[]
+    expect(features[0]?.uid).toMatch(/^[a-f][0-9a-f]{9}$/)
+
+    await reader.cancel()
   })
 })
