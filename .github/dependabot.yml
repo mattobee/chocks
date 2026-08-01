@@ -1,0 +1,25 @@
+version: 2
+
+updates:
+  # Everything is a devDependency, because the published package bundles what it needs and
+  # declares nothing. That means a vulnerability in a bundled dependency only reaches
+  # anyone once chocks is republished, so these updates matter more than the
+  # "development" label suggests.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      # One pull request for the routine bumps; anything major arrives on its own.
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
