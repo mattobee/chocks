@@ -9,7 +9,13 @@ import {
 } from '@/ui/components/ui/dialog'
 import { Button } from '@/ui/components/ui/button'
 import { Input } from '@/ui/components/ui/input'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/ui/components/ui/field'
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@/ui/components/ui/field'
 import { Textarea } from '@/ui/components/ui/textarea'
 import {
   Select,
@@ -164,9 +170,12 @@ export function FeatureDialog({
                 not just pick from a fixed list. Existing tags are offered as shortcuts. */}
             <Field>
               <FieldLabel htmlFor="feature-tags">Tags</FieldLabel>
+              <FieldDescription id="feature-tags-hint">
+                Comma separated, for example: ux, api
+              </FieldDescription>
               <Input
                 id="feature-tags"
-                placeholder="comma separated, e.g. ux, api"
+                aria-describedby="feature-tags-hint"
                 value={tagsText}
                 onChange={(event) => setTagsText(event.target.value)}
                 onBlur={() => setTagsText(parseTags(tagsText).join(', '))}

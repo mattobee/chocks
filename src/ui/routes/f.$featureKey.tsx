@@ -353,7 +353,6 @@ export function FeaturePage() {
                   aria-label="Description"
                   rows={8}
                   maxLength={10000}
-                  placeholder="Markdown. What is this feature, and what would done look like?"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   onKeyDown={(event) => {
