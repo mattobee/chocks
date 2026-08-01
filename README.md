@@ -66,10 +66,11 @@ the repo and asking it to read the code for you.
 Read this codebase and populate .chocks with a feature tree.
 
 A feature is a capability someone outside the team would recognise, not a file, a
-function or an internal system. One feature per capability, nested only where one
-genuinely makes sense in the context of another. If you're about to write ten sibling
-files that only make sense to someone reading the source, they're not ten features,
-they're your evidence for one.
+function or an internal system. Split down to individual actions where each has its own
+lifecycle: creating, editing and deleting a thing usually ship at different times, so
+`create-audit`, `edit-audit` and `delete-audit` belong under `audits/` as three features,
+not one. Stop splitting once you'd be naming something no user or PM would ever refer to
+separately, or that only exists because of how the code happens to be organised.
 
 A feature is <slug>.feature.md; its children live in a sibling <slug>/ directory. For
 each feature, write a title, a status guessed from whether it looks unbuilt,
