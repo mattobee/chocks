@@ -61,6 +61,14 @@ export function createApp(options: ServerOptions) {
     return c.json({ message: describeError(error) }, 500)
   })
 
+  // The tree changes under the UI whenever a file changes on disk, which is the whole
+  // point. Without a header saying so, a browser is free to decide for itself how long one
+  // of these responses stays good, and then live reload quietly stops being live.
+  app.use('/api/*', async (c, next) => {
+    await next()
+    c.header('Cache-Control', 'no-store')
+  })
+
   app.get('/api/workspace', async (c) => {
     // Read per request rather than caching: editing config.yaml should take effect on the
     // next refresh, the same as editing a feature file.
