@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
@@ -26,6 +26,27 @@ Options
       --no-open       Do not open a browser
   -h, --help          Show this message
 `
+
+/**
+ * chocks' own package.json, for reporting the version it is running as.
+ *
+ * Read at runtime rather than inlined at build time so `pnpm dev:server`, which runs the
+ * TypeScript directly with no bundler, reports a version too. Both entry points sit one
+ * directory below it: `src/cli.ts` in the repo, `dist/cli.mjs` in the published package.
+ */
+function ownPackage(): { version?: string; repository?: string } {
+  try {
+    const file = new URL('../package.json', import.meta.url)
+    const data = JSON.parse(readFileSync(file, 'utf8')) as {
+      version?: string
+      repository?: { url?: string }
+    }
+    return { version: data.version, repository: data.repository?.url }
+  } catch {
+    // Running from somewhere unexpected. A missing version is worth less than a crash.
+    return {}
+  }
+}
 
 /** Walks up from `start` looking for a repo root, falling back to `start`. */
 function findRepoRoot(start: string): string {
@@ -118,7 +139,15 @@ async function main(): Promise<void> {
   const here = path.dirname(fileURLToPath(import.meta.url))
   const uiDir = path.join(here, 'ui')
 
-  const app = createApp({ root, repoRoot, name: path.basename(repoRoot), uiDir })
+  const { version, repository } = ownPackage()
+  const app = createApp({
+    root,
+    repoRoot,
+    name: path.basename(repoRoot),
+    version,
+    repository,
+    uiDir,
+  })
 
   const server = serve({ fetch: app.fetch, port, hostname: host }, (info) => {
     const { local, network } = urlsFor(host, info.port)

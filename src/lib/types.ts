@@ -64,5 +64,13 @@ export interface Workspace {
   root: string
   /** Name to show in the UI, taken from the repo directory. */
   name: string
+  /**
+   * Version of chocks doing the serving. Comes from the server rather than the bundle so
+   * it reports what is actually running, which is what you want when someone says the app
+   * is misbehaving. Empty if it could not be read.
+   */
+  version: string
+  /** Release notes for that version. Empty when the version or the repo is unknown. */
+  releaseUrl: string
   config: ChocksConfig
 }
