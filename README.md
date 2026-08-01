@@ -57,6 +57,34 @@ that can disagree with the filesystem, and moving or retitling a feature is just
 Links keep working after a move, because they resolve on a `uid` generated once per
 feature rather than on the path.
 
+## Seeding a tree
+
+A new install has no tree. The fastest way to fill one in is pointing a coding agent at
+the repo and asking it to read the code for you.
+
+```
+Read this codebase and populate .chocks with a feature tree, following the file format
+and layout described in this repo's README.
+
+A feature is a capability someone outside the team would recognise, not a file, a
+function or an internal system. One feature per capability, nested only where one
+genuinely makes sense in the context of another. If you're about to write ten sibling
+files that only make sense to someone reading the source, they're not ten features,
+they're your evidence for one.
+
+For each feature, write a <slug>.feature.md with a title, a status guessed from whether
+it looks unbuilt, half-finished or shipped, tags for cross-cutting concerns such as "api"
+or "billing", and a couple of sentences describing it. Skip uid and sort: chocks fills
+those in the first time it runs.
+```
+
+Review the result before committing it. An agent can only see what's in the repo, so it
+will get statuses wrong for anything still in your head and miss features that were
+deliberately dropped. That's a starting point to edit, not a finished tree.
+
+For a big or unfamiliar codebase, narrow the same prompt to one directory or one PR's
+diff at a time rather than asking for the whole tree in one pass.
+
 ## Statuses
 
 The defaults are a lifecycle, not a workflow: Idea, Planned, Pre-release, Released,
