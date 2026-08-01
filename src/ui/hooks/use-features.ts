@@ -5,6 +5,8 @@ import { api, ApiError, subscribeToChanges } from '../lib/api'
 import { queryKeys } from '../lib/queries'
 import { childrenOf, indexAfter } from '../../lib/tree'
 import type { Feature } from '../../lib/types'
+import { useUndo } from '../lib/undo-context'
+import { createdEntry, deletedEntry, movedEntry, subtreeSnapshot, updatedEntry } from '../lib/undo'
 
 function message(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback
@@ -33,7 +35,11 @@ export function useWatchFiles(): void {
 
 export function useFeatureMutations(features: Feature[]) {
   const queryClient = useQueryClient()
+  const { record } = useUndo()
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.features })
+
+  /** The state to put back, captured before the write destroys it. */
+  const before = (id: string) => features.find((feature) => feature.id === id)
 
   const create = useMutation({
     mutationFn: (input: {
@@ -43,20 +49,41 @@ export function useFeatureMutations(features: Feature[]) {
       tags?: string[]
       description?: string
     }) => api.createFeature(input),
-    onSuccess: invalidate,
+    onSuccess: (created) => {
+      record(createdEntry(created))
+      return invalidate()
+    },
     onError: (error) => toast.error(message(error, 'Could not create feature')),
   })
 
   const update = useMutation({
     mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateFeature>[1]) =>
       api.updateFeature(id, patch),
-    onSuccess: invalidate,
+    onSuccess: (_updated, variables) => {
+      // A bare sort change is a reorder the move mutation already recorded, so recording
+      // it again would need two undos to put one drag back.
+      const previous = before(variables.id)
+      if (previous && Object.keys(variables).some((key) => key !== 'id' && key !== 'sort')) {
+        record(updatedEntry(previous, features))
+      }
+      return invalidate()
+    },
     onError: (error) => toast.error(message(error, 'Could not save feature')),
   })
 
   const remove = useMutation({
-    mutationFn: (id: string) => api.deleteFeature(id),
-    onSuccess: invalidate,
+    // Captured in mutationFn rather than onSuccess: by the time the delete returns, the
+    // subtree is gone from disk and the store returns nothing about what it removed.
+    mutationFn: async (id: string) => {
+      const doomed = before(id)
+      const captured = doomed ? subtreeSnapshot(features, doomed) : []
+      await api.deleteFeature(id)
+      return captured
+    },
+    onSuccess: (captured) => {
+      if (captured.length > 0) record(deletedEntry(captured))
+      return invalidate()
+    },
     onError: (error) => toast.error(message(error, 'Could not delete feature')),
   })
 
@@ -73,7 +100,11 @@ export function useFeatureMutations(features: Feature[]) {
       const siblings = childrenOf(features, newParent).filter((feature) => feature.id !== id)
       return api.moveFeature(id, { newParent, index: indexAfter(siblings, afterId) })
     },
-    onSuccess: invalidate,
+    onSuccess: (_moved, variables) => {
+      const previous = before(variables.id)
+      if (previous) record(movedEntry(previous, features))
+      return invalidate()
+    },
     onError: (error) => toast.error(message(error, 'Could not move feature')),
   })
 

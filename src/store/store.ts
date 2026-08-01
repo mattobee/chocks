@@ -157,6 +157,18 @@ export interface CreateInput {
   description?: string
   /** Used only to pick the default status for a new feature. */
   statuses?: StatusDefinition[]
+  /**
+   * Identity to restore rather than mint.
+   *
+   * Undoing a delete has to put the feature back as itself: the uid, because that is what
+   * every link resolves on; the sort key, because position alone would not reproduce it;
+   * and the slug, because a hand-written file's name need not match its title, and undo
+   * quietly renaming someone's file is not undo. Left out for an ordinary create, which
+   * gets a fresh uid, a name from its title and a place at the end.
+   */
+  uid?: string
+  sort?: string
+  slug?: string
 }
 
 export async function create(root: string, input: CreateInput): Promise<Feature> {
@@ -167,18 +179,29 @@ export async function create(root: string, input: CreateInput): Promise<Feature>
   }
 
   const existing = await scan(root)
+  if (input.uid !== undefined && existing.some((feature) => feature.uid === input.uid)) {
+    // Two features answering to one uid would make `findByKey` pick between them
+    // arbitrarily, so every link to either becomes a coin toss.
+    throw new StoreError(`A feature already has the uid ${input.uid}`, 409)
+  }
+
   const siblings = childrenOf(existing, input.parent)
   const taken = new Set(siblings.map((feature) => slugOf(feature.id)))
 
+  const desiredSlug = input.slug ?? slugify(title)
+  if (!isValidId(desiredSlug) || desiredSlug.includes('/')) {
+    throw new StoreError(`Invalid slug: ${desiredSlug}`, 400)
+  }
+
   const feature: Feature = {
-    id: joinId(input.parent, uniqueSlug(slugify(title), taken)),
-    uid: generateUid(),
+    id: joinId(input.parent, uniqueSlug(desiredSlug, taken)),
+    uid: input.uid ?? generateUid(),
     parent: input.parent,
     title,
     description: input.description ?? '',
     status: input.status ?? defaultStatusId(input.statuses ?? DEFAULT_STATUSES),
     tags: input.tags ?? [],
-    sort: sortKeyForIndex(siblings, siblings.length),
+    sort: input.sort ?? sortKeyForIndex(siblings, siblings.length),
   }
 
   const file = fileFor(root, feature.id)

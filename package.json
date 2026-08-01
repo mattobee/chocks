@@ -49,6 +49,7 @@
     "@hono/node-server": "^2.0.12",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-hotkeys": "^0.10.0",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-router": "^1.170.18",
     "@tanstack/router-cli": "^1.167.21",

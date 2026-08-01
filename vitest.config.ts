@@ -27,7 +27,8 @@ export default defineConfig({
         test: {
           name: 'ui',
           environment: 'jsdom',
-          include: ['src/ui/**/*.test.tsx'],
+          // `.ts` as well, so UI logic with no JSX in it doesn't have to pretend otherwise.
+          include: ['src/ui/**/*.test.{ts,tsx}'],
           setupFiles: ['./src/ui/test-setup.ts'],
         },
       },
