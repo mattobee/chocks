@@ -34,7 +34,6 @@ import {
   InputGroupTextarea,
 } from '@/ui/components/ui/input-group'
 import { Skeleton } from '@/ui/components/ui/skeleton'
-import { Separator } from '@/ui/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
@@ -401,9 +400,7 @@ export function FeaturePage() {
           )}
         </div>
 
-        <Separator className="mb-6" />
-
-        <div className="mb-3 flex items-center gap-3">
+        <div className="mt-8 mb-3 flex items-center gap-3">
           <h2 className="flex-1 text-lg font-semibold">
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
@@ -445,9 +442,7 @@ export function FeaturePage() {
           </Empty>
         )}
 
-        <Separator className="my-6" />
-
-        <h2 className="mb-3 text-lg font-semibold">History</h2>
+        <h2 className="mt-8 mb-3 text-lg font-semibold">History</h2>
         <FeatureHistory featureId={featureId} />
       </>
 
