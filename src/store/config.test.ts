@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import { parseConfig } from './config'
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { CONFIG_FILENAME, loadConfig, parseConfig } from './config'
 import { DEFAULT_STATUSES } from '../lib/status'
 
 describe('parseConfig', () => {
@@ -104,5 +107,39 @@ describe('default statuses', () => {
     const ids = DEFAULT_STATUSES.map((status) => status.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(DEFAULT_STATUSES.every((status) => status.label.trim() !== '')).toBe(true)
+  })
+})
+
+describe('loadConfig', () => {
+  let root: string
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), 'chocks-config-'))
+  })
+
+  afterEach(async () => {
+    await chmod(root, 0o700).catch(() => {})
+    await rm(root, { recursive: true, force: true })
+  })
+
+  it('yields the defaults with nothing to report when there is no config', async () => {
+    const { config, problems } = await loadConfig(root)
+    expect(config.statuses).toEqual(DEFAULT_STATUSES)
+    expect(problems).toEqual([])
+  })
+
+  it('reports an unreadable config rather than throwing', async () => {
+    // loadConfig runs at startup, so throwing here would stop chocks running at all over
+    // a file it can manage without.
+    const file = path.join(root, CONFIG_FILENAME)
+    await writeFile(file, 'statuses:\n  - idea\n', 'utf8')
+    await chmod(file, 0o000)
+
+    const { config, problems } = await loadConfig(root)
+
+    expect(config.statuses).toEqual(DEFAULT_STATUSES)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain(`${CONFIG_FILENAME} could not be read`)
+    expect(problems[0]).toContain('EACCES')
   })
 })

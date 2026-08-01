@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -424,6 +424,29 @@ describe('backfill', () => {
     const byId = new Map(after.map((feature) => [feature.id, feature.sort]))
     expect(byId.get('a')).toBe('a0')
     expect(byId.get('d')).toBe('a5')
+  })
+
+  it('reports an unwritable file and carries on with the rest', async () => {
+    // Backfilling is a convenience. One read-only file must not cost the other hundred,
+    // and must not stop chocks starting.
+    await mkdir(path.join(root, 'locked'), { recursive: true })
+    await given('locked/stuck.feature.md', 'title: Stuck')
+    await given('fine.feature.md', 'title: Fine')
+    await chmod(path.join(root, 'locked'), 0o500)
+
+    try {
+      const result = await backfill(root)
+
+      expect(result.failures).toHaveLength(1)
+      expect(result.failures[0]).toContain('locked/stuck')
+      expect(result.sortKeys).toBe(1)
+
+      const fine = (await scan(root)).find((feature) => feature.id === 'fine')!
+      expect(isValidSortKey(fine.sort)).toBe(true)
+      expect(fine.uid).not.toBe('')
+    } finally {
+      await chmod(path.join(root, 'locked'), 0o700)
+    }
   })
 
   it('backfills each sibling group independently', async () => {
