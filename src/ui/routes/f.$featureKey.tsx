@@ -25,6 +25,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/ui/components/ui/empty'
+import { Item, ItemActions, ItemContent, ItemTitle } from '@/ui/components/ui/item'
 import {
   InputGroup,
   InputGroupAddon,
@@ -413,18 +414,25 @@ export function FeaturePage() {
         </div>
 
         {children.length > 0 ? (
-          <ul className="divide-y rounded-lg border">
+          // A real ul rather than ItemGroup, which is a div with role="list". The registry's
+          // own example puts role="listitem" on the anchor, which costs it the link role.
+          // The border and dividers live here: ItemGroup is gapped cards, and these rows
+          // read better as one list.
+          <ul className="divide-y overflow-hidden rounded-lg border">
             {children.map((child) => (
               <li key={child.id}>
-                <Link
-                  to="/f/$featureKey"
-                  params={{ featureKey: featureKey(child) }}
-                  className="hover:bg-muted/50 flex items-center gap-3 p-3"
+                <Item
+                  className="rounded-none border-0"
+                  render={<Link to="/f/$featureKey" params={{ featureKey: featureKey(child) }} />}
                 >
-                  <span className="flex-1 truncate text-sm">{child.title}</span>
-                  <StatusBadge statuses={statuses} status={child.status} />
-                  <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-                </Link>
+                  <ItemContent>
+                    <ItemTitle>{child.title}</ItemTitle>
+                  </ItemContent>
+                  <ItemActions>
+                    <StatusBadge statuses={statuses} status={child.status} />
+                    <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                  </ItemActions>
+                </Item>
               </li>
             ))}
           </ul>

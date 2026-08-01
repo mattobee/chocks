@@ -9,7 +9,7 @@ import {
 } from '@/ui/components/ui/dialog'
 import { Button } from '@/ui/components/ui/button'
 import { Input } from '@/ui/components/ui/input'
-import { Label } from '@/ui/components/ui/label'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/ui/components/ui/field'
 import { Textarea } from '@/ui/components/ui/textarea'
 import {
   Select,
@@ -102,9 +102,9 @@ export function FeatureDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="feature-title">Title</Label>
+          <FieldGroup className="py-4">
+            <Field>
+              <FieldLabel htmlFor="feature-title">Title</FieldLabel>
               <Input
                 id="feature-title"
                 ref={titleRef}
@@ -119,15 +119,14 @@ export function FeatureDialog({
                   if (titleError !== null && event.target.value.trim() !== '') setTitleError(null)
                 }}
               />
-              {titleError !== null && (
-                <p id="feature-title-error" className="text-destructive text-sm">
-                  {titleError}
-                </p>
-              )}
-            </div>
+              {/* Keeps the id: FieldError carries role="alert" so it is announced when it
+                  appears, but the field's aria-errormessage still has to point at it for
+                  anyone who comes back to the field afterwards. */}
+              <FieldError id="feature-title-error">{titleError}</FieldError>
+            </Field>
 
-            <div className="grid gap-2">
-              <Label htmlFor="feature-description">Description</Label>
+            <Field>
+              <FieldLabel htmlFor="feature-description">Description</FieldLabel>
               <Textarea
                 id="feature-description"
                 rows={4}
@@ -135,10 +134,10 @@ export function FeatureDialog({
                 value={draft.description}
                 onChange={(event) => setDraft({ ...draft, description: event.target.value })}
               />
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
-              <Label htmlFor="feature-status">Status</Label>
+            <Field>
+              <FieldLabel htmlFor="feature-status">Status</FieldLabel>
               <Select
                 value={draft.status}
                 onValueChange={(value) => setDraft({ ...draft, status: String(value) })}
@@ -159,12 +158,12 @@ export function FeatureDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
             {/* Tags are free-form strings in frontmatter, so this has to accept new ones,
                 not just pick from a fixed list. Existing tags are offered as shortcuts. */}
-            <div className="grid gap-2">
-              <Label htmlFor="feature-tags">Tags</Label>
+            <Field>
+              <FieldLabel htmlFor="feature-tags">Tags</FieldLabel>
               <Input
                 id="feature-tags"
                 placeholder="comma separated, e.g. ux, api"
@@ -197,8 +196,8 @@ export function FeatureDialog({
                   })}
                 </div>
               )}
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
