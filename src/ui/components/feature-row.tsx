@@ -97,8 +97,9 @@ export function FeatureRow({
         onClick={() => hasChildren && onToggle(feature.id)}
         className={cn('text-muted-foreground shrink-0', !hasChildren && 'invisible')}
       >
+        {/* No size here: the button variant sizes its own icons, and setting one opts out. */}
         <ChevronRight
-          className={cn('size-4 transition-transform', expanded && 'rotate-90')}
+          className={cn('transition-transform', expanded && 'rotate-90')}
           aria-hidden="true"
         />
       </Button>
@@ -116,7 +117,7 @@ export function FeatureRow({
         {...attributes}
         {...listeners}
       >
-        <GripVertical className="size-4" aria-hidden="true" />
+        <GripVertical aria-hidden="true" />
       </Button>
 
       {renaming ? (
@@ -174,12 +175,12 @@ export function FeatureRow({
 
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         aria-label={`Add child of ${feature.title}`}
-        className="size-7 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         onClick={() => onAddChild(feature.id)}
       >
-        <Plus className="size-4" />
+        <Plus />
       </Button>
 
       <DropdownMenu>
@@ -187,13 +188,13 @@ export function FeatureRow({
           render={
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               aria-label={`Actions for ${feature.title}`}
-              className="size-7 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100"
+              className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100"
             />
           }
         >
-          <MoreHorizontal className="size-4" />
+          <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => onEdit(feature)}>Edit…</DropdownMenuItem>

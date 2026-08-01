@@ -66,7 +66,8 @@ export function FeatureFilters({
             size="sm"
             onClick={() => onChange({ query: '', statuses: [], tags: [] })}
           >
-            <X className="size-4" />
+            {/* data-icon is what the button variant keys its leading padding off. */}
+            <X data-icon="inline-start" />
             Clear
           </Button>
         )}

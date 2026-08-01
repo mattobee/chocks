@@ -14,7 +14,9 @@ function RootLayout() {
   return (
     <>
       <Outlet />
-      <Toaster richColors />
+      {/* No richColors: it swaps sonner's own palette in over the theme tokens the
+          component already wires up, so an error toast stops matching the rest of the UI. */}
+      <Toaster />
     </>
   )
 }
