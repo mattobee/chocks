@@ -144,7 +144,7 @@ function TreePage() {
           </div>
         ) : features.isError ? (
           // The server hands back the real message now, so say it rather than guessing at
-          // the cause. Nothing refetches on its own, hence the way back.
+          // the cause. Nothing refetches on its own, hence the retry.
           <Alert variant="destructive">
             <TriangleAlert />
             <AlertTitle>Could not load the feature tree</AlertTitle>

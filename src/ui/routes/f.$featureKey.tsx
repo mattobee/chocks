@@ -81,9 +81,9 @@ export function FeaturePage() {
     )
   }
 
-  // Before the not-found case, because they are not the same thing. Without this, a
-  // request that failed reads as a feature that was deleted, which sends you looking for
-  // the wrong problem — and there is no way back, since nothing retries on its own.
+  // Before the not-found case, because they are not the same thing. A request that failed
+  // otherwise reads as a feature someone deleted, which sends you looking for the wrong
+  // problem, and nothing refetches on its own to correct it.
   if (features.isError) {
     return (
       <AppShell>
