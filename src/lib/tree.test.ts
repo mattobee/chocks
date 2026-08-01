@@ -8,7 +8,7 @@ import {
   flattenVisible,
   indexAfter,
   projectDrop,
-  siblingsOf,
+  childrenOf,
   sortKeyBetween,
   sortKeyForIndex,
   subtreeIds,
@@ -305,19 +305,19 @@ describe('sortKeyForIndex', () => {
   })
 })
 
-describe('siblingsOf', () => {
+describe('childrenOf', () => {
   it('returns direct children in display order', () => {
     const features = [
       feature('b', 'p', 'a1'),
       feature('a', 'p', 'a0'),
       feature('elsewhere', 'q', 'a0'),
     ]
-    expect(siblingsOf(features, 'p').map((f) => f.id)).toEqual(['a', 'b'])
+    expect(childrenOf(features, 'p').map((f) => f.id)).toEqual(['a', 'b'])
   })
 
   it('returns roots for the empty parent', () => {
     const features = [feature('root', '', 'a0'), feature('child', 'root', 'a0')]
-    expect(siblingsOf(features, '').map((f) => f.id)).toEqual(['root'])
+    expect(childrenOf(features, '').map((f) => f.id)).toEqual(['root'])
   })
 })
 
