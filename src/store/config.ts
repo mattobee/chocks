@@ -9,6 +9,7 @@ import {
   type StatusColor,
   type StatusDefinition,
 } from '../lib/status'
+import { describeError } from '../lib/errors'
 import type { ChocksConfig } from '../lib/types'
 
 export const CONFIG_FILENAME = 'config.yaml'
@@ -22,9 +23,10 @@ export interface LoadedConfig {
 /**
  * Reads `.chocks/config.yaml`.
  *
- * A missing file is the normal case and yields the defaults. A malformed one is reported
- * and then ignored: refusing to start because a colour name is misspelled would be a poor
- * trade when the whole tree is otherwise readable.
+ * A missing file is the normal case and yields the defaults. Anything else wrong with it,
+ * whether it cannot be read or cannot be parsed, is reported and then ignored: refusing to
+ * start because a colour name is misspelled would be a poor trade when the whole tree is
+ * otherwise readable. Never throws, so a caller can read it at startup.
  */
 export async function loadConfig(root: string): Promise<LoadedConfig> {
   let raw: string
@@ -34,7 +36,13 @@ export async function loadConfig(root: string): Promise<LoadedConfig> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return { config: { statuses: DEFAULT_STATUSES }, problems: [] }
     }
-    throw error
+    // Unreadable is the same trade as unparseable: report it and use the defaults. This
+    // is read at startup, so throwing would stop chocks running at all over a file it can
+    // manage perfectly well without.
+    return {
+      config: { statuses: DEFAULT_STATUSES },
+      problems: [`${CONFIG_FILENAME} could not be read: ${describeError(error)}`],
+    }
   }
 
   return parseConfig(raw)
