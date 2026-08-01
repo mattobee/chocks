@@ -6,7 +6,8 @@ test.describe('creating', () => {
 
     await page.getByRole('button', { name: 'New feature' }).click()
     await page.getByRole('textbox', { name: 'Title' }).fill('Password reset')
-    await page.getByRole('combobox', { name: 'Status' }).click()
+    // Exact, or this also matches every row's "Status of <feature>" behind the dialog.
+    await page.getByRole('combobox', { name: 'Status', exact: true }).click()
     await page.getByRole('option', { name: 'Planned' }).click()
     await page.getByRole('textbox', { name: 'Tags' }).fill('auth, security')
     await page.getByRole('button', { name: 'Create' }).click()
@@ -73,10 +74,11 @@ test.describe('renaming', () => {
     await heading.fill('Billing and invoicing')
     await heading.blur()
 
-    // The path is derived from the title, so the file moves.
-    await expect
-      .poll(async () => (await workspace.changed()).join(' '), { timeout: 5000 })
-      .toContain('billing-and-invoicing')
+    // The path is derived from the title, so the file moves. The page shows the id, which
+    // only changes once the client has been told about the write, so waiting on this waits
+    // for both sides rather than just the filesystem.
+    await expect(page.getByText('.chocks/billing-and-invoicing.feature.md')).toBeVisible()
+    expect((await workspace.changed()).join(' ')).toContain('billing-and-invoicing')
 
     // The url is keyed on the uid, so the link survives the rename.
     await page.goto(before)

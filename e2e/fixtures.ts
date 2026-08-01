@@ -1,7 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import net from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -26,14 +25,34 @@ export interface Workspace {
   changed: () => Promise<string[]>
 }
 
-async function freePort(): Promise<number> {
+/**
+ * The port chocks actually bound, read from what it printed.
+ *
+ * Deliberately not chosen in advance. Picking a free port means binding one, reading the
+ * number and letting go of it, and another worker can take it in the gap before chocks
+ * binds. That server then exits, and every request in that test is refused — which looks
+ * exactly like a feature that has gone missing.
+ *
+ * Passing `--port 0` lets the OS assign one to chocks itself, so there is no gap.
+ */
+function portFromOutput(server: ChildProcess, output: () => string): Promise<number> {
   return new Promise((resolve, reject) => {
-    const server = net.createServer()
-    server.on('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address()
-      const port = typeof address === 'object' && address ? address.port : 0
-      server.close(() => resolve(port))
+    const deadline = setTimeout(
+      () => reject(new Error(`chocks printed no port in 20s:\n${output()}`)),
+      20_000,
+    )
+    const check = () => {
+      const match = /http:\/\/localhost:(\d+)/.exec(output())
+      if (!match?.[1]) return
+      clearTimeout(deadline)
+      clearInterval(poll)
+      resolve(Number(match[1]))
+    }
+    const poll = setInterval(check, 50)
+    server.on('exit', (code) => {
+      clearTimeout(deadline)
+      clearInterval(poll)
+      reject(new Error(`chocks exited with ${code} before listening:\n${output()}`))
     })
   })
 }
@@ -94,19 +113,22 @@ export const test = base.extend<{ workspace: Workspace }>({
     }
     await commit('seed')
 
-    const port = await freePort()
-    const url = `http://127.0.0.1:${port}`
     const cli = path.join(REPO_ROOT, 'dist', 'cli.mjs')
     if (!existsSync(cli)) {
       throw new Error('dist/cli.mjs is missing. Run `pnpm build` before the e2e suite.')
     }
 
     let server: ChildProcess | undefined
+    let url = ''
     try {
-      server = spawn('node', [cli, '--no-open', '--port', String(port)], {
-        cwd: dir,
-        stdio: 'ignore',
-      })
+      // Piped, not ignored: when the server does fail, its own message is the only thing
+      // that says why, and throwing it away turns a clear error into a mystery.
+      server = spawn('node', [cli, '--no-open', '--port', '0'], { cwd: dir, stdio: 'pipe' })
+      let output = ''
+      server.stdout?.on('data', (chunk: Buffer) => (output += chunk.toString()))
+      server.stderr?.on('data', (chunk: Buffer) => (output += chunk.toString()))
+
+      url = `http://127.0.0.1:${await portFromOutput(server, () => output)}`
       await waitForServer(url)
 
       await use({
