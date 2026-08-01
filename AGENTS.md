@@ -62,6 +62,9 @@ full stop, under ~50 characters. Body only when the why isn't obvious from the d
 Open as draft. Keep the description short: what it does and why, in plain language, with
 technical detail only where a reviewer would otherwise be confused.
 
+Label any PR that changes a feature in `.chocks` with `chocks`, so the tree's own history
+is separable from the code's.
+
 ## Keeping docs in sync
 
 `README.md` documents user-facing behaviour (file format, statuses, CLI flags). If a
