@@ -38,19 +38,19 @@ export function buildTree(features: Feature[]): TreeNode[] {
   const byId = new Map<string, Feature>()
   for (const feature of features) byId.set(feature.id, feature)
 
-  const childrenOf = new Map<string, Feature[]>()
+  const childrenByParent = new Map<string, Feature[]>()
   for (const feature of features) {
     const parentId = feature.parent && byId.has(feature.parent) ? feature.parent : ROOT_PARENT
-    const siblings = childrenOf.get(parentId)
+    const siblings = childrenByParent.get(parentId)
     if (siblings) siblings.push(feature)
-    else childrenOf.set(parentId, [feature])
+    else childrenByParent.set(parentId, [feature])
   }
-  for (const siblings of childrenOf.values()) siblings.sort(compareSortKeys)
+  for (const siblings of childrenByParent.values()) siblings.sort(compareSortKeys)
 
   const visited = new Set<string>()
 
   function build(parentId: string, depth: number): TreeNode[] {
-    const siblings = childrenOf.get(parentId)
+    const siblings = childrenByParent.get(parentId)
     if (!siblings) return []
     const nodes: TreeNode[] = []
     for (const feature of siblings) {
@@ -322,7 +322,7 @@ export function sortKeyForIndex(siblings: Feature[], index: number): string {
 }
 
 /** Direct children of `parentId`, in display order. */
-export function siblingsOf(features: Feature[], parentId: string): Feature[] {
+export function childrenOf(features: Feature[], parentId: string): Feature[] {
   return features
     .filter((feature) => (feature.parent || ROOT_PARENT) === parentId)
     .sort(compareSortKeys)
@@ -370,12 +370,12 @@ export function ancestorsOf(features: Feature[], featureId: string): Feature[] {
 
 /** The feature and all of its descendants — used for delete confirmation counts. */
 export function subtreeIds(features: Feature[], featureId: string): string[] {
-  const childrenOf = new Map<string, string[]>()
+  const childrenByParent = new Map<string, string[]>()
   for (const feature of features) {
     const parentId = feature.parent || ROOT_PARENT
-    const ids = childrenOf.get(parentId)
+    const ids = childrenByParent.get(parentId)
     if (ids) ids.push(feature.id)
-    else childrenOf.set(parentId, [feature.id])
+    else childrenByParent.set(parentId, [feature.id])
   }
 
   const collected: string[] = []
@@ -386,7 +386,7 @@ export function subtreeIds(features: Feature[], featureId: string): string[] {
     if (seen.has(id)) continue
     seen.add(id)
     collected.push(id)
-    queue.push(...(childrenOf.get(id) ?? []))
+    queue.push(...(childrenByParent.get(id) ?? []))
   }
   return collected
 }

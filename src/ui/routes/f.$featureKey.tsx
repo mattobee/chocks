@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/ui/components/ui/alert-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
-import { ancestorsOf, findByKey, siblingsOf, subtreeIds } from '@/lib/tree'
+import { ancestorsOf, childrenOf, findByKey, subtreeIds } from '@/lib/tree'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES } from '@/lib/status'
 import { featureKey, FEATURE_SUFFIX } from '@/lib/ids'
@@ -105,7 +105,7 @@ function FeaturePage() {
   }
 
   const ancestors = ancestorsOf(featureList, featureId)
-  const children = siblingsOf(featureList, featureId)
+  const children = childrenOf(featureList, featureId)
   const allTags = [...new Set(featureList.flatMap((item) => item.tags))].sort()
   const descendantCount = subtreeIds(featureList, featureId).length - 1
 
