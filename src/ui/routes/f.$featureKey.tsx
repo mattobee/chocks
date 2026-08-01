@@ -279,7 +279,7 @@ export function FeaturePage() {
             <>
               {/* The page's heading, which it did not have before: the title was an input
                   dressed as one, so there was nothing for a screen reader to navigate to. */}
-              <h1 className="flex-1 text-2xl font-semibold tracking-tight">{feature.title}</h1>
+              <h1 className="flex-1 text-3xl font-semibold tracking-tight">{feature.title}</h1>
               <Button
                 ref={renameButtonRef}
                 variant="ghost"
@@ -393,7 +393,7 @@ export function FeaturePage() {
         <Separator className="mb-6" />
 
         <div className="mb-3 flex items-center gap-3">
-          <h2 className="flex-1 text-sm font-medium">
+          <h2 className="flex-1 text-lg font-semibold">
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
           <Button variant="outline" size="sm" onClick={() => setChildDialogOpen(true)}>
@@ -426,7 +426,7 @@ export function FeaturePage() {
 
         <Separator className="my-6" />
 
-        <h2 className="mb-3 text-sm font-medium">History</h2>
+        <h2 className="mb-3 text-lg font-semibold">History</h2>
         <FeatureHistory featureId={featureId} />
       </>
 
