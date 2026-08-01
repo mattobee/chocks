@@ -19,6 +19,13 @@ import { Button } from '@/ui/components/ui/button'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
 import { Badge } from '@/ui/components/ui/badge'
 import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/ui/components/ui/empty'
+import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
@@ -160,16 +167,19 @@ export function FeaturePage() {
   if (!feature) {
     return (
       <AppShell>
-        <>
-          <p className="text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
-            No feature matching <code className="font-mono">{key}</code>. It may have been deleted.
-          </p>
-          <div className="mt-4 text-center">
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyTitle>
+              No feature matching <code className="font-mono">{key}</code>
+            </EmptyTitle>
+            <EmptyDescription>It may have been deleted.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
             <Button variant="outline" render={<Link to="/" />}>
               Back to the tree
             </Button>
-          </div>
-        </>
+          </EmptyContent>
+        </Empty>
       </AppShell>
     )
   }
@@ -419,9 +429,12 @@ export function FeaturePage() {
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-            No sub-features.
-          </p>
+          // No action in here: Add already sits in the section heading above.
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>No sub-features</EmptyTitle>
+            </EmptyHeader>
+          </Empty>
         )}
 
         <Separator className="my-6" />
