@@ -53,9 +53,10 @@ function asStringArray(value: unknown): string[] | undefined {
  * files with no uid, and those have to be backfilled whether or not anyone has a tab open —
  * otherwise a headless chocks leaves them unlinkable until someone restarts it.
  *
- * `stop` releases the watchers. The CLI runs until it is killed and never calls it; tests do.
+ * `stop` releases the watchers and waits for a backfill already in progress, so shutting
+ * down cannot leave a half-written file behind.
  */
-export function createApp(options: ServerOptions): { app: Hono; stop: () => void } {
+export function createApp(options: ServerOptions): { app: Hono; stop: () => Promise<void> } {
   const app = new Hono()
   const { root } = options
 
@@ -65,11 +66,14 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => void
     for (const send of subscribers) send(event)
   }
 
+  /** The backfill currently running, so shutdown can wait for it rather than cutting it off. */
+  let inFlight: Promise<unknown> = Promise.resolve()
+
   const stopWatching = watchFeatures(root, () => {
     // Catch before finally, not after. A rejection here has no other handler, so an
     // unwritable file would take the whole server down rather than costing one backfill.
     // Tell any clients to refetch either way: the files still changed.
-    void backfill(root)
+    inFlight = backfill(root)
       .catch((error: unknown) => {
         console.error('chocks: could not backfill after a change on disk', error)
       })
@@ -253,9 +257,13 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => void
 
   return {
     app,
-    stop: () => {
+    stop: async () => {
       stopWatching()
       stopWatchingGit()
+      // Stopping the watcher prevents the next backfill, not the one already writing.
+      // `writeAtomic` renames a temp file into place, so being killed between the two
+      // leaves a stray `.tmp` in a directory whose whole point is that you commit it.
+      await inFlight
     },
   }
 }

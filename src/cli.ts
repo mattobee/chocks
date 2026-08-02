@@ -151,7 +151,7 @@ async function main(): Promise<void> {
   const uiDir = path.join(here, 'ui')
 
   const { version, repository } = ownPackage()
-  const { app } = createApp({
+  const { app, stop } = createApp({
     root,
     repoRoot,
     name: path.basename(repoRoot),
@@ -230,7 +230,9 @@ async function main(): Promise<void> {
   })
 
   const shutdown = () => {
-    server.close(() => process.exit(0))
+    // Watchers first: stop taking on new work, and let a backfill mid-write finish rather
+    // than exiting with a temp file left in .chocks.
+    void stop().finally(() => server.close(() => process.exit(0)))
     // Don't hang on a held-open SSE connection.
     setTimeout(() => process.exit(0), 500).unref()
   }

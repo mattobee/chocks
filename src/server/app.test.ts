@@ -7,7 +7,7 @@ import type { Feature, Workspace } from '../lib/types'
 
 let root: string
 let app: ReturnType<typeof createApp>['app']
-let stop: () => void
+let stop: () => Promise<void>
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'chocks-api-'))
@@ -17,7 +17,7 @@ beforeEach(async () => {
 afterEach(async () => {
   // The app watches the directory for its whole life now, so a test that leaves one running
   // holds a watcher on a directory the next line deletes.
-  stop()
+  await stop()
   await rm(root, { recursive: true, force: true })
 })
 
@@ -61,7 +61,7 @@ describe('GET /api/workspace', () => {
       repository: 'git+https://github.com/mattobee/chocks.git',
     })
     const body = (await (await versioned.app.request('/api/workspace')).json()) as Workspace
-    versioned.stop()
+    await versioned.stop()
 
     expect(body.version).toBe('1.2.3')
     expect(body.releaseUrl).toBe('https://github.com/mattobee/chocks/releases/tag/v1.2.3')
@@ -82,7 +82,7 @@ describe('GET /api/workspace', () => {
       repository: 'git+https://gitlab.com/someone/chocks.git',
     })
     const body = (await (await elsewhere.app.request('/api/workspace')).json()) as Workspace
-    elsewhere.stop()
+    await elsewhere.stop()
 
     expect(body.version).toBe('1.2.3')
     expect(body.releaseUrl).toBe('')
@@ -210,7 +210,7 @@ describe('error responses', () => {
     })
 
     const response = await failing.app.request('/api/boom')
-    failing.stop()
+    await failing.stop()
     expect(response.status).toBe(500)
     expect(((await response.json()) as { message: string }).message).toBe('the disk caught fire')
   })
