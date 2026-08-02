@@ -7,8 +7,7 @@ test.describe('creating', () => {
 
     await page.getByRole('button', { name: 'New feature' }).click()
     await page.getByRole('textbox', { name: 'Title' }).fill('Password reset')
-    // Exact, or this also matches every row's "Status of <feature>" behind the dialog.
-    await page.getByRole('combobox', { name: 'Status', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Status' }).click()
     await page.getByRole('option', { name: 'Planned' }).click()
     await page.getByRole('textbox', { name: 'Tags' }).fill('auth, security')
     await page.getByRole('button', { name: 'Create' }).click()

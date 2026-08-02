@@ -104,7 +104,6 @@ test.describe('accessible names', () => {
     await expect(row.getByRole('button', { name: 'Drag to reorder' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Add child of Authentication' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Actions for Authentication' })).toBeVisible()
-    await expect(row.getByRole('combobox')).toHaveAccessibleName('Status of Authentication')
   })
 
   test('names the colour mode control and its options', async ({ page, workspace }) => {

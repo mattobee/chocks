@@ -182,7 +182,6 @@ function TreePage() {
             filtering={filtering}
             onToggle={toggle}
             onRename={(id, title) => update.mutate({ id, title })}
-            onStatusChange={(id, status) => update.mutate({ id, status })}
             onAddChild={openCreate}
             onEdit={(feature) => {
               setEditing(feature)

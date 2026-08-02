@@ -45,7 +45,7 @@ import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
 import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
-import { DEFAULT_STATUSES } from '@/lib/status'
+import { DEFAULT_STATUSES, statusOrUnknown } from '@/lib/status'
 import { featureKey } from '@/lib/ids'
 import { describeError } from '@/lib/errors'
 
@@ -334,9 +334,8 @@ export function FeaturePage() {
             value={feature.status}
             onValueChange={(value) => update.mutate({ id: featureId, status: String(value) })}
           >
-            {/* Rounded to follow the badge inside it, which is the only thing it contains. */}
             <SelectTrigger aria-label="Status" className="h-8 w-auto rounded-full">
-              <StatusBadge statuses={statuses} status={feature.status} />
+              {statusOrUnknown(statuses, feature.status).label}
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
