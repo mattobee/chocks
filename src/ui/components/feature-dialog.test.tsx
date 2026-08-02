@@ -115,23 +115,49 @@ describe('title validation', () => {
 })
 
 describe('tags', () => {
-  it('parses a comma separated list', async () => {
-    const { user, onSubmit } = setup()
+  it('picks an existing tag from the list', async () => {
+    const { user, onSubmit } = setup({ availableTags: ['ux', 'api'] })
     await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Sign in')
-    await user.type(screen.getByRole('textbox', { name: 'Tags' }), 'ux, api ,, ux')
+    await user.click(screen.getByRole('combobox', { name: 'Tags' }))
+    await user.click(await screen.findByRole('option', { name: 'ux' }))
+    // The rest of the dialog is inert while this popup, a second layer on top of the
+    // dialog, is open. Escape closes it, same as a user clicking elsewhere would.
+    await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
-    // Blanks and duplicates dropped, order preserved.
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ['ux', 'api'] }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ['ux'] }))
   })
 
-  it('toggles an existing tag on and off', async () => {
-    const { user } = setup({ availableTags: ['ux', 'api'] })
-    const ux = screen.getByRole('button', { name: 'ux' })
+  it('offers to create a tag that is not on the list', async () => {
+    const { user } = setup({ availableTags: ['ux'] })
+    await user.type(screen.getByRole('combobox', { name: 'Tags' }), 'new-tag')
+    expect(await screen.findByRole('option', { name: 'Create "new-tag"' })).toBeInTheDocument()
+  })
 
-    expect(ux).toHaveAttribute('aria-pressed', 'false')
-    await user.click(ux)
-    expect(screen.getByRole('button', { name: 'ux' })).toHaveAttribute('aria-pressed', 'true')
+  it('creates a typed tag that is not on the list', async () => {
+    const { user, onSubmit } = setup({ availableTags: ['ux'] })
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Sign in')
+    await user.type(screen.getByRole('combobox', { name: 'Tags' }), 'new-tag')
+    await user.click(await screen.findByRole('option', { name: 'Create "new-tag"' }))
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ['new-tag'] }))
+  })
+
+  it('does not offer to create a tag that is already chosen', async () => {
+    const { user } = setup({ availableTags: ['ux'] })
+    await user.click(screen.getByRole('combobox', { name: 'Tags' }))
+    await user.click(await screen.findByRole('option', { name: 'ux' }))
+    await user.type(screen.getByRole('combobox', { name: 'Tags' }), 'ux')
+
+    expect(screen.queryByRole('option', { name: 'Create "ux"' })).not.toBeInTheDocument()
+  })
+
+  it('removes a chosen tag from its chip', async () => {
+    const { user } = setup({ feature: feature({ tags: ['api'] }) })
+    await user.click(screen.getByRole('button', { name: 'Remove api' }))
+    expect(screen.queryByText('api')).not.toBeInTheDocument()
   })
 })
 
@@ -139,7 +165,7 @@ describe('edit mode', () => {
   it('fills the form from the feature', () => {
     setup({ feature: feature({ title: 'OAuth', tags: ['api'] }) })
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('OAuth')
-    expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue('api')
+    expect(screen.getByText('api')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 
