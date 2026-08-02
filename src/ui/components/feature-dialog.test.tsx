@@ -137,10 +137,36 @@ describe('tags', () => {
 
 describe('edit mode', () => {
   it('fills the form from the feature', () => {
-    setup({ feature: feature({ title: 'OAuth', description: 'Notes.', tags: ['api'] }) })
+    setup({ feature: feature({ title: 'OAuth', tags: ['api'] }) })
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('OAuth')
-    expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('Notes.')
     expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue('api')
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+  })
+
+  // Description has its own editor on the feature page now, so this dialog is not a second
+  // way to change it.
+  it('has no description field', () => {
+    setup({ feature: feature({ description: 'Notes.' }) })
+    expect(screen.queryByRole('textbox', { name: 'Description' })).not.toBeInTheDocument()
+  })
+
+  it('submits the existing description unchanged', async () => {
+    const { user, onSubmit } = setup({ feature: feature({ description: 'Notes.' }) })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ description: 'Notes.' }))
+  })
+})
+
+describe('create mode', () => {
+  it('has no description field', () => {
+    setup()
+    expect(screen.queryByRole('textbox', { name: 'Description' })).not.toBeInTheDocument()
+  })
+
+  it('creates with an empty description', async () => {
+    const { user, onSubmit } = setup()
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Sign in')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ description: '' }))
   })
 })
