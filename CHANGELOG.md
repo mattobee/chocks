@@ -5,6 +5,30 @@ don't appear here.
 
 Releases before 0.1.3 predate this file.
 
+## 0.4.0
+
+### Changed
+
+- Feature files are named `<slug>.chocks.md` rather than `<slug>.feature.md`. Rename any
+  you already have: chocks no longer reads the old suffix, and says so at startup, naming
+  the files it skipped. The old name is Cucumber's Markdown with Gherkin spec, so a repo
+  doing BDD had two unrelated meanings for one extension.
+- Status and tag filters are multi-select dropdowns instead of toggle chips, so they no
+  longer wrap into a wall of buttons once a tree has more than a handful of tags. Each
+  shows a count when something is selected, and nothing selected still means "any".
+- The tags field on the new/edit dialog is a combobox: type to filter existing tags, pick
+  one, or create a new one, shown as removable chips.
+
+### Added
+
+- Files that appear while chocks is running get their permanent id straight away whether
+  or not a tab is open. Point an agent at your repo with chocks running headless and you
+  no longer have to restart it before committing.
+- Search has its own clear button, and "Clear filters" resets the status and tag filters
+  without touching the search text.
+
+[Full changes](https://github.com/mattobee/chocks/compare/v0.3.0...v0.4.0)
+
 ## 0.3.0
 
 ### Added
