@@ -49,12 +49,9 @@ function asStringArray(value: unknown): string[] | undefined {
 /**
  * Builds the server and starts watching the chocks directory.
  *
- * Watching belongs to the process, not to a connection. An agent seeding the tree writes
- * files with no uid, and those have to be backfilled whether or not anyone has a tab open —
- * otherwise a headless chocks leaves them unlinkable until someone restarts it.
- *
- * `stop` releases the watchers and waits for a backfill already in progress, so shutting
- * down cannot leave a half-written file behind.
+ * Watching belongs to the process, not to a connection: a file arriving with no uid has to
+ * be backfilled whether or not anyone has a tab open, or a headless chocks leaves it
+ * unlinkable until someone restarts.
  */
 export function createApp(options: ServerOptions): { app: Hono; stop: () => Promise<void> } {
   const app = new Hono()
@@ -66,20 +63,13 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     for (const send of subscribers) send(event)
   }
 
-  /**
-   * Backfills, chained rather than run concurrently.
-   *
-   * A change arriving while one is still writing would otherwise start a second pass over
-   * the same files, and both would mint a uid for anything lacking one. Chaining also means
-   * shutdown can await this and be waiting for all of them, not just the newest.
-   */
+  /** Backfills, chained not concurrent: two passes over one file would both mint it a uid. */
   let inFlight: Promise<unknown> = Promise.resolve()
 
   const stopWatching = watchFeatures(root, () => {
-    // Catch before finally, not after. A rejection here has no other handler, so an
-    // unwritable file would take the whole server down rather than costing one backfill.
-    // Catching also keeps the chain alive: the next link runs whatever this one did.
-    // Tell any clients to refetch either way: the files still changed.
+    // Catch before finally, not after: a rejection here has no other handler, so an
+    // unwritable file would take the server down rather than cost one backfill. Swallowing
+    // it also keeps the chain alive. Clients refetch either way, the files still changed.
     inFlight = inFlight
       .then(() => backfill(root))
       .catch((error: unknown) => {
@@ -206,8 +196,8 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
           try {
             controller.enqueue(encoder.encode(`data: ${event}\n\n`))
           } catch {
-            // The client went away between the broadcast and this write. Drop it rather
-            // than letting one dead connection throw across the others.
+            // The client went away mid-broadcast. Drop it rather than letting one dead
+            // connection throw across the others.
             open = false
             subscribers.delete(send)
           }
@@ -265,12 +255,15 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   return {
     app,
+    /**
+     * Releases the watchers, waiting for a backfill already queued or writing.
+     *
+     * `writeAtomic` renames a temp file into place, so exiting between the two leaves a
+     * stray `.tmp` in a directory whose whole point is that you commit it.
+     */
     stop: async () => {
       stopWatching()
       stopWatchingGit()
-      // Stopping the watcher prevents the next backfill, not the ones already queued or
-      // writing. `writeAtomic` renames a temp file into place, so being killed between the
-      // two leaves a stray `.tmp` in a directory whose whole point is that you commit it.
       await inFlight
     },
   }

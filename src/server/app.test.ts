@@ -15,8 +15,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  // The app watches the directory for its whole life now, so a test that leaves one running
-  // holds a watcher on a directory the next line deletes.
+  // The app watches for as long as it lives, so an unstopped one outlives its directory.
   await stop()
   await rm(root, { recursive: true, force: true })
 })
@@ -280,8 +279,7 @@ describe('watching for changes', () => {
     // watch.test.ts.
     await new Promise((resolve) => setTimeout(resolve, 300))
 
-    // What an agent seeding the tree writes while chocks runs headless. Nobody has a tab
-    // open, which used to mean nothing was watching and the uid waited for a restart.
+    // What an agent seeding the tree writes: no uid, and no tab open to notice.
     await writeFile(
       path.join(root, 'headless.chocks.md'),
       '---\ntitle: Headless\nstatus: idea\n---\n\nWritten with no uid.\n',
