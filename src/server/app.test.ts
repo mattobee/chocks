@@ -1,19 +1,22 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from './app'
 import type { Feature, Workspace } from '../lib/types'
 
 let root: string
-let app: ReturnType<typeof createApp>
+let app: ReturnType<typeof createApp>['app']
+let stop: () => Promise<void>
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'chocks-api-'))
-  app = createApp({ root, name: 'test-repo' })
+  ;({ app, stop } = createApp({ root, name: 'test-repo' }))
 })
 
 afterEach(async () => {
+  // The app watches for as long as it lives, so an unstopped one outlives its directory.
+  await stop()
   await rm(root, { recursive: true, force: true })
 })
 
@@ -56,7 +59,8 @@ describe('GET /api/workspace', () => {
       version: '1.2.3',
       repository: 'git+https://github.com/mattobee/chocks.git',
     })
-    const body = (await (await versioned.request('/api/workspace')).json()) as Workspace
+    const body = (await (await versioned.app.request('/api/workspace')).json()) as Workspace
+    await versioned.stop()
 
     expect(body.version).toBe('1.2.3')
     expect(body.releaseUrl).toBe('https://github.com/mattobee/chocks/releases/tag/v1.2.3')
@@ -76,7 +80,8 @@ describe('GET /api/workspace', () => {
       version: '1.2.3',
       repository: 'git+https://gitlab.com/someone/chocks.git',
     })
-    const body = (await (await elsewhere.request('/api/workspace')).json()) as Workspace
+    const body = (await (await elsewhere.app.request('/api/workspace')).json()) as Workspace
+    await elsewhere.stop()
 
     expect(body.version).toBe('1.2.3')
     expect(body.releaseUrl).toBe('')
@@ -199,11 +204,12 @@ describe('error responses', () => {
     // What made the sort-key bug slow to find: the UI said "Internal error" while the
     // sentence naming the problem only ever reached the server's terminal.
     const failing = createApp({ root, name: 'test-repo' })
-    failing.get('/api/boom', () => {
+    failing.app.get('/api/boom', () => {
       throw new Error('the disk caught fire')
     })
 
-    const response = await failing.request('/api/boom')
+    const response = await failing.app.request('/api/boom')
+    await failing.stop()
     expect(response.status).toBe(500)
     expect(((await response.json()) as { message: string }).message).toBe('the disk caught fire')
   })
@@ -264,6 +270,29 @@ describe('history route', () => {
   it('refuses a traversing id', async () => {
     const response = await app.request('/api/history/..%2F..%2Fetc%2Fpasswd')
     expect(response.status).toBe(400)
+  })
+})
+
+describe('watching for changes', () => {
+  it('backfills a uid for a file written with no client connected', async () => {
+    // Give chokidar a moment to finish its initial scan before touching anything, as in
+    // watch.test.ts.
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    // What an agent seeding the tree writes: no uid, and no tab open to notice.
+    await writeFile(
+      path.join(root, 'headless.chocks.md'),
+      '---\ntitle: Headless\nstatus: idea\n---\n\nWritten with no uid.\n',
+      'utf8',
+    )
+
+    await vi.waitFor(
+      async () => {
+        const features = (await (await app.request('/api/features')).json()) as Feature[]
+        expect(features[0]?.uid).toMatch(/^[a-f][0-9a-f]{9}$/)
+      },
+      { timeout: 5_000 },
+    )
   })
 })
 
