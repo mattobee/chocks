@@ -19,36 +19,51 @@ function setup(filters: Partial<TreeFilters> = {}, tags: string[] = []) {
   return { onChange, user: userEvent.setup() }
 }
 
-describe('status chips', () => {
-  it('reports pressed state, since selection is not conveyed by colour alone', () => {
-    setup({ statuses: ['released'] })
-    expect(screen.getByRole('button', { name: 'Released' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Idea' })).toHaveAttribute('aria-pressed', 'false')
+describe('status dropdown', () => {
+  it('reports checked state, since selection is not conveyed by colour alone', async () => {
+    const { user } = setup({ statuses: ['released'] })
+    await user.click(screen.getByRole('button', { name: /Status/ }))
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Released' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Idea' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
   })
 
   it('adds a status on click', async () => {
     const { user, onChange } = setup()
-    await user.click(screen.getByRole('button', { name: 'Released' }))
+    await user.click(screen.getByRole('button', { name: /Status/ }))
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Released' }))
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ statuses: ['released'] }))
   })
 
   it('removes a status that is already on', async () => {
     const { user, onChange } = setup({ statuses: ['released'] })
-    await user.click(screen.getByRole('button', { name: 'Released' }))
+    await user.click(screen.getByRole('button', { name: /Status/ }))
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Released' }))
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ statuses: [] }))
+  })
+
+  it('shows a count badge once statuses are selected', () => {
+    setup({ statuses: ['released', 'idea'] })
+    expect(screen.getByRole('button', { name: 'Status, 2 selected' })).toBeInTheDocument()
   })
 })
 
-describe('tag chips', () => {
+describe('tags dropdown', () => {
   it('toggles a tag', async () => {
     const { user, onChange } = setup({}, ['ux', 'api'])
-    await user.click(screen.getByRole('button', { name: 'ux' }))
+    await user.click(screen.getByRole('button', { name: /Tags/ }))
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'ux' }))
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ tags: ['ux'] }))
   })
 
   it('shows nothing when no tags are in use', () => {
     setup()
-    expect(screen.queryByRole('button', { name: 'ux' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Tags/ })).not.toBeInTheDocument()
   })
 })
 
@@ -59,15 +74,40 @@ describe('search', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ query: 'o' }))
   })
 
-  it('offers Clear only once something is filtered', async () => {
-    const { user, onChange } = setup({ query: 'oauth', statuses: ['idea'] })
-    await user.click(screen.getByRole('button', { name: 'Clear' }))
-    expect(onChange).toHaveBeenCalledWith({ query: '', statuses: [], tags: [] })
+  it('hides the clear button when there is no query', () => {
+    setup()
+    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
   })
 
-  it('hides Clear when nothing is filtered', () => {
-    setup()
-    expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument()
+  it('shows the clear button once there is a query', () => {
+    setup({ query: 'oauth' })
+    expect(screen.getByRole('button', { name: 'Clear search' })).toBeInTheDocument()
+  })
+
+  it('clears the query without touching status or tag filters', async () => {
+    const { user, onChange } = setup({ query: 'oauth', statuses: ['idea'] })
+    await user.click(screen.getByRole('button', { name: 'Clear search' }))
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ query: '', statuses: ['idea'] }),
+    )
+  })
+})
+
+describe('Clear filters button', () => {
+  it('shows once a status or tag filter is on', () => {
+    setup({ statuses: ['idea'] })
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument()
+  })
+
+  it('hides when only the query is set', () => {
+    setup({ query: 'oauth' })
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+  })
+
+  it('clears status and tag filters but leaves the query alone', async () => {
+    const { user, onChange } = setup({ query: 'oauth', statuses: ['idea'] }, ['ux'])
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(onChange).toHaveBeenCalledWith({ query: 'oauth', statuses: [], tags: [] })
   })
 })
 
