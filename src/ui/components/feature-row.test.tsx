@@ -10,7 +10,6 @@ import { makeFeature, renderWithRouter } from '@/ui/test-utils'
 async function setup(overrides: Partial<FeatureRowProps> = {}) {
   const handlers = {
     onToggle: vi.fn(),
-    onRename: vi.fn(),
     onAddChild: vi.fn(),
     onEdit: vi.fn(),
     onDelete: vi.fn(),
@@ -45,7 +44,7 @@ describe('row menu', () => {
   // is a real DOM attribute, but nothing ever fires. Every item here was dead once.
   it.each([
     ['Edit…', 'onEdit'],
-    ['Add child', 'onAddChild'],
+    ['Add sub-feature', 'onAddChild'],
     ['Delete…', 'onDelete'],
   ] as const)('runs %s', async (label, handler) => {
     const handlers = await setup()
@@ -54,34 +53,12 @@ describe('row menu', () => {
     expect(handlers[handler]).toHaveBeenCalled()
   })
 
-  it('switches the title into an editable field on Rename', async () => {
+  // Renaming is Edit's job now, not a second path on the row.
+  it('has no Rename item', async () => {
     const { user } = await setup()
     await user.click(screen.getByRole('button', { name: 'Actions for Auth' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Rename' }))
-    expect(await screen.findByRole('textbox')).toHaveValue('Auth')
-  })
-})
-
-describe('inline rename', () => {
-  it('saves on Enter', async () => {
-    const { user, onRename } = await setup()
-    await user.click(screen.getByRole('button', { name: 'Actions for Auth' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Rename' }))
-
-    const input = await screen.findByRole('textbox')
-    await user.clear(input)
-    await user.type(input, 'Authentication{Enter}')
-    expect(onRename).toHaveBeenCalledWith('auth', 'Authentication')
-  })
-
-  it('abandons the edit on Escape', async () => {
-    const { user, onRename } = await setup()
-    await user.click(screen.getByRole('button', { name: 'Actions for Auth' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Rename' }))
-
-    const input = await screen.findByRole('textbox')
-    await user.type(input, 'nonsense{Escape}')
-    expect(onRename).not.toHaveBeenCalled()
+    await screen.findByRole('menuitem', { name: 'Edit…' })
+    expect(screen.queryByRole('menuitem', { name: 'Rename' })).not.toBeInTheDocument()
   })
 })
 
@@ -105,7 +82,6 @@ describe('accessible names', () => {
     await setup({ hasChildren: true })
     expect(screen.getByRole('button', { name: 'Expand' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Drag to reorder' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add child of Auth' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Actions for Auth' })).toBeInTheDocument()
   })
 

@@ -181,7 +181,6 @@ function TreePage() {
             matchedIds={filtered.matchedIds}
             filtering={filtering}
             onToggle={toggle}
-            onRename={(id, title) => update.mutate({ id, title })}
             onAddChild={openCreate}
             onEdit={(feature) => {
               setEditing(feature)
