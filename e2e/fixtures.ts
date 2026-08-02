@@ -98,7 +98,7 @@ export const test = base.extend<{ workspace: Workspace }>({
     await git('config', 'commit.gpgsign', 'false')
 
     for (const [id, title, status, sort, uid] of SEED) {
-      const file = path.join(chocks, `${id}.feature.md`)
+      const file = path.join(chocks, `${id}.chocks.md`)
       await mkdir(path.dirname(file), { recursive: true })
       await writeFile(
         file,
@@ -137,8 +137,8 @@ export const test = base.extend<{ workspace: Workspace }>({
         url,
         git,
         commit,
-        read: (id) => readFile(path.join(chocks, `${id}.feature.md`), 'utf8'),
-        write: (id, contents) => writeFile(path.join(chocks, `${id}.feature.md`), contents, 'utf8'),
+        read: (id) => readFile(path.join(chocks, `${id}.chocks.md`), 'utf8'),
+        write: (id, contents) => writeFile(path.join(chocks, `${id}.chocks.md`), contents, 'utf8'),
         changed: async () =>
           (await git('status', '--porcelain'))
             .split('\n')

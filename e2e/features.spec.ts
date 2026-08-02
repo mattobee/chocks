@@ -66,7 +66,7 @@ test.describe('reordering', () => {
 
     // The whole point of fractional index keys: one file rewritten, neighbours untouched.
     await expect.poll(async () => await workspace.changed(), { timeout: 5000 }).toHaveLength(1)
-    expect((await workspace.changed())[0]).toBe('.chocks/billing.feature.md')
+    expect((await workspace.changed())[0]).toBe('.chocks/billing.chocks.md')
   })
 })
 

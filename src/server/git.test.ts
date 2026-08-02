@@ -31,7 +31,7 @@ afterEach(async () => {
 
 describe('featureHistory', () => {
   it('returns commits newest first', async () => {
-    const file = path.join(repo, '.chocks', 'auth.feature.md')
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
     await commit('feat: add auth')
     await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
@@ -51,11 +51,11 @@ describe('featureHistory', () => {
   it('follows the file across a rename', async () => {
     // This is the case that matters: retitling a feature renames its file, so without
     // --follow a feature's history would appear to start at its last rename.
-    const before = path.join(repo, '.chocks', 'auth.feature.md')
+    const before = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(before, '---\ntitle: Auth\n---\n', 'utf8')
     await commit('feat: add auth')
 
-    const after = path.join(repo, '.chocks', 'authentication.feature.md')
+    const after = path.join(repo, '.chocks', 'authentication.chocks.md')
     await rename(before, after)
     await commit('refactor: retitle auth')
 
@@ -67,12 +67,12 @@ describe('featureHistory', () => {
   })
 
   it('follows the file across a reparent', async () => {
-    const before = path.join(repo, '.chocks', 'oauth.feature.md')
+    const before = path.join(repo, '.chocks', 'oauth.chocks.md')
     await writeFile(before, '---\ntitle: OAuth\n---\n', 'utf8')
     await commit('feat: add oauth')
 
     await mkdir(path.join(repo, '.chocks', 'auth'), { recursive: true })
-    const after = path.join(repo, '.chocks', 'auth', 'oauth.feature.md')
+    const after = path.join(repo, '.chocks', 'auth', 'oauth.chocks.md')
     await rename(before, after)
     await commit('refactor: nest oauth under auth')
 
@@ -81,7 +81,7 @@ describe('featureHistory', () => {
   })
 
   it('reports an uncommitted edit', async () => {
-    const file = path.join(repo, '.chocks', 'auth.feature.md')
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
     await commit('feat: add auth')
     expect((await featureHistory(repo, file)).uncommitted).toBe(false)
@@ -91,7 +91,7 @@ describe('featureHistory', () => {
   })
 
   it('returns nothing for a file that was never committed', async () => {
-    const file = path.join(repo, '.chocks', 'fresh.feature.md')
+    const file = path.join(repo, '.chocks', 'fresh.chocks.md')
     await writeFile(file, '---\ntitle: Fresh\n---\n', 'utf8')
 
     const history = await featureHistory(repo, file)
@@ -101,7 +101,7 @@ describe('featureHistory', () => {
   })
 
   it('honours the commit limit', async () => {
-    const file = path.join(repo, '.chocks', 'auth.feature.md')
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
     for (let index = 0; index < 5; index++) {
       await writeFile(file, `---\ntitle: Auth ${index}\n---\n`, 'utf8')
       await commit(`chore: edit ${index}`)
@@ -110,7 +110,7 @@ describe('featureHistory', () => {
   })
 
   it('preserves a subject containing the field separators', async () => {
-    const file = path.join(repo, '.chocks', 'auth.feature.md')
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
     await commit('feat: handle a|b and c\td')
     expect((await featureHistory(repo, file)).commits[0]?.subject).toBe('feat: handle a|b and c\td')
@@ -119,7 +119,7 @@ describe('featureHistory', () => {
   it('reports rather than throws outside a repo', async () => {
     const loose = await mkdtemp(path.join(tmpdir(), 'chocks-loose-'))
     try {
-      const file = path.join(loose, 'auth.feature.md')
+      const file = path.join(loose, 'auth.chocks.md')
       await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
       const history = await featureHistory(loose, file)
       expect(history.commits).toEqual([])

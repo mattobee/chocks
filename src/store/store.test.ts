@@ -53,7 +53,7 @@ describe('scan', () => {
   })
 
   it('derives id, parent and title from the path', async () => {
-    await given('auth.feature.md', 'title: Authentication\nstatus: released\nsort: a0')
+    await given('auth.chocks.md', 'title: Authentication\nstatus: released\nsort: a0')
     const [feature] = await scan(root)
     expect(feature).toMatchObject({
       id: 'auth',
@@ -64,26 +64,26 @@ describe('scan', () => {
   })
 
   it('treats a sibling directory as the children of a feature', async () => {
-    await given('auth.feature.md', 'title: Auth\nsort: a0')
-    await given('auth/oauth.feature.md', 'title: OAuth\nsort: a0')
-    await given('auth/oauth/github.feature.md', 'title: GitHub\nsort: a0')
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
+    await given('auth/oauth.chocks.md', 'title: OAuth\nsort: a0')
+    await given('auth/oauth/github.chocks.md', 'title: GitHub\nsort: a0')
     expect(shape(await scan(root))).toEqual(['auth', '  auth/oauth', '    auth/oauth/github'])
   })
 
   it('orders siblings by sort key', async () => {
-    await given('b.feature.md', 'title: B\nsort: a1')
-    await given('a.feature.md', 'title: A\nsort: a0')
+    await given('b.chocks.md', 'title: B\nsort: a1')
+    await given('a.chocks.md', 'title: A\nsort: a0')
     expect(shape(await scan(root))).toEqual(['a', 'b'])
   })
 
   it('falls back to a slug-derived title when frontmatter has none', async () => {
-    await given('password-reset.feature.md', 'status: planned\nsort: a0')
+    await given('password-reset.chocks.md', 'status: planned\nsort: a0')
     const [feature] = await scan(root)
     expect(feature?.title).toBe('Password reset')
   })
 
   it('ignores dotfiles and non-markdown files', async () => {
-    await given('real.feature.md', 'title: Real\nsort: a0')
+    await given('real.chocks.md', 'title: Real\nsort: a0')
     await writeFile(path.join(root, 'README.txt'), 'not a feature', 'utf8')
     // A plain .md is someone's notes, not a feature — the suffix is what distinguishes them.
     await writeFile(path.join(root, 'README.md'), '# Notes', 'utf8')
@@ -95,15 +95,15 @@ describe('scan', () => {
 
   it('still surfaces children whose parent file is missing', async () => {
     // Only happens if files are hand-edited, but hiding them would be worse.
-    await given('orphan/child.feature.md', 'title: Child\nsort: a0')
+    await given('orphan/child.chocks.md', 'title: Child\nsort: a0')
     const features = await scan(root)
     expect(features.map((f) => f.id)).toEqual(['orphan/child'])
     expect(shape(features)).toEqual(['orphan/child'])
   })
 
   it('gives sort-less files a stable alphabetical order', async () => {
-    await given('zebra.feature.md', 'title: Z')
-    await given('apple.feature.md', 'title: A')
+    await given('zebra.chocks.md', 'title: Z')
+    await given('apple.chocks.md', 'title: A')
     expect(shape(await scan(root))).toEqual(['apple', 'zebra'])
   })
 })
@@ -112,16 +112,16 @@ describe('create', () => {
   it('writes a file named from the title', async () => {
     const feature = await create(root, { parent: '', title: 'OAuth Providers' })
     expect(feature.id).toBe('oauth-providers')
-    expect(existsSync(path.join(root, 'oauth-providers.feature.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'oauth-providers.chocks.md'))).toBe(true)
   })
 
   it('nests under a parent', async () => {
     await create(root, { parent: '', title: 'Auth' })
     const child = await create(root, { parent: 'auth', title: 'OAuth' })
     expect(child.id).toBe('auth/oauth')
-    expect(existsSync(path.join(root, 'auth', 'oauth.feature.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
     // The parent's own file must not have moved.
-    expect(existsSync(path.join(root, 'auth.feature.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth.chocks.md'))).toBe(true)
   })
 
   it('appends after existing siblings', async () => {
@@ -190,8 +190,8 @@ describe('update', () => {
     expect(updated.id).toBe('authentication')
     expect(updated.title).toBe('Authentication')
     expect(updated.status).toBe('released')
-    expect(existsSync(path.join(root, 'authentication.feature.md'))).toBe(true)
-    expect(existsSync(path.join(root, 'auth.feature.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'authentication.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth.chocks.md'))).toBe(false)
   })
 
   it('keeps the uid across a rename, so links survive', async () => {
@@ -226,7 +226,7 @@ describe('update', () => {
   it('persists the markdown body', async () => {
     const created = await create(root, { parent: '', title: 'Auth' })
     await update(root, created.id, { description: 'Some **notes**.' })
-    expect(await readFile(path.join(root, 'auth.feature.md'), 'utf8')).toContain('Some **notes**.')
+    expect(await readFile(path.join(root, 'auth.chocks.md'), 'utf8')).toContain('Some **notes**.')
   })
 
   it('ignores a blank title instead of writing one', async () => {
@@ -254,7 +254,7 @@ describe('remove', () => {
     await remove(root, 'auth')
 
     expect(await scan(root)).toEqual([])
-    expect(existsSync(path.join(root, 'auth.feature.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'auth.chocks.md'))).toBe(false)
     expect(existsSync(path.join(root, 'auth'))).toBe(false)
   })
 
@@ -365,7 +365,7 @@ describe('round trip', () => {
 
 describe('backfill', () => {
   it('gives hand-written files a permanent uid', async () => {
-    await given('legacy.feature.md', 'title: Legacy\nstatus: released\nsort: a0')
+    await given('legacy.chocks.md', 'title: Legacy\nstatus: released\nsort: a0')
     expect((await scan(root))[0]?.uid).toBe('')
 
     expect((await backfill(root)).uids).toBe(1)
@@ -378,16 +378,16 @@ describe('backfill', () => {
   })
 
   it('writes the uid unquoted, so it stays a string', async () => {
-    await given('legacy.feature.md', 'title: Legacy\nsort: a0')
+    await given('legacy.chocks.md', 'title: Legacy\nsort: a0')
     await backfill(root)
-    const text = await readFile(path.join(root, 'legacy.feature.md'), 'utf8')
+    const text = await readFile(path.join(root, 'legacy.chocks.md'), 'utf8')
     expect(text).toMatch(/\nuid: [a-f][0-9a-f]{9}\n/)
     expect(text).not.toContain('uid: "')
   })
 
   it('leaves the rest of the file alone', async () => {
     await given(
-      'legacy.feature.md',
+      'legacy.chocks.md',
       'title: Legacy\nstatus: released\ntags: [api]\nsort: a3',
       'Body text.',
     )
@@ -404,8 +404,8 @@ describe('backfill', () => {
 
   it('gives files with no sort key a real one', async () => {
     // An agent seeding the tree writes title, status and description, not a sort key.
-    await given('audits.feature.md', 'title: Audits')
-    await given('billing.feature.md', 'title: Billing')
+    await given('audits.chocks.md', 'title: Audits')
+    await given('billing.chocks.md', 'title: Billing')
     expect((await scan(root)).map((feature) => feature.sort)).toEqual(['~audits', '~billing'])
 
     expect((await backfill(root)).sortKeys).toBe(2)
@@ -417,8 +417,8 @@ describe('backfill', () => {
   })
 
   it('keeps the sort keys that are already usable', async () => {
-    await given('one.feature.md', 'title: One\nsort: a0')
-    await given('two.feature.md', 'title: Two')
+    await given('one.chocks.md', 'title: One\nsort: a0')
+    await given('two.chocks.md', 'title: Two')
 
     expect((await backfill(root)).sortKeys).toBe(1)
 
@@ -430,8 +430,8 @@ describe('backfill', () => {
   it('keeps the displayed order when an unusable key sorts before a usable one', async () => {
     // `~<slug>` is not the only key that can fail. A hand-edited one can sort anywhere,
     // so appending the unusable ones would quietly move this feature down the list.
-    await given('first.feature.md', 'title: First\nsort: "9bad"')
-    await given('second.feature.md', 'title: Second\nsort: a0')
+    await given('first.chocks.md', 'title: First\nsort: "9bad"')
+    await given('second.chocks.md', 'title: Second\nsort: a0')
     expect((await scan(root)).sort(bySort).map(idOf)).toEqual(['first', 'second'])
 
     await backfill(root)
@@ -443,10 +443,10 @@ describe('backfill', () => {
 
   it('fills a run of unusable keys in the middle of a group', async () => {
     // `a10` and `a20` sort between the two good keys but are not valid keys themselves.
-    await given('a.feature.md', 'title: A\nsort: a0')
-    await given('b.feature.md', 'title: B\nsort: a10')
-    await given('c.feature.md', 'title: C\nsort: a20')
-    await given('d.feature.md', 'title: D\nsort: a5')
+    await given('a.chocks.md', 'title: A\nsort: a0')
+    await given('b.chocks.md', 'title: B\nsort: a10')
+    await given('c.chocks.md', 'title: C\nsort: a20')
+    await given('d.chocks.md', 'title: D\nsort: a5')
     const before = (await scan(root)).sort(bySort).map(idOf)
     expect(before).toEqual(['a', 'b', 'c', 'd'])
 
@@ -465,8 +465,8 @@ describe('backfill', () => {
     // Backfilling is a convenience. One read-only file must not cost the other hundred,
     // and must not stop chocks starting.
     await mkdir(path.join(root, 'locked'), { recursive: true })
-    await given('locked/stuck.feature.md', 'title: Stuck')
-    await given('fine.feature.md', 'title: Fine')
+    await given('locked/stuck.chocks.md', 'title: Stuck')
+    await given('fine.chocks.md', 'title: Fine')
     await chmod(path.join(root, 'locked'), 0o500)
 
     try {
@@ -485,8 +485,8 @@ describe('backfill', () => {
   })
 
   it('backfills each sibling group independently', async () => {
-    await given('parent.feature.md', 'title: Parent\nsort: a0')
-    await given('parent/child.feature.md', 'title: Child')
+    await given('parent.chocks.md', 'title: Parent\nsort: a0')
+    await given('parent/child.chocks.md', 'title: Child')
 
     await backfill(root)
 
@@ -499,8 +499,8 @@ describe('reordering a tree that was seeded without sort keys', () => {
   // The bug this covers: `scan` stands in `~<slug>` for a missing sort key, which is not a
   // fractional index, so generating a key next to it threw and every drag returned a 500.
   it('moves a feature after the keys have been backfilled', async () => {
-    await given('audits.feature.md', 'title: Audits')
-    await given('billing.feature.md', 'title: Billing')
+    await given('audits.chocks.md', 'title: Audits')
+    await given('billing.chocks.md', 'title: Billing')
     await backfill(root)
 
     const moved = await move(root, 'billing', { newParent: '', index: 0 })
@@ -511,8 +511,8 @@ describe('reordering a tree that was seeded without sort keys', () => {
 
   it('moves a feature even without a backfill first', async () => {
     // A file can land while chocks is running, so the move path must not depend on it.
-    await given('audits.feature.md', 'title: Audits')
-    await given('billing.feature.md', 'title: Billing')
+    await given('audits.chocks.md', 'title: Audits')
+    await given('billing.chocks.md', 'title: Billing')
 
     const moved = await move(root, 'billing', { newParent: '', index: 0 })
 
@@ -522,7 +522,7 @@ describe('reordering a tree that was seeded without sort keys', () => {
 
 describe('feature suffix', () => {
   it('ignores markdown without the suffix, so a README is not a phantom feature', async () => {
-    await given('auth.feature.md', 'title: Auth\nsort: a0')
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
     await writeFile(path.join(root, 'README.md'), '# How this directory works', 'utf8')
     await mkdir(path.join(root, 'auth'), { recursive: true })
     await writeFile(path.join(root, 'auth', 'notes.md'), 'scratch', 'utf8')
@@ -531,7 +531,7 @@ describe('feature suffix', () => {
   })
 
   it('reports skipped markdown so a mis-named file is not silently invisible', async () => {
-    await given('auth.feature.md', 'title: Auth\nsort: a0')
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
     await writeFile(path.join(root, 'oauth.md'), '---\ntitle: OAuth\n---\n', 'utf8')
 
     const { features, ignored } = await scanWithIgnored(root)
@@ -543,7 +543,7 @@ describe('feature suffix', () => {
   it('writes new features with the suffix', async () => {
     const feature = await create(root, { parent: '', title: 'OAuth' })
     expect(feature.id).toBe('oauth')
-    expect(existsSync(path.join(root, 'oauth.feature.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'oauth.chocks.md'))).toBe(true)
     expect(existsSync(path.join(root, 'oauth.md'))).toBe(false)
   })
 
@@ -551,6 +551,6 @@ describe('feature suffix', () => {
     await create(root, { parent: '', title: 'Auth' })
     const child = await create(root, { parent: 'auth', title: 'OAuth' })
     expect(child.id).toBe('auth/oauth')
-    expect(existsSync(path.join(root, 'auth', 'oauth.feature.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
   })
 })
