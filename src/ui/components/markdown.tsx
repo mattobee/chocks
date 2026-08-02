@@ -44,6 +44,10 @@ const components = {
       checked={checked}
       aria-label={checked ? 'Done' : 'Not done'}
       {...props}
+      // After the spread, so it holds regardless of whether the parser keeps passing its
+      // own readOnly through props: a checked, controlled checkbox with no onChange needs
+      // one or the other.
+      readOnly
     />
   ),
   code: (props: React.ComponentProps<'code'>) => (
