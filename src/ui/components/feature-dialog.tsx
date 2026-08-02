@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -16,7 +15,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/ui/components/ui/field'
-import { Textarea } from '@/ui/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -104,9 +102,6 @@ export function FeatureDialog({
         >
           <DialogHeader>
             <DialogTitle>{isEdit ? 'Edit feature' : 'New feature'}</DialogTitle>
-            <DialogDescription>
-              {isEdit ? 'Update this feature.' : 'Add a feature to the tree.'}
-            </DialogDescription>
           </DialogHeader>
 
           <FieldGroup className="py-4">
@@ -130,17 +125,6 @@ export function FeatureDialog({
                   appears, but the field's aria-errormessage still has to point at it for
                   anyone who comes back to the field afterwards. */}
               <FieldError id="feature-title-error">{titleError}</FieldError>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="feature-description">Description</FieldLabel>
-              <Textarea
-                id="feature-description"
-                rows={4}
-                maxLength={10000}
-                value={draft.description}
-                onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-              />
             </Field>
 
             <Field>
