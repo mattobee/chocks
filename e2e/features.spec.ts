@@ -9,8 +9,16 @@ test.describe('creating', () => {
     await page.getByRole('textbox', { name: 'Title' }).fill('Password reset')
     await page.getByRole('combobox', { name: 'Status' }).click()
     await page.getByRole('option', { name: 'Planned' }).click()
-    await page.getByRole('textbox', { name: 'Tags' }).fill('auth, security')
-    await page.getByRole('button', { name: 'Create' }).click()
+
+    const tags = page.getByRole('combobox', { name: 'Tags' })
+    await tags.fill('auth')
+    await page.getByRole('option', { name: 'Create "auth"' }).click()
+    await tags.fill('security')
+    await page.getByRole('option', { name: 'Create "security"' }).click()
+    // Escape closes the whole dialog, not just this popup, so click elsewhere in it instead.
+    await page.getByRole('textbox', { name: 'Title' }).click()
+
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
 
     await expect(page.getByRole('link', { name: 'Password reset' })).toBeVisible()
 

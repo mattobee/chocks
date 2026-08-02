@@ -87,15 +87,25 @@ export function FeatureDialog({
 
   const isEdit = feature !== undefined
 
+  // A tag just created by typing isn't in `availableTags` (that only reflects tags already
+  // saved elsewhere), so it has to stay in `items` via the current selection instead, or it
+  // vanishes from the combobox's collection the moment the query moves on — which left the
+  // list unable to show anything at all for the next tag typed after it.
+  const knownTags = [...new Set([...availableTags, ...draft.tags])]
+
   // Offer to create a new tag once the query doesn't match one already on offer or chosen.
   const trimmedTagQuery = tagQuery.trim()
-  const tagAlreadyChosen = [...availableTags, ...draft.tags].some(
+  const tagAlreadyChosen = knownTags.some(
     (tag) => tag.toLowerCase() === trimmedTagQuery.toLowerCase(),
   )
+  // Filtered by hand and passed as `filteredItems`: the combobox's own default filter
+  // stopped matching a freshly typed tag against itself once a previous tag had already
+  // been picked, leaving the list stuck showing only the earlier pick.
+  const matchingTags = knownTags.filter((tag) =>
+    tag.toLowerCase().includes(trimmedTagQuery.toLowerCase()),
+  )
   const tagItems =
-    trimmedTagQuery !== '' && !tagAlreadyChosen
-      ? [...availableTags, trimmedTagQuery]
-      : availableTags
+    trimmedTagQuery !== '' && !tagAlreadyChosen ? [...matchingTags, trimmedTagQuery] : matchingTags
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,6 +191,7 @@ export function FeatureDialog({
               </FieldDescription>
               <Combobox
                 items={tagItems}
+                filteredItems={tagItems}
                 multiple
                 value={draft.tags}
                 onValueChange={(tags) => setDraft({ ...draft, tags })}
@@ -215,7 +226,7 @@ export function FeatureDialog({
                   <ComboboxList>
                     {(tag: string) => (
                       <ComboboxItem key={tag} value={tag}>
-                        {availableTags.includes(tag) ? tag : `Create "${tag}"`}
+                        {knownTags.includes(tag) ? tag : `Create "${tag}"`}
                       </ComboboxItem>
                     )}
                   </ComboboxList>
