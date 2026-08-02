@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 
 test.describe('creating', () => {
@@ -6,8 +7,7 @@ test.describe('creating', () => {
 
     await page.getByRole('button', { name: 'New feature' }).click()
     await page.getByRole('textbox', { name: 'Title' }).fill('Password reset')
-    // Exact, or this also matches every row's "Status of <feature>" behind the dialog.
-    await page.getByRole('combobox', { name: 'Status', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Status' }).click()
     await page.getByRole('option', { name: 'Planned' }).click()
     await page.getByRole('textbox', { name: 'Tags' }).fill('auth, security')
     await page.getByRole('button', { name: 'Create' }).click()
@@ -62,29 +62,35 @@ test.describe('reordering', () => {
   })
 })
 
+/** The title is a heading until you ask to edit it, so every rename starts with a click. */
+async function renameTo(page: Page, next: string) {
+  await page.getByRole('button', { name: 'Rename feature' }).click()
+  const field = page.getByRole('textbox', { name: 'Feature title' })
+  await field.fill(next)
+  await field.press('Enter')
+}
+
+const titleHeading = (page: Page) => page.getByRole('heading', { level: 1 })
+
 test.describe('renaming', () => {
   test('moves the file and keeps the link working', async ({ page, workspace }) => {
     await page.goto(workspace.url)
     await page.getByRole('link', { name: 'Billing' }).click()
 
-    const heading = page.getByRole('textbox', { name: 'Feature title' })
-    await expect(heading).toHaveValue('Billing')
+    await expect(titleHeading(page)).toHaveText('Billing')
     const before = page.url()
 
-    await heading.fill('Billing and invoicing')
-    await heading.blur()
+    await renameTo(page, 'Billing and invoicing')
 
-    // The path is derived from the title, so the file moves. The page shows the id, which
-    // only changes once the client has been told about the write, so waiting on this waits
-    // for both sides rather than just the filesystem.
-    await expect(page.getByText('.chocks/billing-and-invoicing.feature.md')).toBeVisible()
-    expect((await workspace.changed()).join(' ')).toContain('billing-and-invoicing')
+    // The path is derived from the title, so the file moves. Polled rather than read once:
+    // the rename returns before the watcher has reported the write.
+    await expect
+      .poll(async () => (await workspace.changed()).join(' '), { timeout: 5000 })
+      .toContain('billing-and-invoicing')
 
     // The url is keyed on the uid, so the link survives the rename.
     await page.goto(before)
-    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue(
-      'Billing and invoicing',
-    )
+    await expect(titleHeading(page)).toHaveText('Billing and invoicing')
   })
 })
 
@@ -108,15 +114,14 @@ test.describe('live reload', () => {
 test.describe('uncommitted indicator', () => {
   test('announces the change without a reload', async ({ page, workspace }) => {
     await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
-    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue(
-      'OAuth providers',
-    )
+    await expect(titleHeading(page)).toHaveText('OAuth providers')
 
     const status = page.getByRole('status')
     await expect(status).toHaveText('All changes committed')
 
+    await page.getByRole('button', { name: 'Edit description' }).click()
     await page.getByRole('textbox', { name: 'Description' }).fill('Now with Apple.')
-    await page.getByRole('textbox', { name: 'Description' }).blur()
+    await page.getByRole('button', { name: 'Save' }).click()
 
     await expect(status).toHaveText('Uncommitted changes', { timeout: 10_000 })
 
@@ -145,16 +150,14 @@ test.describe('undo', () => {
     await page.goto(workspace.url)
     await page.getByRole('link', { name: 'Billing' }).click()
 
-    const heading = page.getByRole('textbox', { name: 'Feature title' })
-    await heading.fill('Invoicing')
-    await heading.blur()
+    await renameTo(page, 'Invoicing')
     await expect.poll(() => undoStackSize(page), { timeout: 10_000 }).toBe(1)
 
-    // Focus has to be out of the input, or Cmd+Z is the browser undoing the typing.
-    await page.getByRole('button', { name: 'Delete feature' }).focus()
+    // Committing closes the editor, so focus is already back on a button rather than in
+    // the field, where Cmd+Z would belong to the browser.
     await page.keyboard.press('ControlOrMeta+z')
 
-    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Billing')
+    await expect(titleHeading(page)).toHaveText('Billing')
     await expect
       .poll(async () => (await workspace.read('billing')).includes('title: Billing'), {
         timeout: 5000,
@@ -202,18 +205,15 @@ test.describe('undo', () => {
     await page.goto(workspace.url)
     await page.getByRole('link', { name: 'Billing' }).click()
 
-    const heading = page.getByRole('textbox', { name: 'Feature title' })
-    await heading.fill('Invoicing')
-    await heading.blur()
+    await renameTo(page, 'Invoicing')
     await expect.poll(() => undoStackSize(page), { timeout: 10_000 }).toBe(1)
 
     await page.reload()
-    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Invoicing')
+    await expect(titleHeading(page)).toHaveText('Invoicing')
 
-    await page.getByRole('button', { name: 'Delete feature' }).focus()
     await page.keyboard.press('ControlOrMeta+z')
 
-    await expect(page.getByRole('textbox', { name: 'Feature title' })).toHaveValue('Billing')
+    await expect(titleHeading(page)).toHaveText('Billing')
     await expect
       .poll(async () => (await workspace.read('billing')).includes('title: Billing'), {
         timeout: 5000,
@@ -225,8 +225,8 @@ test.describe('undo', () => {
     await page.goto(workspace.url)
     await page.getByRole('link', { name: 'Billing' }).click()
 
+    await page.getByRole('button', { name: 'Rename feature' }).click()
     const heading = page.getByRole('textbox', { name: 'Feature title' })
-    await heading.click()
     await heading.press('End')
     await heading.pressSequentially(' and invoicing')
     await page.keyboard.press('ControlOrMeta+z')

@@ -11,7 +11,6 @@ async function setup(overrides: Partial<FeatureRowProps> = {}) {
   const handlers = {
     onToggle: vi.fn(),
     onRename: vi.fn(),
-    onStatusChange: vi.fn(),
     onAddChild: vi.fn(),
     onEdit: vi.fn(),
     onDelete: vi.fn(),
@@ -87,23 +86,15 @@ describe('inline rename', () => {
 })
 
 describe('status', () => {
+  // Read-only on the row: changing it goes through Edit now, not a control here.
   it('shows the configured label', async () => {
     await setup({ feature: makeFeature({ title: 'Auth', status: 'pre-release' }) })
-    expect(screen.getByRole('combobox', { name: 'Status of Auth' })).toHaveTextContent(
-      'Pre-release',
-    )
-  })
-
-  it('reports a change by id', async () => {
-    const { user, onStatusChange } = await setup()
-    await user.click(screen.getByRole('combobox', { name: 'Status of Auth' }))
-    await user.click(await screen.findByRole('option', { name: 'Released' }))
-    expect(onStatusChange).toHaveBeenCalledWith('auth', 'released')
+    expect(screen.getByText('Pre-release')).toBeInTheDocument()
   })
 
   it('renders a status the config does not define, rather than blanking', async () => {
     await setup({ feature: makeFeature({ title: 'Auth', status: 'in-beta' }) })
-    expect(screen.getByRole('combobox', { name: 'Status of Auth' })).toHaveTextContent('In beta')
+    expect(screen.getByText('In beta')).toBeInTheDocument()
   })
 })
 

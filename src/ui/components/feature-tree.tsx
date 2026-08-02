@@ -30,7 +30,6 @@ export interface FeatureTreeProps {
   filtering: boolean
   onToggle: (id: string) => void
   onRename: (id: string, title: string) => void
-  onStatusChange: (id: string, status: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
@@ -44,7 +43,6 @@ export function FeatureTree({
   filtering,
   onToggle,
   onRename,
-  onStatusChange,
   onAddChild,
   onEdit,
   onDelete,
@@ -135,7 +133,6 @@ export function FeatureTree({
               filtering={filtering}
               onToggle={onToggle}
               onRename={onRename}
-              onStatusChange={onStatusChange}
               onAddChild={onAddChild}
               onEdit={onEdit}
               onDelete={onDelete}

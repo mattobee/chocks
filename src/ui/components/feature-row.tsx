@@ -13,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/ui/components/ui/dropdown-menu'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
 import { StatusBadge } from '@/ui/components/status-badge'
 import { cn } from '@/lib/utils'
 import { featureKey } from '@/lib/ids'
@@ -34,7 +33,6 @@ export interface FeatureRowProps {
   filtering: boolean
   onToggle: (id: string) => void
   onRename: (id: string, title: string) => void
-  onStatusChange: (id: string, status: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
@@ -50,7 +48,6 @@ export function FeatureRow({
   filtering,
   onToggle,
   onRename,
-  onStatusChange,
   onAddChild,
   onEdit,
   onDelete,
@@ -151,27 +148,9 @@ export function FeatureRow({
         </Badge>
       ))}
 
-      {/* Status is the most-changed field, so it gets a control on the row itself. */}
-      <Select
-        value={feature.status}
-        onValueChange={(value) => onStatusChange(feature.id, String(value))}
-      >
-        {/* The badge is the trigger content directly. Routing it through SelectValue
-            would apply Base UI's pointer-events:none to it, leaving nothing clickable. */}
-        <SelectTrigger
-          aria-label={`Status of ${feature.title}`}
-          className="h-7 w-auto border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
-        >
-          <StatusBadge statuses={statuses} status={feature.status} />
-        </SelectTrigger>
-        <SelectContent>
-          {statuses.map((status) => (
-            <SelectItem key={status.id} value={status.id}>
-              {status.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Read-only here: changing it is a bigger action than a row wants to invite, and
+          stays reachable through Edit. */}
+      <StatusBadge statuses={statuses} status={feature.status} className="shrink-0" />
 
       <Button
         variant="ghost"

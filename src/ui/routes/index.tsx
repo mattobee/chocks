@@ -8,6 +8,7 @@ import { FeatureFilters } from '@/ui/components/feature-filters'
 import { FeatureTree } from '@/ui/components/feature-tree'
 import { Button } from '@/ui/components/ui/button'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
+import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from '@/ui/components/ui/empty'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useExpanded } from '@/ui/hooks/use-expanded'
@@ -119,7 +120,7 @@ function TreePage() {
     <AppShell>
       <>
         <div className="mb-5 flex items-center gap-3">
-          <h1 className="flex-1 text-2xl font-semibold tracking-tight">Features</h1>
+          <h1 className="flex-1 text-3xl font-semibold tracking-tight">Features</h1>
           <Button onClick={() => openCreate(ROOT_PARENT)}>
             <Plus data-icon="inline-start" />
             New feature
@@ -156,17 +157,23 @@ function TreePage() {
             </AlertAction>
           </Alert>
         ) : rows.length === 0 ? (
-          <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center">
-            <p className="mb-4 text-sm">
-              {filtering ? 'No features match these filters.' : 'No features yet.'}
-            </p>
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>
+                {filtering ? 'No features match these filters' : 'No features yet'}
+              </EmptyTitle>
+            </EmptyHeader>
+            {/* Nothing to offer when filtering: the fix is to change the filters, which are
+                right above this. */}
             {!filtering && (
-              <Button variant="outline" onClick={() => openCreate(ROOT_PARENT)}>
-                <Plus data-icon="inline-start" />
-                Add the first one
-              </Button>
+              <EmptyContent>
+                <Button variant="outline" onClick={() => openCreate(ROOT_PARENT)}>
+                  <Plus data-icon="inline-start" />
+                  Add the first one
+                </Button>
+              </EmptyContent>
             )}
-          </div>
+          </Empty>
         ) : (
           <FeatureTree
             rows={rows}
@@ -175,7 +182,6 @@ function TreePage() {
             filtering={filtering}
             onToggle={toggle}
             onRename={(id, title) => update.mutate({ id, title })}
-            onStatusChange={(id, status) => update.mutate({ id, status })}
             onAddChild={openCreate}
             onEdit={(feature) => {
               setEditing(feature)

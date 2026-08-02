@@ -20,7 +20,71 @@ test.describe('axe', () => {
 
   test('finds nothing on a feature page', async ({ page, workspace }) => {
     await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
-    await expect(page.getByRole('textbox', { name: 'Feature title' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'OAuth providers' })).toBeVisible()
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    expect(violations).toEqual([])
+  })
+
+  test('finds nothing in a rendered description', async ({ page, workspace }) => {
+    // Descriptions are markdown, so the page carries whatever headings, links, tables and
+    // task lists someone wrote. axe sees the rendered result rather than the source.
+    await workspace.write(
+      'auth/oauth',
+      '---\ntitle: OAuth providers\nstatus: pre-release\nsort: a0\nuid: aaa0000002\n---\n\n' +
+        '# Overview\n\nAdds [Apple](https://example.com/apple) alongside the rest.\n\n' +
+        '- [x] GitHub\n- [ ] Apple\n\n| Provider | Status |\n| --- | --- |\n| GitHub | Live |\n',
+    )
+    await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
+    await expect(page.getByRole('heading', { level: 2, name: 'Overview' })).toBeVisible()
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    expect(violations).toEqual([])
+  })
+
+  test('finds nothing in the delete confirmation', async ({ page, workspace }) => {
+    // Its own check, because the popup background is lighter than the page and a tinted
+    // button that passes out here can still fail on it.
+    await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
+    await page.getByRole('button', { name: 'Delete feature' }).click()
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+    // Settled, or axe reads colours through the open animation and reports the wrong ones.
+    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toBeVisible()
+    await page.waitForTimeout(500)
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    expect(violations).toEqual([])
+  })
+})
+
+// Dark is not just light with the colours swapped: a tint composites against a different
+// backdrop, so a colour that clears AA in one mode can fail in the other.
+test.describe('axe in dark mode', () => {
+  test.use({ colorScheme: 'dark' })
+
+  test('finds nothing in the delete confirmation', async ({ page, workspace }) => {
+    await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
+    await page.getByRole('button', { name: 'Delete feature' }).click()
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toBeVisible()
+    // Settled, or axe reads colours through the open animation and reports the wrong ones.
+    await page.waitForTimeout(500)
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    expect(violations).toEqual([])
+  })
+
+  test('finds nothing on a feature page', async ({ page, workspace }) => {
+    await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
+    await expect(page.getByRole('heading', { level: 1, name: 'OAuth providers' })).toBeVisible()
 
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -40,7 +104,6 @@ test.describe('accessible names', () => {
     await expect(row.getByRole('button', { name: 'Drag to reorder' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Add child of Authentication' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Actions for Authentication' })).toBeVisible()
-    await expect(row.getByRole('combobox')).toHaveAccessibleName('Status of Authentication')
   })
 
   test('names the colour mode control and its options', async ({ page, workspace }) => {

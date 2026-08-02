@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { ChevronRight, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { AppShell } from '@/ui/components/app-shell'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusBadge } from '@/ui/components/status-badge'
@@ -14,21 +14,39 @@ import {
   BreadcrumbSeparator,
 } from '@/ui/components/ui/breadcrumb'
 import { FeatureHistory } from '@/ui/components/feature-history'
+import { Markdown } from '@/ui/components/markdown'
 import { Button } from '@/ui/components/ui/button'
-import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
 import { Badge } from '@/ui/components/ui/badge'
-import { Input } from '@/ui/components/ui/input'
-import { Label } from '@/ui/components/ui/label'
-import { Textarea } from '@/ui/components/ui/textarea'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/ui/components/ui/empty'
+import { Item, ItemActions, ItemContent, ItemTitle } from '@/ui/components/ui/item'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupTextarea,
+} from '@/ui/components/ui/input-group'
 import { Skeleton } from '@/ui/components/ui/skeleton'
-import { Separator } from '@/ui/components/ui/separator'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/ui/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+} from '@/ui/components/ui/select'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
 import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
 import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
-import { DEFAULT_STATUSES } from '@/lib/status'
-import { featureKey, FEATURE_SUFFIX } from '@/lib/ids'
+import { DEFAULT_STATUSES, statusOrUnknown } from '@/lib/status'
+import { featureKey } from '@/lib/ids'
 import { describeError } from '@/lib/errors'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
@@ -52,6 +70,14 @@ export function FeaturePage() {
 
   const [description, setDescription] = useState('')
   const [title, setTitle] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
+  const renameButtonRef = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef(false)
+  const [describing, setDescribing] = useState(false)
+  const describeInputRef = useRef<HTMLTextAreaElement>(null)
+  const describeButtonRef = useRef<HTMLButtonElement>(null)
+  const returnDescribeFocus = useRef(false)
   const [childDialogOpen, setChildDialogOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -68,6 +94,42 @@ export function FeaturePage() {
     setTitle(savedTitle ?? '')
     setDescription(savedDescription ?? '')
   }, [savedId, savedTitle, savedDescription])
+
+  /**
+   * Moves focus with the swap, in both directions.
+   *
+   * Going in: focus then select. A browser moves focus as a side effect of `select()`, but
+   * leaning on that leaves the important half implicit, and renaming usually means
+   * replacing the title rather than appending to it.
+   *
+   * Coming out: back to the button that opened it, rather than dropping focus on the body.
+   * It has to happen here because neither control exists until the swap has rendered.
+   */
+  useEffect(() => {
+    if (renaming) {
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    } else if (returnFocus.current) {
+      returnFocus.current = false
+      // After the current key sequence, not during it. Enter commits on keydown, and
+      // focusing the button straight away puts it under the keyup that follows, which
+      // activates it and reopens the very editor that just closed.
+      const timer = setTimeout(() => renameButtonRef.current?.focus())
+      return () => clearTimeout(timer)
+    }
+  }, [renaming])
+
+  // Same swap as the title: focus follows the control that replaced the one you used, and
+  // going back is deferred so a committing keystroke cannot land on the button behind it.
+  useEffect(() => {
+    if (describing) {
+      describeInputRef.current?.focus()
+    } else if (returnDescribeFocus.current) {
+      returnDescribeFocus.current = false
+      const timer = setTimeout(() => describeButtonRef.current?.focus())
+      return () => clearTimeout(timer)
+    }
+  }, [describing])
 
   if (features.isPending) {
     return (
@@ -87,23 +149,31 @@ export function FeaturePage() {
   if (features.isError) {
     return (
       <AppShell>
-        <>
-          <Alert variant="destructive">
-            <TriangleAlert />
-            <AlertTitle>Could not load the feature tree</AlertTitle>
-            <AlertDescription>{describeError(features.error)}</AlertDescription>
-            <AlertAction>
+        <Empty className="border">
+          <EmptyHeader>
+            {/* Same tint as the delete dialog's icon, so "this is destructive/wrong" reads
+                the same way wherever it shows up. */}
+            <EmptyMedia
+              variant="icon"
+              className="bg-destructive/10 text-destructive-on-tint dark:bg-destructive/20"
+            >
+              <TriangleAlert aria-hidden="true" />
+            </EmptyMedia>
+            {/* h1: nothing else on this render has a heading, so this is the page's. */}
+            <EmptyTitle render={<h1 />}>Could not load the feature tree</EmptyTitle>
+            <EmptyDescription>{describeError(features.error)}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => void features.refetch()}>
                 Try again
               </Button>
-            </AlertAction>
-          </Alert>
-          <div className="mt-4 text-center">
-            <Button variant="ghost" render={<Link to="/" />}>
-              Back to the tree
-            </Button>
-          </div>
-        </>
+              <Button variant="ghost" size="sm" render={<Link to="/" />}>
+                Back to the tree
+              </Button>
+            </div>
+          </EmptyContent>
+        </Empty>
       </AppShell>
     )
   }
@@ -111,16 +181,19 @@ export function FeaturePage() {
   if (!feature) {
     return (
       <AppShell>
-        <>
-          <p className="text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
-            No feature matching <code className="font-mono">{key}</code>. It may have been deleted.
-          </p>
-          <div className="mt-4 text-center">
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyTitle render={<h1 />}>
+              No feature matching <code className="font-mono">{key}</code>
+            </EmptyTitle>
+            <EmptyDescription>It may have been deleted.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
             <Button variant="outline" render={<Link to="/" />}>
               Back to the tree
             </Button>
-          </div>
-        </>
+          </EmptyContent>
+        </Empty>
       </AppShell>
     )
   }
@@ -129,7 +202,13 @@ export function FeaturePage() {
   const children = childrenOf(featureList, featureId)
   const tags = allTags(featureList)
 
+  function stopRenaming() {
+    returnFocus.current = true
+    setRenaming(false)
+  }
+
   function commitTitle() {
+    stopRenaming()
     const next = title.trim()
     if (next === '' || next === feature!.title) {
       setTitle(feature!.title)
@@ -138,9 +217,22 @@ export function FeaturePage() {
     update.mutate({ id: featureId, title: next })
   }
 
+  function cancelRename() {
+    stopRenaming()
+    setTitle(feature!.title)
+  }
+
   function commitDescription() {
+    returnDescribeFocus.current = true
+    setDescribing(false)
     if (description === feature!.description) return
     update.mutate({ id: featureId, description })
+  }
+
+  function cancelDescription() {
+    returnDescribeFocus.current = true
+    setDescribing(false)
+    setDescription(feature!.description)
   }
 
   function handleCreateChild(draft: FeatureDraft) {
@@ -178,115 +270,198 @@ export function FeaturePage() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div className="mb-2 flex items-start gap-3">
-          <Input
-            aria-label="Feature title"
-            value={title}
-            maxLength={300}
-            onChange={(event) => setTitle(event.target.value)}
-            onBlur={commitTitle}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur()
-              if (event.key === 'Escape') {
-                setTitle(feature.title)
-                event.currentTarget.blur()
-              }
-            }}
-            className="h-auto flex-1 border-0 bg-transparent p-0 !text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Delete feature"
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 />
-          </Button>
+        <div className="mb-2 flex items-center gap-3">
+          {renaming ? (
+            // Taller than the default inline field: this is the page title, and two
+            // buttons sit inside it.
+            <InputGroup className="h-10 flex-1">
+              <InputGroupInput
+                ref={renameInputRef}
+                aria-label="Feature title"
+                value={title}
+                maxLength={300}
+                onChange={(event) => setTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') commitTitle()
+                  if (event.key === 'Escape') cancelRename()
+                }}
+              />
+              {/* Deliberately no save on blur. Clicking Cancel blurs the field first, so
+                  saving there would commit the edit the click was asking to throw away. */}
+              {/* Only the negative margin is overridden, and with the same variant or
+                  tailwind-merge keeps both. It pulls buttons about 5px back toward the
+                  edge, which suits an icon but leaves a text button's focus ring on the
+                  border. The addon's own pr-2 then matches the vertical gap. */}
+              <InputGroupAddon align="inline-end" className="has-[>button]:mr-0">
+                <InputGroupButton onClick={cancelRename}>Cancel</InputGroupButton>
+                <InputGroupButton variant="default" onClick={commitTitle}>
+                  Save
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          ) : (
+            <>
+              {/* The page's heading, which it did not have before: the title was an input
+                  dressed as one, so there was nothing for a screen reader to navigate to. */}
+              <h1 className="flex-1 text-3xl font-semibold tracking-tight">{feature.title}</h1>
+              {/* Same as the description's Edit: short visible label, longer accessible one
+                  so it still says what it renames when read out of context. */}
+              <Button
+                ref={renameButtonRef}
+                variant="secondary"
+                aria-label="Rename feature"
+                onClick={() => setRenaming(true)}
+              >
+                <Pencil data-icon="inline-start" />
+                Rename
+              </Button>
+            </>
+          )}
         </div>
 
-        {/* The path is the identity, so showing it makes the file findable in the repo. */}
-        <p className="text-muted-foreground mb-5 font-mono text-xs">
-          .chocks/{feature.id}
-          {FEATURE_SUFFIX}
-        </p>
+        {feature.tags.length > 0 && (
+          <ul className="mb-3 flex flex-wrap items-center gap-2">
+            {feature.tags.map((tag) => (
+              <li key={tag}>
+                <Badge variant="outline">{tag}</Badge>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <Select
             value={feature.status}
             onValueChange={(value) => update.mutate({ id: featureId, status: String(value) })}
           >
-            <SelectTrigger aria-label="Status" className="h-8 w-auto">
-              <StatusBadge statuses={statuses} status={feature.status} />
+            <SelectTrigger aria-label="Status" className="h-8 w-auto rounded-full">
+              {statusOrUnknown(statuses, feature.status).label}
             </SelectTrigger>
             <SelectContent>
-              {statuses.map((status) => (
-                <SelectItem key={status.id} value={status.id}>
-                  {status.label}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {statuses.map((status) => (
+                  <SelectItem key={status.id} value={status.id}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
-
-          {feature.tags.map((tag) => (
-            <Badge key={tag} variant="outline">
-              {tag}
-            </Badge>
-          ))}
         </div>
 
-        <div className="mb-8 grid gap-2">
-          <Label htmlFor="feature-description">Description</Label>
-          <Textarea
-            id="feature-description"
-            rows={8}
-            maxLength={10000}
-            placeholder="Markdown. What is this feature, and what would done look like?"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            onBlur={commitDescription}
-            className="font-mono text-sm"
-          />
-          <p className="text-muted-foreground text-xs">Written to the file when you click away.</p>
+        <div className="mb-8">
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="flex-1 text-lg font-semibold">Description</h2>
+            {/* Visible text is Edit, to match Add above it. The longer accessible name is
+                for anyone listing the page's buttons, where Edit on its own says nothing
+                about what it edits. It contains the visible label, so the two agree. */}
+            {!describing && (
+              <Button
+                ref={describeButtonRef}
+                variant="secondary"
+                aria-label="Edit description"
+                onClick={() => setDescribing(true)}
+              >
+                <Pencil data-icon="inline-start" />
+                Edit
+              </Button>
+            )}
+          </div>
+
+          {describing ? (
+            <InputGroup>
+              {/* Three overrides, and a dragged height needs all of them. field-sizing-fixed,
+                  or it sizes to its content and ignores rows. flex-none, or the group's
+                  column flex computes the height and throws away the one you dragged.
+                  resize-y in place of its resize-none, vertical only so it cannot be pulled
+                  out through the group's border. */}
+              <InputGroupTextarea
+                ref={describeInputRef}
+                aria-label="Description"
+                rows={16}
+                maxLength={10000}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter belongs to the text here, so saving needs the modifier.
+                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    commitDescription()
+                  }
+                  if (event.key === 'Escape') cancelDescription()
+                }}
+                className="field-sizing-fixed flex-none resize-y font-mono text-sm"
+              />
+              {/* Not the default xs. That is sized for a button tucked inside a one-line
+                    field; this is a footer bar with room, and 24px is small for a target. */}
+              <InputGroupAddon align="block-end" className="justify-end">
+                <InputGroupButton size="sm" onClick={cancelDescription}>
+                  Cancel
+                </InputGroupButton>
+                <InputGroupButton size="sm" variant="default" onClick={commitDescription}>
+                  Save
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          ) : feature.description ? (
+            <Markdown>{feature.description}</Markdown>
+          ) : (
+            <p className="text-muted-foreground">No description yet.</p>
+          )}
         </div>
 
-        <Separator className="mb-6" />
-
-        <div className="mb-3 flex items-center gap-3">
-          <h2 className="flex-1 text-sm font-medium">
+        <div className="mt-8 mb-3 flex items-center gap-3">
+          <h2 className="flex-1 text-lg font-semibold">
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
-          <Button variant="outline" size="sm" onClick={() => setChildDialogOpen(true)}>
+          <Button variant="secondary" onClick={() => setChildDialogOpen(true)}>
             <Plus data-icon="inline-start" />
-            Add
+            Add sub-feature
           </Button>
         </div>
 
         {children.length > 0 ? (
-          <ul className="divide-y rounded-lg border">
+          // A real ul rather than ItemGroup, which is a div with role="list". The registry's
+          // own example puts role="listitem" on the anchor, which costs it the link role.
+          // The border and dividers live here: ItemGroup is gapped cards, and these rows
+          // read better as one list.
+          <ul className="divide-y overflow-hidden rounded-lg border">
             {children.map((child) => (
               <li key={child.id}>
-                <Link
-                  to="/f/$featureKey"
-                  params={{ featureKey: featureKey(child) }}
-                  className="hover:bg-muted/50 flex items-center gap-3 p-3"
+                <Item
+                  className="rounded-none border-0"
+                  render={<Link to="/f/$featureKey" params={{ featureKey: featureKey(child) }} />}
                 >
-                  <span className="flex-1 truncate text-sm">{child.title}</span>
-                  <StatusBadge statuses={statuses} status={child.status} />
-                  <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-                </Link>
+                  <ItemContent>
+                    <ItemTitle>{child.title}</ItemTitle>
+                  </ItemContent>
+                  <ItemActions>
+                    <StatusBadge statuses={statuses} status={child.status} />
+                    <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                  </ItemActions>
+                </Item>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-            No sub-features.
-          </p>
+          // No action in here: Add already sits in the section heading above.
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>No sub-features</EmptyTitle>
+            </EmptyHeader>
+          </Empty>
         )}
 
-        <Separator className="my-6" />
-
-        <h2 className="mb-3 text-sm font-medium">History</h2>
+        <h2 className="mt-8 mb-3 text-lg font-semibold">History</h2>
         <FeatureHistory featureId={featureId} />
+
+        {/* Last on the page and out of the way. It used to sit beside Rename at the top,
+            one 32px target away from the button you reach for most. */}
+        <div className="mt-10 border-t pt-6">
+          <Button variant="ghost" onClick={() => setConfirmDelete(true)}>
+            <Trash2 data-icon="inline-start" />
+            Delete feature
+          </Button>
+        </div>
       </>
 
       <FeatureDialog
