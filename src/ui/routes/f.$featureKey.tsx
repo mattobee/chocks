@@ -16,13 +16,13 @@ import {
 import { FeatureHistory } from '@/ui/components/feature-history'
 import { Markdown } from '@/ui/components/markdown'
 import { Button } from '@/ui/components/ui/button'
-import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/ui/components/ui/alert'
 import { Badge } from '@/ui/components/ui/badge'
 import {
   Empty,
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from '@/ui/components/ui/empty'
 import { Item, ItemActions, ItemContent, ItemTitle } from '@/ui/components/ui/item'
@@ -149,23 +149,31 @@ export function FeaturePage() {
   if (features.isError) {
     return (
       <AppShell>
-        <>
-          <Alert variant="destructive">
-            <TriangleAlert />
-            <AlertTitle>Could not load the feature tree</AlertTitle>
-            <AlertDescription>{describeError(features.error)}</AlertDescription>
-            <AlertAction>
+        <Empty className="border">
+          <EmptyHeader>
+            {/* Same tint as the delete dialog's icon, so "this is destructive/wrong" reads
+                the same way wherever it shows up. */}
+            <EmptyMedia
+              variant="icon"
+              className="bg-destructive/10 text-destructive-on-tint dark:bg-destructive/20"
+            >
+              <TriangleAlert aria-hidden="true" />
+            </EmptyMedia>
+            {/* h1: nothing else on this render has a heading, so this is the page's. */}
+            <EmptyTitle render={<h1 />}>Could not load the feature tree</EmptyTitle>
+            <EmptyDescription>{describeError(features.error)}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => void features.refetch()}>
                 Try again
               </Button>
-            </AlertAction>
-          </Alert>
-          <div className="mt-4 text-center">
-            <Button variant="ghost" render={<Link to="/" />}>
-              Back to the tree
-            </Button>
-          </div>
-        </>
+              <Button variant="ghost" size="sm" render={<Link to="/" />}>
+                Back to the tree
+              </Button>
+            </div>
+          </EmptyContent>
+        </Empty>
       </AppShell>
     )
   }
@@ -175,7 +183,7 @@ export function FeaturePage() {
       <AppShell>
         <Empty className="border">
           <EmptyHeader>
-            <EmptyTitle>
+            <EmptyTitle render={<h1 />}>
               No feature matching <code className="font-mono">{key}</code>
             </EmptyTitle>
             <EmptyDescription>It may have been deleted.</EmptyDescription>
