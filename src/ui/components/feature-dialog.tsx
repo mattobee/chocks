@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -103,9 +102,6 @@ export function FeatureDialog({
         >
           <DialogHeader>
             <DialogTitle>{isEdit ? 'Edit feature' : 'New feature'}</DialogTitle>
-            <DialogDescription>
-              {isEdit ? 'Update this feature.' : 'Add a feature to the tree.'}
-            </DialogDescription>
           </DialogHeader>
 
           <FieldGroup className="py-4">
