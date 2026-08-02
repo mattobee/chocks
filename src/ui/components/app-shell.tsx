@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FolderGit2 } from 'lucide-react'
+import { CircleDot, FolderGit2 } from 'lucide-react'
+import { Badge } from '@/ui/components/ui/badge'
 import { ColorModeSwitcher } from '@/ui/components/color-mode-switcher'
-import { workspaceQuery } from '@/ui/lib/queries'
+import { uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
 
 /** One place to change the page width, so pages can't drift apart. */
 const CONTAINER = 'mx-auto w-full max-w-4xl px-6'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const workspace = useQuery(workspaceQuery())
+  const uncommitted = useQuery(uncommittedQuery())
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -27,6 +29,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               <FolderGit2 className="size-4" aria-hidden="true" />
               {workspace.data.name}
             </span>
+          )}
+          {uncommitted.data?.uncommitted && (
+            <Badge variant="warning" className="gap-1.5">
+              <CircleDot className="size-3.5" aria-hidden="true" />
+              Uncommitted changes
+            </Badge>
           )}
           <div className="ms-auto">
             <ColorModeSwitcher />

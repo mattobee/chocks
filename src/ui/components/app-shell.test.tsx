@@ -7,15 +7,22 @@ import { DEFAULT_STATUSES } from '@/lib/status'
 import type { Workspace } from '@/lib/types'
 
 const workspace = vi.fn<() => Promise<Workspace>>()
+const uncommitted = vi.fn<() => Promise<{ uncommitted: boolean }>>()
 
 vi.mock('@/ui/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/ui/lib/api')>()
-  return { ...actual, api: { ...actual.api, workspace: () => workspace() } }
+  return {
+    ...actual,
+    api: { ...actual.api, workspace: () => workspace(), uncommitted: () => uncommitted() },
+  }
 })
 
-afterEach(() => workspace.mockReset())
+afterEach(() => {
+  workspace.mockReset()
+  uncommitted.mockReset()
+})
 
-async function setup(overrides: Partial<Workspace> = {}) {
+async function setup(overrides: Partial<Workspace> = {}, hasUncommitted = false) {
   workspace.mockResolvedValue({
     root: '/repo/.chocks',
     name: 'chocks',
@@ -24,6 +31,7 @@ async function setup(overrides: Partial<Workspace> = {}) {
     config: { statuses: DEFAULT_STATUSES },
     ...overrides,
   })
+  uncommitted.mockResolvedValue({ uncommitted: hasUncommitted })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   await renderWithRouter(
     <QueryClientProvider client={client}>
@@ -62,5 +70,20 @@ describe('version in the footer', () => {
 
     await waitFor(() => expect(screen.getByText('Page content')).toBeInTheDocument())
     expect(screen.getByRole('contentinfo')).toHaveTextContent('')
+  })
+})
+
+describe('uncommitted changes badge in the header', () => {
+  it('shows up when any feature has unsaved changes', async () => {
+    await setup({}, true)
+
+    expect(await screen.findByText('Uncommitted changes')).toBeInTheDocument()
+  })
+
+  it('stays hidden when every feature is committed', async () => {
+    await setup()
+
+    await waitFor(() => expect(screen.getByText('Page content')).toBeInTheDocument())
+    expect(screen.queryByText('Uncommitted changes')).not.toBeInTheDocument()
   })
 })

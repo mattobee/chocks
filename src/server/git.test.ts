@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { featureHistory, isGitRepo } from './git'
+import { featureHistory, hasUncommittedFeatureChanges, isGitRepo } from './git'
 
 const run = promisify(execFile)
 
@@ -133,6 +133,48 @@ describe('featureHistory', () => {
     const history = await featureHistory(repo, '/etc/passwd')
     expect(history.unavailable).toBe('failed')
     expect(history.commits).toEqual([])
+  })
+})
+
+describe('hasUncommittedFeatureChanges', () => {
+  it('is false with nothing but committed features', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    expect(await hasUncommittedFeatureChanges(repo, path.join(repo, '.chocks'))).toBe(false)
+  })
+
+  it('is true for an edit anywhere under the chocks directory, not just one file', async () => {
+    const auth = path.join(repo, '.chocks', 'auth.chocks.md')
+    const oauth = path.join(repo, '.chocks', 'oauth.chocks.md')
+    await writeFile(auth, '---\ntitle: Auth\n---\n', 'utf8')
+    await writeFile(oauth, '---\ntitle: OAuth\n---\n', 'utf8')
+    await commit('feat: add auth and oauth')
+
+    await writeFile(oauth, '---\ntitle: OAuth\nstatus: released\n---\n', 'utf8')
+    expect(await hasUncommittedFeatureChanges(repo, path.join(repo, '.chocks'))).toBe(true)
+  })
+
+  it('ignores an edit outside the chocks directory', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+
+    await writeFile(path.join(repo, 'README.md'), 'unrelated edit', 'utf8')
+    expect(await hasUncommittedFeatureChanges(repo, path.join(repo, '.chocks'))).toBe(false)
+  })
+
+  it('is false outside a repo rather than throwing', async () => {
+    const loose = await mkdtemp(path.join(tmpdir(), 'chocks-loose-'))
+    try {
+      expect(await hasUncommittedFeatureChanges(loose, loose)).toBe(false)
+    } finally {
+      await rm(loose, { recursive: true, force: true })
+    }
+  })
+
+  it('is false for a chocks directory outside the repo', async () => {
+    expect(await hasUncommittedFeatureChanges(repo, '/etc')).toBe(false)
   })
 })
 

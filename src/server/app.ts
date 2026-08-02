@@ -7,7 +7,7 @@ import { isValidStatusId } from '../lib/status'
 import { isValidSortKey } from '../lib/tree'
 import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
-import { featureHistory } from './git'
+import { featureHistory, hasUncommittedFeatureChanges } from './git'
 import { FEATURE_SUFFIX, isValidId, isValidUid } from '../lib/ids'
 import { describeError } from '../lib/errors'
 
@@ -114,6 +114,12 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
   })
 
   app.get('/api/features', async (c) => c.json(await scan(root)))
+
+  /** Whether any feature file has changes not yet committed, for the header badge. */
+  app.get('/api/uncommitted', async (c) => {
+    const uncommitted = await hasUncommittedFeatureChanges(options.repoRoot ?? root, root)
+    return c.json({ uncommitted })
+  })
 
   /**
    * A feature's history, straight from git.

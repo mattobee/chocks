@@ -47,6 +47,8 @@ export const api = {
 
   listFeatures: () => request<Feature[]>('/api/features'),
 
+  uncommitted: () => request<{ uncommitted: boolean }>('/api/uncommitted'),
+
   /** `uid`, `sort` and `slug` put a deleted feature back as itself. Not for new ones. */
   createFeature: (input: {
     parent: string

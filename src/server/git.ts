@@ -85,9 +85,28 @@ function isMissingHistory(error: unknown): boolean {
   )
 }
 
+/**
+ * True when any feature file has changes that are not committed yet.
+ *
+ * Scoped to `root`, the chocks directory, not the whole repo: an edit elsewhere in the
+ * checkout has nothing to do with a badge that promises to be about features.
+ */
+export async function hasUncommittedFeatureChanges(
+  repoRoot: string,
+  root: string,
+): Promise<boolean> {
+  const relative = path.relative(repoRoot, root)
+  if (relative.startsWith('..')) return false
+  return hasUncommittedChanges(repoRoot, relative)
+}
+
 async function hasUncommittedChanges(repoRoot: string, relative: string): Promise<boolean> {
   try {
-    const stdout = await git(repoRoot, ['status', '--porcelain', '--', relative])
+    // An empty pathspec matches nothing rather than everything, which comes up whenever the
+    // chocks directory *is* the repo root: relative-to-itself is `''`.
+    const args =
+      relative === '' ? ['status', '--porcelain'] : ['status', '--porcelain', '--', relative]
+    const stdout = await git(repoRoot, args)
     return stdout.trim() !== ''
   } catch {
     return false
