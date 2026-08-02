@@ -66,14 +66,22 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     for (const send of subscribers) send(event)
   }
 
-  /** The backfill currently running, so shutdown can wait for it rather than cutting it off. */
+  /**
+   * Backfills, chained rather than run concurrently.
+   *
+   * A change arriving while one is still writing would otherwise start a second pass over
+   * the same files, and both would mint a uid for anything lacking one. Chaining also means
+   * shutdown can await this and be waiting for all of them, not just the newest.
+   */
   let inFlight: Promise<unknown> = Promise.resolve()
 
   const stopWatching = watchFeatures(root, () => {
     // Catch before finally, not after. A rejection here has no other handler, so an
     // unwritable file would take the whole server down rather than costing one backfill.
+    // Catching also keeps the chain alive: the next link runs whatever this one did.
     // Tell any clients to refetch either way: the files still changed.
-    inFlight = backfill(root)
+    inFlight = inFlight
+      .then(() => backfill(root))
       .catch((error: unknown) => {
         console.error('chocks: could not backfill after a change on disk', error)
       })
@@ -260,9 +268,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     stop: async () => {
       stopWatching()
       stopWatchingGit()
-      // Stopping the watcher prevents the next backfill, not the one already writing.
-      // `writeAtomic` renames a temp file into place, so being killed between the two
-      // leaves a stray `.tmp` in a directory whose whole point is that you commit it.
+      // Stopping the watcher prevents the next backfill, not the ones already queued or
+      // writing. `writeAtomic` renames a temp file into place, so being killed between the
+      // two leaves a stray `.tmp` in a directory whose whole point is that you commit it.
       await inFlight
     },
   }
