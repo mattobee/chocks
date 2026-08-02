@@ -12,7 +12,7 @@ import type { Feature } from '../lib/types'
 /**
  * Reads and writes the `.chocks` directory.
  *
- * The layout is `<slug>.feature.md` for a feature and a sibling `<slug>/` directory for its
+ * The layout is `<slug>.chocks.md` for a feature and a sibling `<slug>/` directory for its
  * children, so gaining children never moves the parent's own file. A feature's id is its
  * path without the extension, which makes the filesystem the single source of truth for
  * the hierarchy.

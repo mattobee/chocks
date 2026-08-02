@@ -12,6 +12,12 @@ import { FEATURE_SUFFIX } from './lib/ids'
 import { backfill, scanWithIgnored } from './store/store'
 import { CONFIG_FILENAME, loadConfig } from './store/config'
 
+/**
+ * The suffix features used before 0.4, kept only to explain where someone's tree went.
+ * Remove once that release is old news.
+ */
+const LEGACY_SUFFIX = '.feature.md'
+
 const HELP = `
 chocks — track planned and existing features as a tree, in your repo
 
@@ -132,7 +138,7 @@ async function main(): Promise<void> {
   // a read so that GETs stay free of side effects.
   const backfilled = await backfill(root)
 
-  // A file named `auth.md` instead of `auth.feature.md` would otherwise just not appear,
+  // A file named `auth.md` instead of `auth.chocks.md` would otherwise just not appear,
   // with nothing to explain why.
   const { ignored } = await scanWithIgnored(root)
 
@@ -175,6 +181,13 @@ async function main(): Promise<void> {
           `\n    ${names.slice(0, 5).join('\n    ')}` +
           (names.length > 5 ? `\n    …and ${names.length - 5} more` : ''),
       )
+      const legacy = names.filter((name) => name.endsWith(LEGACY_SUFFIX))
+      if (legacy.length > 0) {
+        console.log(
+          `\n  ${legacy.length} of those use the old ${LEGACY_SUFFIX} suffix, which chocks no` +
+            ` longer reads. Rename them to ${FEATURE_SUFFIX}.`,
+        )
+      }
     }
     if (backfilled.failures.length > 0) {
       console.log(

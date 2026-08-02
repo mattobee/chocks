@@ -28,16 +28,16 @@ The feature tree belongs next to the code that implements it.
 
 ## Layout
 
-A feature is `<slug>.feature.md`. Its children live in a sibling `<slug>/` directory:
+A feature is `<slug>.chocks.md`. Its children live in a sibling `<slug>/` directory:
 
 ```
 .chocks/
-  authentication.feature.md
+  authentication.chocks.md
   authentication/
-    oauth-providers.feature.md
+    oauth-providers.chocks.md
     oauth-providers/
-      github.feature.md
-      google.feature.md
+      github.chocks.md
+      google.chocks.md
 ```
 
 ```markdown
@@ -72,7 +72,7 @@ lifecycle: creating, editing and deleting a thing usually ship at different time
 not one. Stop splitting once you'd be naming something no user or PM would ever refer to
 separately, or that only exists because of how the code happens to be organised.
 
-A feature is <slug>.feature.md; its children live in a sibling <slug>/ directory. For
+A feature is <slug>.chocks.md; its children live in a sibling <slug>/ directory. For
 each feature, write a title, a status, tags for cross-cutting concerns such as "api" or
 "billing", and a couple of sentences describing it in the markdown body. The status must
 be one of idea, planned, pre-release, released, deprecated or dropped, unless

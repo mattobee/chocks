@@ -17,9 +17,11 @@
  *
  * Without it every `.md` under the chocks directory is a feature, so dropping a README in
  * there to explain the directory silently creates a phantom one. Borrowed from Storybook's
- * `.stories.tsx`, and it keeps open the option of features living beside source files.
+ * `.stories.tsx`, and it keeps open the option of features living beside source files. Not
+ * `.feature.md`: that is Cucumber's Markdown with Gherkin spec, and a repo doing BDD would
+ * have two meanings for one extension.
  */
-export const FEATURE_SUFFIX = '.feature.md'
+export const FEATURE_SUFFIX = '.chocks.md'
 
 /** The parent id of a feature id — its dirname, or '' at the top level. */
 export function parentOf(id: string): string {

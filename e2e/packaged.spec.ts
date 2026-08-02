@@ -109,7 +109,7 @@ test.describe('packaged artefact', () => {
 
     await expect(page.getByRole('link', { name: 'Installed and working' })).toBeVisible()
     const files = await readdir(path.join(workdir, '.chocks'))
-    expect(files).toContain('installed-and-working.feature.md')
+    expect(files).toContain('installed-and-working.chocks.md')
   })
 
   test('resolves a deep client-side route', async ({ page }) => {

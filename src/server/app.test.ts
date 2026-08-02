@@ -292,7 +292,7 @@ describe('SSE /api/events', () => {
     // Written straight to disk, bypassing the store, the way an agent seeding the tree
     // would — no uid, the way a hand-written file arrives.
     await writeFile(
-      path.join(root, 'seeded.feature.md'),
+      path.join(root, 'seeded.chocks.md'),
       '---\ntitle: Seeded\nstatus: idea\n---\n\nWritten with no uid.\n',
       'utf8',
     )
