@@ -29,8 +29,7 @@ Releases before 0.1.3 predate this file.
 - The status control on a tree row kept its keyboard focus ring, which a stray style
   override had reduced to nothing.
 - The destructive button's text meets WCAG AA contrast in both light and dark mode.
-- The error and not-found pages have a real heading, so a screen reader has something to
-  land on.
+- The error and not-found pages have a real heading.
 - Clicking blank space in the description editor's button bar now focuses the field, the
   same as it already did for a single-line input.
 
