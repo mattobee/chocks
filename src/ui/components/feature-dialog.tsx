@@ -23,7 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/ui/components/ui/select'
-import { Toggle } from '@/ui/components/ui/toggle'
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxValue,
+} from '@/ui/components/ui/combobox'
 import type { Feature } from '@/lib/types'
 import { defaultStatusId, statusOrUnknown, type StatusDefinition } from '@/lib/status'
 
@@ -54,9 +64,8 @@ export function FeatureDialog({
 }) {
   const [draft, setDraft] = useState<FeatureDraft>(() => emptyDraft(defaultStatusId(statuses)))
   const [titleError, setTitleError] = useState<string | null>(null)
-  // Held as raw text while typing. Parsing on every keystroke and joining back would strip
-  // the separator as soon as you typed it, making a second tag impossible to enter.
-  const [tagsText, setTagsText] = useState('')
+  // The combobox's own search text, not a tag until it's picked or created.
+  const [tagQuery, setTagQuery] = useState('')
   const titleRef = useRef<HTMLInputElement>(null)
 
   // Reset whenever the dialog opens so a previous edit never leaks into the next one.
@@ -73,10 +82,30 @@ export function FeatureDialog({
         : emptyDraft(defaultStatusId(statuses)),
     )
     setTitleError(null)
-    setTagsText(feature ? feature.tags.join(', ') : '')
+    setTagQuery('')
   }, [open, feature, statuses])
 
   const isEdit = feature !== undefined
+
+  // A tag just created by typing isn't in `availableTags` (that only reflects tags already
+  // saved elsewhere), so it has to stay in `items` via the current selection instead, or it
+  // vanishes from the combobox's collection the moment the query moves on — which left the
+  // list unable to show anything at all for the next tag typed after it.
+  const knownTags = [...new Set([...availableTags, ...draft.tags])]
+
+  // Offer to create a new tag once the query doesn't match one already on offer or chosen.
+  const trimmedTagQuery = tagQuery.trim()
+  const tagAlreadyChosen = knownTags.some(
+    (tag) => tag.toLowerCase() === trimmedTagQuery.toLowerCase(),
+  )
+  // Filtered by hand and passed as `filteredItems`: the combobox's own default filter
+  // stopped matching a freshly typed tag against itself once a previous tag had already
+  // been picked, leaving the list stuck showing only the earlier pick.
+  const matchingTags = knownTags.filter((tag) =>
+    tag.toLowerCase().includes(trimmedTagQuery.toLowerCase()),
+  )
+  const tagItems =
+    trimmedTagQuery !== '' && !tagAlreadyChosen ? [...matchingTags, trimmedTagQuery] : matchingTags
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,7 +126,7 @@ export function FeatureDialog({
               return
             }
             setTitleError(null)
-            onSubmit({ ...draft, title: draft.title.trim(), tags: parseTags(tagsText) })
+            onSubmit({ ...draft, title: draft.title.trim() })
           }}
         >
           <DialogHeader>
@@ -153,45 +182,56 @@ export function FeatureDialog({
               </Select>
             </Field>
 
-            {/* Tags are free-form strings in frontmatter, so this has to accept new ones,
-                not just pick from a fixed list. Existing tags are offered as shortcuts. */}
+            {/* Tags are free-form strings in frontmatter: type to filter the ones already in
+                use, or keep typing to offer creating a new one. */}
             <Field>
               <FieldLabel htmlFor="feature-tags">Tags</FieldLabel>
               <FieldDescription id="feature-tags-hint">
-                Comma separated, for example: ux, api
+                Search existing tags or type a new one.
               </FieldDescription>
-              <Input
-                id="feature-tags"
-                aria-describedby="feature-tags-hint"
-                value={tagsText}
-                onChange={(event) => setTagsText(event.target.value)}
-                onBlur={() => setTagsText(parseTags(tagsText).join(', '))}
-              />
-              {availableTags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {availableTags.map((tag) => {
-                    const selected = parseTags(tagsText).includes(tag)
-                    return (
-                      <Toggle
-                        key={tag}
-                        size="sm"
-                        variant="outline"
-                        pressed={selected}
-                        onPressedChange={() => {
-                          const current = parseTags(tagsText)
-                          const next = selected
-                            ? current.filter((value) => value !== tag)
-                            : [...current, tag]
-                          setTagsText(next.join(', '))
-                        }}
-                        className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary"
-                      >
-                        {tag}
-                      </Toggle>
-                    )
-                  })}
-                </div>
-              )}
+              <Combobox
+                items={tagItems}
+                filteredItems={tagItems}
+                multiple
+                value={draft.tags}
+                onValueChange={(tags) => setDraft({ ...draft, tags })}
+                inputValue={tagQuery}
+                onInputValueChange={setTagQuery}
+                autoHighlight
+              >
+                <ComboboxChips>
+                  <ComboboxValue>
+                    {(tags: string[]) => (
+                      <>
+                        {tags.map((tag) => (
+                          <ComboboxChip key={tag} removeLabel={`Remove ${tag}`}>
+                            {tag}
+                          </ComboboxChip>
+                        ))}
+                        <ComboboxChipsInput
+                          id="feature-tags"
+                          // Not just the label's `for`: the field's own popup, once open,
+                          // makes the rest of the dialog inert, including this sibling label,
+                          // so an assistive technology user loses the field's name at the
+                          // exact moment they're using it. A literal string survives that.
+                          aria-label="Tags"
+                          aria-describedby="feature-tags-hint"
+                        />
+                      </>
+                    )}
+                  </ComboboxValue>
+                </ComboboxChips>
+                <ComboboxContent>
+                  <ComboboxEmpty>No tags found.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(tag: string) => (
+                      <ComboboxItem key={tag} value={tag}>
+                        {knownTags.includes(tag) ? tag : `Create "${tag}"`}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
             </Field>
           </FieldGroup>
 
@@ -207,14 +247,6 @@ export function FeatureDialog({
       </DialogContent>
     </Dialog>
   )
-}
-
-function parseTags(value: string): string[] {
-  const tags = value
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag !== '')
-  return [...new Set(tags)]
 }
 
 function emptyDraft(status: string): FeatureDraft {

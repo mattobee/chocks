@@ -1,14 +1,60 @@
-import { Search, X } from 'lucide-react'
-import { Input } from '@/ui/components/ui/input'
+import { ChevronDown, Search, X } from 'lucide-react'
 import { Button } from '@/ui/components/ui/button'
-import { Toggle } from '@/ui/components/ui/toggle'
+import { Badge } from '@/ui/components/ui/badge'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/ui/components/ui/input-group'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+} from '@/ui/components/ui/dropdown-menu'
 import type { StatusDefinition } from '@/lib/status'
 import type { TreeFilters } from '@/lib/tree'
 
-// Toggle's own pressed state is a subtle background change. A filter that is on needs to
-// read at a glance, so selection is filled rather than tinted.
-const SELECTED_CHIP =
-  'aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary aria-pressed:hover:bg-primary/90'
+function FilterDropdown({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string
+  options: { id: string; label: string }[]
+  selected: string[]
+  onToggle: (id: string) => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            aria-label={selected.length > 0 ? `${label}, ${selected.length} selected` : label}
+          />
+        }
+      >
+        {label}
+        {selected.length > 0 && <Badge variant="secondary">{selected.length}</Badge>}
+        <ChevronDown data-icon="inline-end" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {options.map((option) => (
+          <DropdownMenuCheckboxItem
+            key={option.id}
+            checked={selected.includes(option.id)}
+            onCheckedChange={() => onToggle(option.id)}
+          >
+            {option.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 export function FeatureFilters({
   filters,
@@ -42,71 +88,53 @@ export function FeatureFilters({
     })
   }
 
-  // Deliberately not `isFiltering`, which trims the query: a box holding nothing but
-  // spaces narrows nothing, but there is still something in it worth offering to clear.
-  const hasInput = filters.query !== '' || filters.statuses.length > 0 || filters.tags.length > 0
+  const hasDropdownFilters = filters.statuses.length > 0 || filters.tags.length > 0
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2" />
-          <Input
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <InputGroup className="w-auto min-w-48 flex-1">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
             type="search"
             aria-label="Search features"
-            className="ps-8"
+            className="[&::-webkit-search-cancel-button]:hidden"
             value={filters.query}
             onChange={(event) => onChange({ ...filters, query: event.target.value })}
           />
-        </div>
-        {hasInput && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange({ query: '', statuses: [], tags: [] })}
-          >
-            {/* data-icon is what the button variant keys its leading padding off. */}
-            <X data-icon="inline-start" />
-            Clear
-          </Button>
+          {filters.query !== '' && (
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                aria-label="Clear search"
+                size="icon-xs"
+                onClick={() => onChange({ ...filters, query: '' })}
+              >
+                <X />
+              </InputGroupButton>
+            </InputGroupAddon>
+          )}
+        </InputGroup>
+
+        <FilterDropdown
+          label="Status"
+          options={statuses.map((status) => ({ id: status.id, label: status.label }))}
+          selected={filters.statuses}
+          onToggle={toggleStatus}
+        />
+
+        {tags.length > 0 && (
+          <FilterDropdown
+            label="Tags"
+            options={tags.map((tag) => ({ id: tag, label: tag }))}
+            selected={filters.tags}
+            onToggle={toggleTag}
+          />
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        {statuses.map((status) => {
-          const selected = filters.statuses.includes(status.id)
-          return (
-            <Toggle
-              key={status.id}
-              size="sm"
-              variant="outline"
-              pressed={selected}
-              onPressedChange={() => toggleStatus(status.id)}
-              className={SELECTED_CHIP}
-            >
-              {status.label}
-            </Toggle>
-          )
-        })}
-
-        {tags.length > 0 && <span className="bg-border mx-1 h-4 w-px" aria-hidden />}
-
-        {tags.map((tag) => {
-          const selected = filters.tags.includes(tag)
-          return (
-            <Toggle
-              key={tag}
-              size="sm"
-              variant="outline"
-              pressed={selected}
-              onPressedChange={() => toggleTag(tag)}
-              className={SELECTED_CHIP}
-            >
-              {tag}
-            </Toggle>
-          )
-        })}
-
+      <div className="flex min-h-8 items-center gap-2">
         {/*
           Typing in the search box silently rewrites the tree below, which a screen reader
           user would otherwise have no way to notice. Rendered unconditionally so the
@@ -117,10 +145,21 @@ export function FeatureFilters({
           role="status"
           aria-live="polite"
           aria-label="Search results"
-          className="text-muted-foreground ms-auto text-xs"
+          className="text-muted-foreground text-xs"
         >
           {matchCount !== null && `${matchCount} ${matchCount === 1 ? 'match' : 'matches'}`}
         </span>
+
+        {hasDropdownFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange({ ...filters, statuses: [], tags: [] })}
+          >
+            <X data-icon="inline-start" />
+            Clear filters
+          </Button>
+        )}
       </div>
     </div>
   )
