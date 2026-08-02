@@ -151,7 +151,7 @@ async function main(): Promise<void> {
   const uiDir = path.join(here, 'ui')
 
   const { version, repository } = ownPackage()
-  const app = createApp({
+  const { app } = createApp({
     root,
     repoRoot,
     name: path.basename(repoRoot),

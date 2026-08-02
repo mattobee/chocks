@@ -46,9 +46,37 @@ function asStringArray(value: unknown): string[] | undefined {
   return value.filter((item): item is string => typeof item === 'string')
 }
 
-export function createApp(options: ServerOptions) {
+/**
+ * Builds the server and starts watching the chocks directory.
+ *
+ * Watching belongs to the process, not to a connection. An agent seeding the tree writes
+ * files with no uid, and those have to be backfilled whether or not anyone has a tab open —
+ * otherwise a headless chocks leaves them unlinkable until someone restarts it.
+ *
+ * `stop` releases the watchers. The CLI runs until it is killed and never calls it; tests do.
+ */
+export function createApp(options: ServerOptions): { app: Hono; stop: () => void } {
   const app = new Hono()
   const { root } = options
+
+  /** Connected SSE clients. Empty is the normal case for a headless run, not an error. */
+  const subscribers = new Set<(event: string) => void>()
+  const broadcast = (event: string) => {
+    for (const send of subscribers) send(event)
+  }
+
+  const stopWatching = watchFeatures(root, () => {
+    // Catch before finally, not after. A rejection here has no other handler, so an
+    // unwritable file would take the whole server down rather than costing one backfill.
+    // Tell any clients to refetch either way: the files still changed.
+    void backfill(root)
+      .catch((error: unknown) => {
+        console.error('chocks: could not backfill after a change on disk', error)
+      })
+      .finally(() => broadcast('changed'))
+  })
+  // A commit does not touch the feature files, so git activity is its own signal.
+  const stopWatchingGit = watchGit(options.repoRoot ?? root, () => broadcast('git'))
 
   app.onError((error, c) => {
     if (error instanceof StoreError) {
@@ -160,32 +188,28 @@ export function createApp(options: ServerOptions) {
     const stream = new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder()
-        const send = (event: string) => controller.enqueue(encoder.encode(`data: ${event}\n\n`))
+        let open = true
+        const send = (event: string) => {
+          if (!open) return
+          try {
+            controller.enqueue(encoder.encode(`data: ${event}\n\n`))
+          } catch {
+            // The client went away between the broadcast and this write. Drop it rather
+            // than letting one dead connection throw across the others.
+            open = false
+            subscribers.delete(send)
+          }
+        }
 
         send('connected')
-        // Files can appear with no uid or sort key — hand-written, or written by an agent
-        // seeding the tree while chocks is already running. Startup only backfills once, so
-        // do it here too, before telling the client to refetch, rather than leaving them
-        // unlinkable and unsortable until the next restart.
-        const stopWatching = watchFeatures(root, () => {
-          // Catch before finally, not after. A rejection here has no other handler, so an
-          // unwritable file would take the whole server down rather than costing one
-          // backfill. Tell the client to refetch either way: the files still changed.
-          void backfill(root)
-            .catch((error: unknown) => {
-              console.error('chocks: could not backfill after a change on disk', error)
-            })
-            .finally(() => send('changed'))
-        })
-        // A commit does not touch the feature files, so git activity is its own signal.
-        const stopWatchingGit = watchGit(options.repoRoot ?? root, () => send('git'))
+        subscribers.add(send)
         // Proxies and load balancers drop idle connections; this keeps it warm.
         const heartbeat = setInterval(() => send('ping'), 30_000)
 
         c.req.raw.signal.addEventListener('abort', () => {
+          open = false
           clearInterval(heartbeat)
-          stopWatching()
-          stopWatchingGit()
+          subscribers.delete(send)
           try {
             controller.close()
           } catch {
@@ -227,7 +251,13 @@ export function createApp(options: ServerOptions) {
     })
   }
 
-  return app
+  return {
+    app,
+    stop: () => {
+      stopWatching()
+      stopWatchingGit()
+    },
+  }
 }
 
 const MIME_TYPES: Record<string, string> = {
