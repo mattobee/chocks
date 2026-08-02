@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronRight, GripVertical, MoreHorizontal, Plus } from 'lucide-react'
+import { ChevronRight, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/ui/components/ui/button'
-import { Input } from '@/ui/components/ui/input'
 import { Badge } from '@/ui/components/ui/badge'
 import {
   DropdownMenu,
@@ -32,7 +30,6 @@ export interface FeatureRowProps {
   /** True when a filter is active, which disables dragging. */
   filtering: boolean
   onToggle: (id: string) => void
-  onRename: (id: string, title: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
@@ -47,7 +44,6 @@ export function FeatureRow({
   matched,
   filtering,
   onToggle,
-  onRename,
   onAddChild,
   onEdit,
   onDelete,
@@ -57,21 +53,6 @@ export function FeatureRow({
     // Reordering while a filter hides most of the tree would write misleading sort keys.
     disabled: filtering,
   })
-  const [renaming, setRenaming] = useState(false)
-  const [title, setTitle] = useState(feature.title)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (renaming) inputRef.current?.select()
-  }, [renaming])
-
-  function commitRename() {
-    const next = title.trim()
-    setRenaming(false)
-    if (next !== '' && next !== feature.title) onRename(feature.id, next)
-    else setTitle(feature.title)
-  }
-
   return (
     <li
       ref={setNodeRef}
@@ -117,30 +98,14 @@ export function FeatureRow({
         <GripVertical aria-hidden="true" />
       </Button>
 
-      {renaming ? (
-        <Input
-          ref={inputRef}
-          value={title}
-          className="h-7 flex-1"
-          onChange={(event) => setTitle(event.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') commitRename()
-            if (event.key === 'Escape') {
-              setTitle(feature.title)
-              setRenaming(false)
-            }
-          }}
-        />
-      ) : (
-        <Link
-          to="/f/$featureKey"
-          params={{ featureKey: featureKey(feature) }}
-          className="hover:text-foreground flex-1 truncate text-sm hover:underline"
-        >
-          {feature.title}
-        </Link>
-      )}
+      {/* Renaming is Edit's job now, not a second inline path on the row. */}
+      <Link
+        to="/f/$featureKey"
+        params={{ featureKey: featureKey(feature) }}
+        className="hover:text-foreground flex-1 truncate text-sm hover:underline"
+      >
+        {feature.title}
+      </Link>
 
       {feature.tags.map((tag) => (
         <Badge key={tag} variant="outline" className="hidden shrink-0 sm:inline-flex">
@@ -151,16 +116,6 @@ export function FeatureRow({
       {/* Read-only here: changing it is a bigger action than a row wants to invite, and
           stays reachable through Edit. */}
       <StatusBadge statuses={statuses} status={feature.status} className="shrink-0" />
-
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={`Add child of ${feature.title}`}
-        className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-        onClick={() => onAddChild(feature.id)}
-      >
-        <Plus />
-      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -176,18 +131,17 @@ export function FeatureRow({
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onEdit(feature)}>Edit…</DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => {
-              setTitle(feature.title)
-              setRenaming(true)
-            }}
-          >
-            Rename
+          <DropdownMenuItem onClick={() => onEdit(feature)}>
+            <Pencil aria-hidden="true" />
+            Edit…
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAddChild(feature.id)}>Add child</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAddChild(feature.id)}>
+            <Plus aria-hidden="true" />
+            Add sub-feature
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => onDelete(feature)}>
+            <Trash2 aria-hidden="true" />
             Delete…
           </DropdownMenuItem>
         </DropdownMenuContent>

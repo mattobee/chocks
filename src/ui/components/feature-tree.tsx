@@ -29,7 +29,6 @@ export interface FeatureTreeProps {
   matchedIds: ReadonlySet<string>
   filtering: boolean
   onToggle: (id: string) => void
-  onRename: (id: string, title: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
@@ -42,7 +41,6 @@ export function FeatureTree({
   matchedIds,
   filtering,
   onToggle,
-  onRename,
   onAddChild,
   onEdit,
   onDelete,
@@ -132,7 +130,6 @@ export function FeatureTree({
               matched={!filtering || matchedIds.has(row.feature.id)}
               filtering={filtering}
               onToggle={onToggle}
-              onRename={onRename}
               onAddChild={onAddChild}
               onEdit={onEdit}
               onDelete={onDelete}

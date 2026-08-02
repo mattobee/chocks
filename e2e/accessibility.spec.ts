@@ -102,7 +102,6 @@ test.describe('accessible names', () => {
     // These have no visible text, so a regression is invisible without this.
     await expect(row.getByRole('button').nth(0)).toHaveAccessibleName('Expand')
     await expect(row.getByRole('button', { name: 'Drag to reorder' })).toBeVisible()
-    await expect(row.getByRole('button', { name: 'Add child of Authentication' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Actions for Authentication' })).toBeVisible()
   })
 
@@ -153,9 +152,9 @@ test.describe('keyboard', () => {
     await trigger.focus()
     await page.keyboard.press('Enter')
 
-    await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Edit…' })).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeHidden()
+    await expect(page.getByRole('menuitem', { name: 'Edit…' })).toBeHidden()
   })
 })
 
