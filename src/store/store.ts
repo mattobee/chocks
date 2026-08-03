@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from 'node:crypto'
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
@@ -72,6 +72,25 @@ function assertInside(root: string, target: string): void {
   }
 }
 
+async function assertNoSymlinks(root: string, target: string): Promise<void> {
+  assertInside(root, target)
+  const resolvedRoot = path.resolve(root)
+  const relative = path.relative(resolvedRoot, path.resolve(target))
+  let current = resolvedRoot
+
+  for (const segment of ['', ...relative.split(path.sep).filter(Boolean)]) {
+    current = path.join(current, segment)
+    try {
+      if ((await lstat(current)).isSymbolicLink()) {
+        throw new StoreError('Symbolic links are not allowed inside the chocks directory', 400)
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+      throw error
+    }
+  }
+}
+
 /**
  * Reads every feature under the root.
  *
@@ -88,6 +107,7 @@ export async function scan(root: string): Promise<Feature[]> {
 export async function scanWithIgnored(
   root: string,
 ): Promise<{ features: Feature[]; ignored: string[] }> {
+  await assertNoSymlinks(root, root)
   const features: Feature[] = []
   const ignored: string[] = []
 
@@ -205,7 +225,10 @@ export async function create(root: string, input: CreateInput): Promise<Feature>
   }
 
   const file = fileFor(root, feature.id)
-  await mkdir(path.dirname(file), { recursive: true })
+  const directory = path.dirname(file)
+  await assertNoSymlinks(root, directory)
+  await mkdir(directory, { recursive: true })
+  await assertNoSymlinks(root, directory)
   await writeAtomic(file, serializeFeatureFile(feature))
   return feature
 }
@@ -262,12 +285,19 @@ export async function update(root: string, id: string, patch: UpdateInput): Prom
 
 /** Moves a feature's file and, if it has one, its children directory. */
 async function relocate(root: string, fromId: string, toId: string): Promise<void> {
+  const fromFile = fileFor(root, fromId)
+  const fromDir = dirFor(root, fromId)
   const toFile = fileFor(root, toId)
-  await mkdir(path.dirname(toFile), { recursive: true })
-  await rename(fileFor(root, fromId), toFile)
+  const toDirectory = path.dirname(toFile)
+  await assertNoSymlinks(root, fromFile)
+  await assertNoSymlinks(root, fromDir)
+  await assertNoSymlinks(root, toDirectory)
+  await mkdir(toDirectory, { recursive: true })
+  await assertNoSymlinks(root, toDirectory)
+  await rename(fromFile, toFile)
 
   try {
-    await rename(dirFor(root, fromId), dirFor(root, toId))
+    await rename(fromDir, dirFor(root, toId))
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     // Leaf feature: no children directory to move.
@@ -362,6 +392,7 @@ function plannedSortKeys(features: Feature[]): Map<string, string> {
 
 export async function read(root: string, id: string): Promise<Feature> {
   const file = fileFor(root, id)
+  await assertNoSymlinks(root, file)
   let content: string
   try {
     content = await readFile(file, 'utf8')
@@ -389,6 +420,8 @@ export async function read(root: string, id: string): Promise<Feature> {
 export async function remove(root: string, id: string): Promise<void> {
   const file = fileFor(root, id)
   const dir = dirFor(root, id)
+  await assertNoSymlinks(root, file)
+  await assertNoSymlinks(root, dir)
   await rm(file, { force: true })
   await rm(dir, { recursive: true, force: true })
 }
