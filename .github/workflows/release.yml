@@ -20,8 +20,11 @@ jobs:
           persist-credentials: false
 
       - name: Check the tag belongs to main
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git fetch --no-tags origin main
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" \
+            fetch --no-tags origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "Tag $GITHUB_REF_NAME does not belong to main" >&2
             exit 1
