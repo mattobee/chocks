@@ -43,6 +43,32 @@ export class StoreError extends Error {
 }
 
 const mutationQueues = new Map<string, Promise<void>>()
+const MAX_TITLE_LENGTH = 200
+const MAX_TAG_LENGTH = 50
+const MAX_DESCRIPTION_LENGTH = 100_000
+
+function validateInput(title?: string, tags?: string[], description?: string): void {
+  if (title !== undefined) {
+    if (title.length > MAX_TITLE_LENGTH) {
+      throw new StoreError(`Title exceeds maximum length of ${MAX_TITLE_LENGTH} characters`, 400)
+    }
+  }
+  if (tags !== undefined) {
+    for (const tag of tags) {
+      if (tag.length > MAX_TAG_LENGTH) {
+        throw new StoreError(`Tag exceeds maximum length of ${MAX_TAG_LENGTH} characters`, 400)
+      }
+    }
+  }
+  if (description !== undefined) {
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new StoreError(
+        `Description exceeds maximum length of ${MAX_DESCRIPTION_LENGTH} characters`,
+        400,
+      )
+    }
+  }
+}
 
 export async function runStoreMutation<T>(root: string, operation: () => Promise<T>): Promise<T> {
   const key = path.resolve(root)
@@ -225,11 +251,18 @@ export function create(root: string, input: CreateInput): Promise<Feature> {
 async function createUnlocked(root: string, input: CreateInput): Promise<Feature> {
   const title = input.title.trim()
   if (title === '') throw new StoreError('Title is required', 400)
+  validateInput(title, input.tags, input.description)
   if (input.parent !== '' && !isValidId(input.parent)) {
     throw new StoreError(`Invalid parent id: ${input.parent}`, 400)
   }
 
   const existing = await scan(root)
+  if (input.parent !== '') {
+    const parentExists = existing.some((feature) => feature.id === input.parent)
+    if (!parentExists) {
+      throw new StoreError(`Parent feature does not exist: ${input.parent}`, 400)
+    }
+  }
   if (input.uid !== undefined && existing.some((feature) => feature.uid === input.uid)) {
     // Two features answering to one uid would make `findByKey` pick between them
     // arbitrarily, so every link to either becomes a coin toss.
@@ -285,6 +318,7 @@ export function update(root: string, id: string, patch: UpdateInput): Promise<Fe
 }
 
 async function updateUnlocked(root: string, id: string, patch: UpdateInput): Promise<Feature> {
+  validateInput(patch.title, patch.tags, patch.description)
   const { feature: current, content } = await readSnapshot(root, id)
 
   const next: Feature = {
@@ -545,6 +579,13 @@ async function moveUnlocked(root: string, id: string, input: MoveInput): Promise
   // Reading first so an unknown or malformed id fails cleanly, before anything is renamed.
   const { content } = await readSnapshot(root, id)
   const all = await scan(root)
+
+  if (newParent !== '') {
+    const parentExists = all.some((feature) => feature.id === newParent)
+    if (!parentExists) {
+      throw new StoreError(`Parent feature does not exist: ${newParent}`, 400)
+    }
+  }
 
   const destinationSiblings = childrenOf(all, newParent).filter((feature) => feature.id !== id)
   const taken = new Set(destinationSiblings.map((feature) => slugOf(feature.id)))

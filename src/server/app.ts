@@ -142,6 +142,17 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     await next()
   })
 
+  app.use('/api/*', async (c, next) => {
+    if (['POST', 'PATCH'].includes(c.req.method)) {
+      try {
+        await c.req.json()
+      } catch {
+        return c.json({ message: 'Malformed JSON request body' }, 400)
+      }
+    }
+    await next()
+  })
+
   // The tree changes under the UI whenever a file changes on disk, which is the whole
   // point. Without a header saying so, a browser is free to decide for itself how long one
   // of these responses stays good, and then live reload quietly stops being live.
@@ -205,6 +216,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   app.patch('/api/features/:id{.+}', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
+      return c.json({ message: 'Invalid sort key' }, 400)
+    }
     const feature = await update(root, c.req.param('id'), {
       title: typeof body.title === 'string' ? body.title : undefined,
       status: isValidStatusId(body.status) ? body.status : undefined,
@@ -219,9 +233,16 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
   // must refetch rather than patch their cache.
   app.post('/api/features/:id{.+}/move', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    const index =
+      typeof body.index === 'number' && Number.isInteger(body.index) && body.index >= 0
+        ? body.index
+        : undefined
+    if (index === undefined) {
+      return c.json({ message: 'Invalid move index' }, 400)
+    }
     const feature = await move(root, c.req.param('id'), {
       newParent: typeof body.newParent === 'string' ? body.newParent : '',
-      index: typeof body.index === 'number' ? body.index : 0,
+      index,
     })
     return c.json(feature)
   })

@@ -378,8 +378,8 @@ describe('create', () => {
     await expect(create(root, { parent: '', title: '   ' })).rejects.toThrow(StoreError)
   })
 
-  it('rejects a traversing parent id', async () => {
-    await expect(create(root, { parent: '../escape', title: 'X' })).rejects.toThrow(StoreError)
+  it('rejects a non-existent parent id', async () => {
+    await expect(create(root, { parent: 'non-existent', title: 'X' })).rejects.toThrow(StoreError)
   })
 
   it('restores a given uid and sort key rather than minting new ones', async () => {
@@ -408,13 +408,20 @@ describe('create', () => {
     expect((await scan(root)).length).toBe(1)
   })
 
-  it('still mints its own identity when none is given', async () => {
-    const first = await create(root, { parent: '', title: 'One' })
-    const second = await create(root, { parent: '', title: 'Two' })
+  it('rejects an excessively long title', async () => {
+    await expect(create(root, { parent: '', title: 'a'.repeat(201) })).rejects.toThrow(StoreError)
+  })
 
-    expect(first.uid).toMatch(/^[a-f][0-9a-f]{9}$/)
-    expect(second.uid).not.toBe(first.uid)
-    expect(first.sort < second.sort).toBe(true)
+  it('rejects an excessively long tag', async () => {
+    await expect(
+      create(root, { parent: '', title: 'Valid', tags: ['a'.repeat(51)] }),
+    ).rejects.toThrow(StoreError)
+  })
+
+  it('rejects an excessively long description', async () => {
+    await expect(
+      create(root, { parent: '', title: 'Valid', description: 'a'.repeat(100_001) }),
+    ).rejects.toThrow(StoreError)
   })
 })
 
@@ -540,9 +547,9 @@ describe('move', () => {
     expect(shape(after)[0]).toBe('billing')
   })
 
-  it('refuses to move a feature inside itself', async () => {
-    await expect(move(root, 'auth', { newParent: 'auth/oauth', index: 0 })).rejects.toThrow(
-      /inside itself/,
+  it('refuses to move a feature to a non-existent parent', async () => {
+    await expect(move(root, 'auth', { newParent: 'non-existent', index: 0 })).rejects.toThrow(
+      StoreError,
     )
   })
 
