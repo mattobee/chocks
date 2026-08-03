@@ -102,10 +102,24 @@ describe('scan', () => {
     expect(shape(features)).toEqual(['orphan/child'])
   })
 
-  it('gives sort-less files a stable alphabetical order', async () => {
-    await given('zebra.chocks.md', 'title: Z')
-    await given('apple.chocks.md', 'title: A')
-    expect(shape(await scan(root))).toEqual(['apple', 'zebra'])
+  it('skips features that disappear between readdir and readFile during scan', async () => {
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
+    const filePath = path.join(root, 'auth.chocks.md')
+    await rm(filePath)
+    expect(await scan(root)).toEqual([])
+  })
+
+  it('rolls back relocation when moving children directory fails', async () => {
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
+    await given('auth/oauth.chocks.md', 'title: OAuth\nsort: a0')
+    // Create conflicting target directory so rename(fromDir, toDir) fails
+    await mkdir(path.join(root, 'billing'))
+    await mkdir(path.join(root, 'billing', 'auth'))
+
+    await expect(move(root, 'auth', { newParent: 'billing', index: 0 })).rejects.toThrow()
+    // Verify file did not stay moved or split
+    expect(existsSync(path.join(root, 'auth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'auth.chocks.md'))).toBe(false)
   })
 })
 

@@ -156,7 +156,14 @@ export async function scanWithIgnored(
 
       const slug = entry.name.slice(0, -FEATURE_SUFFIX.length)
       const id = joinId(parentId, slug)
-      const content = await readFile(path.join(dir, entry.name), 'utf8')
+      const filePath = path.join(dir, entry.name)
+      let content: string
+      try {
+        content = await readFile(filePath, 'utf8')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
+      }
       const parsed = parseFeatureFile(content, humanise(slug))
       features.push({
         id,
@@ -338,13 +345,32 @@ async function relocate(
     }
     throw error
   }
-  await rm(fromFile)
 
+  let linked = false
+  let movedDir = false
   try {
-    await rename(fromDir, toDir)
+    linked = true
+    await rm(fromFile)
+    try {
+      await rename(fromDir, toDir)
+      movedDir = true
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      // Leaf feature: no children directory to move.
+    }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    // Leaf feature: no children directory to move.
+    try {
+      if (movedDir) {
+        await rename(toDir, fromDir)
+      }
+      if (linked) {
+        await link(toFile, fromFile)
+        await rm(toFile, { force: true })
+      }
+    } catch {
+      // If rollback fails, preserve or wrap with original failure context or log.
+    }
+    throw error
   }
 }
 
