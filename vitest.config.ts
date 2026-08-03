@@ -13,6 +13,27 @@ const alias = { '@': fileURLToPath(new URL('./src', import.meta.url)) }
 export default defineConfig({
   test: {
     passWithNoTests: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/ui/routeTree.gen.ts'],
+      thresholds: {
+        'src/store/**': {
+          statements: 90,
+          branches: 85,
+          functions: 95,
+          lines: 90,
+        },
+        'src/server/**': {
+          statements: 80,
+          branches: 75,
+          functions: 80,
+          lines: 80,
+        },
+      },
+    },
     projects: [
       {
         resolve: { alias },
