@@ -136,7 +136,8 @@ npx chocks [options]
 
 It walks up from the working directory to find the repo root, creating `.chocks` on first
 run. Symbolic links inside the feature directory are refused so reads and writes cannot
-escape it. Binds to loopback unless you pass `--host`.
+escape it. Binds to loopback unless you pass `--host`. Requests for any other host are
+rejected, and browser changes must come from the same origin.
 
 ## What the UI does
 

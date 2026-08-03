@@ -32,6 +32,63 @@ async function createFeature(parent: string, title: string): Promise<Feature> {
   return (await response.json()) as Feature
 }
 
+describe('request security', () => {
+  it('rejects an unexpected host before it can change a feature', async () => {
+    const response = await app.request('/api/features', {
+      ...json({ parent: '', title: 'Blocked' }),
+      headers: { 'Content-Type': 'application/json', Host: 'attacker.example' },
+    })
+
+    expect(response.status).toBe(403)
+    expect(await (await app.request('/api/features')).json()).toEqual([])
+  })
+
+  it.each(['POST', 'PATCH', 'DELETE'])('rejects a cross-origin %s', async (method) => {
+    const response = await app.request('/api/features', {
+      method,
+      headers: { Host: 'localhost:4321', Origin: 'https://attacker.example' },
+    })
+
+    expect(response.status).toBe(403)
+  })
+
+  it('allows a same-origin change', async () => {
+    const response = await app.request('/api/features', {
+      ...json({ parent: '', title: 'Allowed' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Host: 'localhost:4321',
+        Origin: 'http://localhost:4321',
+      },
+    })
+
+    expect(response.status).toBe(201)
+  })
+
+  it('allows the configured network host', async () => {
+    const networked = createApp({ root, name: 'test-repo', host: 'workstation.local' })
+    const response = await networked.app.request('http://workstation.local:4321/api/features', {
+      ...json({ parent: '', title: 'Networked' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Host: 'workstation.local:4321',
+        Origin: 'http://workstation.local:4321',
+      },
+    })
+    await networked.stop()
+
+    expect(response.status).toBe(201)
+  })
+
+  it('allows IP addresses when bound to a wildcard host', async () => {
+    const networked = createApp({ root, name: 'test-repo', host: '0.0.0.0' })
+    const response = await networked.app.request('http://192.0.2.1:4321/api/workspace')
+    await networked.stop()
+
+    expect(response.status).toBe(200)
+  })
+})
+
 describe('GET /api/workspace', () => {
   it('reports the directory being served', async () => {
     const body = (await (await app.request('/api/workspace')).json()) as {
