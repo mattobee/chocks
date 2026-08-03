@@ -235,6 +235,54 @@ describe('features API', () => {
     expect((await app.request('/api/features', json({ parent: '', title: '' }))).status).toBe(400)
   })
 
+  it('400s malformed and non-object JSON', async () => {
+    for (const body of ['{', 'null', '[]']) {
+      const response = await app.request('/api/features', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      expect(response.status).toBe(400)
+    }
+  })
+
+  it('400s missing parents on create and move', async () => {
+    const createResponse = await app.request(
+      '/api/features',
+      json({ parent: 'missing', title: 'Child' }),
+    )
+    expect(createResponse.status).toBe(400)
+
+    await createFeature('', 'Auth')
+    const moveResponse = await app.request(
+      '/api/features/auth/move',
+      json({ newParent: 'missing', index: 0 }),
+    )
+    expect(moveResponse.status).toBe(400)
+  })
+
+  it('400s invalid sort keys', async () => {
+    const createResponse = await app.request(
+      '/api/features',
+      json({ parent: '', title: 'Auth', sort: '9bad' }),
+    )
+    expect(createResponse.status).toBe(400)
+
+    const feature = await createFeature('', 'Auth')
+    const updateResponse = await app.request(`/api/features/${feature.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sort: '9bad' }),
+    })
+    expect(updateResponse.status).toBe(400)
+  })
+
+  it.each([-1, 1.5, null, '0'])('400s invalid move index %j', async (index) => {
+    await createFeature('', 'Auth')
+    const response = await app.request('/api/features/auth/move', json({ newParent: '', index }))
+    expect(response.status).toBe(400)
+  })
+
   it('400s a move into the feature itself', async () => {
     await createFeature('', 'Auth')
     await createFeature('auth', 'OAuth')
