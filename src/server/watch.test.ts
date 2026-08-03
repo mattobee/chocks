@@ -142,16 +142,34 @@ describe('watchGit', () => {
     }
   })
 
-  it('is a no-op when .git is a file, as in a worktree', async () => {
-    const linked = await mkdtemp(path.join(tmpdir(), 'chocks-linked-'))
+  it('watches a real linked worktree', async () => {
+    const worktreeDir = await mkdtemp(path.join(tmpdir(), 'chocks-worktree-'))
     try {
-      await writeFile(path.join(linked, '.git'), 'gitdir: /elsewhere\n', 'utf8')
-      const stop = watchGit(linked, () => {
-        throw new Error('should never fire')
-      })
-      stop()
+      await commit('initial', 'a.txt', 'one')
+      await run('git', ['-C', repo, 'worktree', 'add', '-q', worktreeDir, '-b', 'wt-branch'])
+
+      const { promise, fire } = nextChange()
+      teardown = watchGit(worktreeDir, fire)
+      await new Promise((resolve) => setTimeout(resolve, 400))
+
+      await writeFile(path.join(worktreeDir, 'wt.txt'), 'hello', 'utf8')
+      await run('git', ['-C', worktreeDir, 'add', '-A'])
+      await run('git', [
+        '-C',
+        worktreeDir,
+        '-c',
+        'user.email=t@example.com',
+        '-c',
+        'user.name=Tester',
+        'commit',
+        '-m',
+        'worktree commit',
+      ])
+
+      await expect(promise).resolves.toBeUndefined()
     } finally {
-      await rm(linked, { recursive: true, force: true })
+      await run('git', ['-C', repo, 'worktree', 'remove', '-f', worktreeDir]).catch(() => {})
+      await rm(worktreeDir, { recursive: true, force: true })
     }
   })
 })

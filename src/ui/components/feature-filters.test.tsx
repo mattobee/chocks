@@ -27,7 +27,7 @@ describe('status dropdown', () => {
       'aria-checked',
       'true',
     )
-    expect(screen.getByRole('menuitemcheckbox', { name: 'Idea' })).toHaveAttribute(
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Planned' })).toHaveAttribute(
       'aria-checked',
       'false',
     )
@@ -48,7 +48,7 @@ describe('status dropdown', () => {
   })
 
   it('shows a count badge once statuses are selected', () => {
-    setup({ statuses: ['released', 'idea'] })
+    setup({ statuses: ['released', 'planned'] })
     expect(screen.getByRole('button', { name: 'Status, 2 selected' })).toBeInTheDocument()
   })
 })
@@ -85,17 +85,17 @@ describe('search', () => {
   })
 
   it('clears the query without touching status or tag filters', async () => {
-    const { user, onChange } = setup({ query: 'oauth', statuses: ['idea'] })
+    const { user, onChange } = setup({ query: 'oauth', statuses: ['planned'] })
     await user.click(screen.getByRole('button', { name: 'Clear search' }))
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ query: '', statuses: ['idea'] }),
+      expect.objectContaining({ query: '', statuses: ['planned'] }),
     )
   })
 })
 
 describe('Clear filters button', () => {
   it('shows once a status or tag filter is on', () => {
-    setup({ statuses: ['idea'] })
+    setup({ statuses: ['planned'] })
     expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument()
   })
 
@@ -105,7 +105,7 @@ describe('Clear filters button', () => {
   })
 
   it('clears status and tag filters but leaves the query alone', async () => {
-    const { user, onChange } = setup({ query: 'oauth', statuses: ['idea'] }, ['ux'])
+    const { user, onChange } = setup({ query: 'oauth', statuses: ['planned'] }, ['ux'])
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(onChange).toHaveBeenCalledWith({ query: 'oauth', statuses: [], tags: [] })
   })

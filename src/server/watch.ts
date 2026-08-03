@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import chokidar from 'chokidar'
@@ -56,11 +57,26 @@ export function watchFeatures(root: string, onChange: () => void): () => void {
  * `.git/index` covers staging and commits; `.git/HEAD` covers checkouts and branch
  * switches.
  *
- * Returns a no-op teardown when there is no `.git` directory to watch, which includes
- * running chocks outside a repo and the worktree/submodule case where `.git` is a file.
+ * Returns a no-op teardown when git cannot resolve a metadata directory, which includes
+ * running chocks outside a repository.
  */
 export function watchGit(repoRoot: string, onChange: () => void): () => void {
-  const gitDir = path.join(repoRoot, '.git')
+  let gitDir: string
+  try {
+    const stdout = execSync('git rev-parse --git-dir', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      timeout: 1000,
+    })
+    const resolvedGitDir = stdout.trim()
+    if (!resolvedGitDir) return () => {}
+    gitDir = path.isAbsolute(resolvedGitDir)
+      ? resolvedGitDir
+      : path.resolve(repoRoot, resolvedGitDir)
+  } catch {
+    return () => {}
+  }
+
   if (!existsSync(gitDir) || !statSync(gitDir).isDirectory()) return () => {}
 
   // Watch the directory, not the files inside it. git replaces `.git/index` by writing a

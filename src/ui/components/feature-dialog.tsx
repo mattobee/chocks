@@ -34,7 +34,7 @@ import {
   ComboboxItem,
   ComboboxValue,
 } from '@/ui/components/ui/combobox'
-import type { Feature } from '@/lib/types'
+import { MAX_TAG_COUNT, MAX_TAG_LENGTH, MAX_TITLE_LENGTH, type Feature } from '@/lib/types'
 import { defaultStatusId, statusOrUnknown, type StatusDefinition } from '@/lib/status'
 
 export interface FeatureDraft {
@@ -141,7 +141,7 @@ export function FeatureDialog({
                 ref={titleRef}
                 autoFocus
                 required
-                maxLength={300}
+                maxLength={MAX_TITLE_LENGTH}
                 value={draft.title}
                 aria-invalid={titleError !== null}
                 aria-errormessage={titleError !== null ? 'feature-title-error' : undefined}
@@ -194,7 +194,11 @@ export function FeatureDialog({
                 filteredItems={tagItems}
                 multiple
                 value={draft.tags}
-                onValueChange={(tags) => setDraft({ ...draft, tags })}
+                onValueChange={(tags, eventDetails) => {
+                  if (eventDetails.reason !== 'escape-key' && tags.length <= MAX_TAG_COUNT) {
+                    setDraft({ ...draft, tags })
+                  }
+                }}
                 inputValue={tagQuery}
                 onInputValueChange={setTagQuery}
                 autoHighlight
@@ -210,6 +214,7 @@ export function FeatureDialog({
                         ))}
                         <ComboboxChipsInput
                           id="feature-tags"
+                          maxLength={MAX_TAG_LENGTH}
                           // Not just the label's `for`: the field's own popup, once open,
                           // makes the rest of the dialog inert, including this sibling label,
                           // so an assistive technology user loses the field's name at the

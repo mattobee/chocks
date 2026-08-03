@@ -1,21 +1,49 @@
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  link,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   backfill,
   create,
   move,
   read,
   remove,
+  runStoreMutation,
   scan,
   scanWithIgnored,
   StoreError,
   update,
 } from './store'
 import { buildTree, isValidSortKey } from '../lib/tree'
-import type { Feature } from '../lib/types'
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_TAG_COUNT,
+  MAX_TAG_LENGTH,
+  MAX_TITLE_LENGTH,
+  type Feature,
+} from '../lib/types'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    link: vi.fn(actual.link),
+    readFile: vi.fn(actual.readFile),
+    rename: vi.fn(actual.rename),
+    rm: vi.fn(actual.rm),
+  }
+})
 
 let root: string
 
@@ -106,6 +134,220 @@ describe('scan', () => {
     await given('apple.chocks.md', 'title: A')
     expect(shape(await scan(root))).toEqual(['apple', 'zebra'])
   })
+
+  it('skips features that disappear between readdir and readFile during scan', async () => {
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
+    vi.mocked(readFile).mockRejectedValueOnce(
+      Object.assign(new Error('Feature disappeared'), { code: 'ENOENT' }),
+    )
+
+    expect(await scan(root)).toEqual([])
+  })
+})
+
+describe('symbolic links', () => {
+  it('refuses to scan a linked store root', async () => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'chocks-linked-root-'))
+    const outside = path.join(parent, 'outside')
+    const linkedRoot = path.join(parent, '.chocks')
+    try {
+      await mkdir(outside)
+      await symlink(outside, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir')
+
+      await expect(scan(linkedRoot)).rejects.toMatchObject({ name: 'StoreError', status: 400 })
+    } finally {
+      await rm(parent, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses a linked store root', async () => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'chocks-linked-root-'))
+    const outside = path.join(parent, 'outside')
+    const linkedRoot = path.join(parent, '.chocks')
+    try {
+      await mkdir(outside)
+      await symlink(outside, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir')
+
+      await expect(create(linkedRoot, { parent: '', title: 'Escaped' })).rejects.toThrow(
+        /Symbolic links/,
+      )
+      expect(existsSync(path.join(outside, 'escaped.chocks.md'))).toBe(false)
+    } finally {
+      await rm(parent, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to read through a linked directory', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-outside-'))
+    try {
+      await writeFile(
+        path.join(outside, 'secret.chocks.md'),
+        '---\ntitle: Secret\nstatus: idea\nsort: a0\n---\n',
+        'utf8',
+      )
+      await symlink(
+        outside,
+        path.join(root, 'linked'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+
+      await expect(read(root, 'linked/secret')).rejects.toThrow(/Symbolic links/)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to create through a linked directory', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-outside-'))
+    try {
+      await symlink(
+        outside,
+        path.join(root, 'linked'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+
+      await expect(create(root, { parent: 'linked', title: 'Escaped' })).rejects.toThrow(
+        /Symbolic links/,
+      )
+      expect(existsSync(path.join(outside, 'escaped.chocks.md'))).toBe(false)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to remove through a linked directory', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-outside-'))
+    const outsideFile = path.join(outside, 'secret.chocks.md')
+    try {
+      await writeFile(outsideFile, 'secret', 'utf8')
+      await symlink(
+        outside,
+        path.join(root, 'linked'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+
+      await expect(remove(root, 'linked/secret')).rejects.toMatchObject({ status: 400 })
+      expect(existsSync(outsideFile)).toBe(true)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('mutation queue', () => {
+  it('runs mutations for one root in call order', async () => {
+    const events: string[] = []
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const first = runStoreMutation(root, async () => {
+      events.push('first started')
+      await gate
+      events.push('first finished')
+    })
+    await vi.waitFor(() => expect(events).toEqual(['first started']))
+
+    const second = runStoreMutation(root, async () => {
+      events.push('second')
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(events).toEqual(['first started'])
+
+    release()
+    await Promise.all([first, second])
+    expect(events).toEqual(['first started', 'first finished', 'second'])
+  })
+
+  it('does not block a different root', async () => {
+    const otherRoot = await mkdtemp(path.join(tmpdir(), 'chocks-other-'))
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = false
+    const blocked = runStoreMutation(root, async () => {
+      started = true
+      await gate
+    })
+    await vi.waitFor(() => expect(started).toBe(true))
+
+    try {
+      await expect(runStoreMutation(otherRoot, async () => 'done')).resolves.toBe('done')
+    } finally {
+      release()
+      await blocked
+      await rm(otherRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps every concurrent create', async () => {
+    const created = await Promise.all(
+      Array.from({ length: 20 }, () => create(root, { parent: '', title: 'Auth' })),
+    )
+
+    expect(new Set(created.map((feature) => feature.id)).size).toBe(20)
+    expect(await scan(root)).toHaveLength(20)
+  })
+
+  it('merges concurrent updates in call order', async () => {
+    await create(root, { parent: '', title: 'Auth' })
+
+    await Promise.all([
+      update(root, 'auth', { status: 'released' }),
+      update(root, 'auth', { description: 'Changed.' }),
+    ])
+
+    expect(await read(root, 'auth')).toMatchObject({
+      status: 'released',
+      description: 'Changed.',
+    })
+  })
+
+  it('sees an external edit made while queued', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = false
+    const blocked = runStoreMutation(root, async () => {
+      started = true
+      await gate
+    })
+    await vi.waitFor(() => expect(started).toBe(true))
+
+    const creating = create(root, { parent: '', title: 'Auth' })
+    await given('auth.chocks.md', 'title: External\nstatus: idea\nsort: a0', 'Keep me.')
+    release()
+    await blocked
+
+    const created = await creating
+    expect(created.id).toBe('auth-2')
+    expect((await read(root, 'auth')).description).toBe('Keep me.')
+  })
+
+  it('orders move before a following remove', async () => {
+    await create(root, { parent: '', title: 'Auth' })
+    await create(root, { parent: '', title: 'Billing' })
+
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = false
+    const blocked = runStoreMutation(root, async () => {
+      started = true
+      await gate
+    })
+    await vi.waitFor(() => expect(started).toBe(true))
+
+    const moving = move(root, 'auth', { newParent: 'billing', index: 0 })
+    const removing = remove(root, 'billing/auth')
+    release()
+    await Promise.all([blocked, moving, removing])
+
+    expect((await scan(root)).map((feature) => feature.id)).toEqual(['billing'])
+  })
 })
 
 describe('create', () => {
@@ -142,8 +384,8 @@ describe('create', () => {
     await expect(create(root, { parent: '', title: '   ' })).rejects.toThrow(StoreError)
   })
 
-  it('rejects a traversing parent id', async () => {
-    await expect(create(root, { parent: '../escape', title: 'X' })).rejects.toThrow(StoreError)
+  it('rejects a non-existent parent id', async () => {
+    await expect(create(root, { parent: 'non-existent', title: 'X' })).rejects.toThrow(StoreError)
   })
 
   it('restores a given uid and sort key rather than minting new ones', async () => {
@@ -179,6 +421,38 @@ describe('create', () => {
     expect(first.uid).toMatch(/^[a-f][0-9a-f]{9}$/)
     expect(second.uid).not.toBe(first.uid)
     expect(first.sort < second.sort).toBe(true)
+  })
+
+  it('rejects an excessively long title', async () => {
+    await expect(
+      create(root, { parent: '', title: 'a'.repeat(MAX_TITLE_LENGTH + 1) }),
+    ).rejects.toThrow(StoreError)
+  })
+
+  it('rejects an excessively long tag', async () => {
+    await expect(
+      create(root, { parent: '', title: 'Valid', tags: ['a'.repeat(MAX_TAG_LENGTH + 1)] }),
+    ).rejects.toThrow(StoreError)
+  })
+
+  it('rejects too many tags', async () => {
+    await expect(
+      create(root, {
+        parent: '',
+        title: 'Valid',
+        tags: Array.from({ length: MAX_TAG_COUNT + 1 }, (_, index) => String(index)),
+      }),
+    ).rejects.toThrow(StoreError)
+  })
+
+  it('rejects an excessively long description', async () => {
+    await expect(
+      create(root, {
+        parent: '',
+        title: 'Valid',
+        description: 'a'.repeat(MAX_DESCRIPTION_LENGTH + 1),
+      }),
+    ).rejects.toThrow(StoreError)
   })
 })
 
@@ -310,6 +584,12 @@ describe('move', () => {
     )
   })
 
+  it('refuses to move a feature to a non-existent parent', async () => {
+    await expect(move(root, 'auth', { newParent: 'non-existent', index: 0 })).rejects.toThrow(
+      StoreError,
+    )
+  })
+
   it('refuses to move a feature onto itself', async () => {
     await expect(move(root, 'auth', { newParent: 'auth', index: 0 })).rejects.toThrow(
       /inside itself/,
@@ -336,6 +616,49 @@ describe('move', () => {
     expect(moved.description).toBe('Keep me')
     expect(moved.status).toBe('released')
     expect(moved.tags).toEqual(['api'])
+  })
+
+  it('leaves the source untouched when linking the destination file fails', async () => {
+    const error = Object.assign(new Error('Link failed'), { code: 'EIO' })
+    vi.mocked(link).mockRejectedValueOnce(error)
+
+    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
+  })
+
+  it('removes the destination link when removing the source file fails', async () => {
+    const error = Object.assign(new Error('Remove failed'), { code: 'EACCES' })
+    vi.mocked(rm).mockRejectedValueOnce(error)
+
+    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
+  })
+
+  it('restores the source file when moving the children directory fails', async () => {
+    const error = Object.assign(new Error('Rename failed'), { code: 'EACCES' })
+    vi.mocked(rename).mockRejectedValueOnce(error)
+
+    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth'))).toBe(false)
+  })
+
+  it('preserves relocation and rollback failures when recovery fails', async () => {
+    const original = Object.assign(new Error('Rename failed'), { code: 'EACCES' })
+    const rollback = Object.assign(new Error('Rollback failed'), { code: 'EIO' })
+    vi.mocked(rename).mockRejectedValueOnce(original).mockRejectedValueOnce(rollback)
+
+    const failure = await move(root, 'auth/oauth', { newParent: 'billing', index: 0 }).catch(
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(AggregateError)
+    expect((failure as AggregateError).errors).toEqual([original, rollback])
   })
 })
 

@@ -52,7 +52,9 @@ Supports GitHub and Google. Needs a token refresh story before this is done.
 ```
 
 The markdown body is the description, and everything is editable by hand: the running UI
-picks up changes immediately. A feature's id is its path, so there's no `parent` field
+picks up changes immediately. Features saved through chocks allow titles up to 300 characters,
+20 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id
+is its path, so there's no `parent` field
 that can disagree with the filesystem, and moving or retitling a feature is just a rename.
 Links keep working after a move, because they resolve on a `uid` generated once per
 feature rather than on the path.
@@ -75,10 +77,10 @@ separately, or that only exists because of how the code happens to be organised.
 A feature is <slug>.chocks.md; its children live in a sibling <slug>/ directory. For
 each feature, write a title, a status, tags for cross-cutting concerns such as "api" or
 "billing", and a couple of sentences describing it in the markdown body. The status must
-be one of idea, planned, pre-release, released, deprecated or dropped, unless
+be one of planned, pre-release, released, deprecated or dropped, unless
 .chocks/config.yaml defines a different set, in which case use those ids exactly. Guess
 released for something that looks fully built, pre-release for something still missing
-pieces, and idea for something referenced but not started. Skip uid and sort: chocks
+pieces, and planned for something referenced but not started. Skip uid and sort: chocks
 fills those in the first time it runs. For example:
 
 ---
@@ -103,7 +105,7 @@ diff at a time rather than asking for the whole tree in one pass.
 
 ## Statuses
 
-The defaults are a lifecycle, not a workflow: Idea, Planned, Pre-release, Released,
+The defaults are a lifecycle, not a workflow: Planned, Pre-release, Released,
 Deprecated, plus Dropped for something considered and rejected.
 
 Each one describes where a feature is, not how much effort is going into it. That's
@@ -135,7 +137,9 @@ npx chocks [options]
 ```
 
 It walks up from the working directory to find the repo root, creating `.chocks` on first
-run. Binds to loopback unless you pass `--host`.
+run. Symbolic links inside the feature directory are refused so reads and writes cannot
+escape it. Binds to loopback unless you pass `--host`. Requests for any other host are
+rejected, and browser changes must come from the same origin.
 
 ## What the UI does
 

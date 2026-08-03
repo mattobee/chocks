@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { isIP } from 'node:net'
 import path from 'node:path'
 import { Hono } from 'hono'
 import { backfill, create, move, read, remove, scan, StoreError, update } from '../store/store'
@@ -18,6 +19,7 @@ export interface ServerOptions {
   repoRoot?: string
   /** Name shown in the UI, normally the repo directory. */
   name: string
+  host?: string
   /** Version of chocks itself, shown in the footer. */
   version?: string
   /** Where chocks itself lives, for linking a version to its release notes. */
@@ -44,6 +46,34 @@ function releaseUrlFor(repository: string | undefined, version: string): string 
 function asStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined
   return value.filter((item): item is string => typeof item === 'string')
+}
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+const WILDCARD_HOSTS = new Set(['0.0.0.0', '::'])
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+function normalizeHostname(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, '').toLowerCase()
+}
+
+function parseAuthority(
+  authority: string,
+  protocol: string,
+): { hostname: string; origin: string } | null {
+  if (authority === '' || /[/?#@]/.test(authority)) return null
+  try {
+    const url = new URL(`${protocol}//${authority}`)
+    return { hostname: normalizeHostname(url.hostname), origin: url.origin }
+  } catch {
+    return null
+  }
+}
+
+function isAllowedHostname(hostname: string, configuredHost: string): boolean {
+  if (LOOPBACK_HOSTS.has(hostname)) return true
+  const configured = normalizeHostname(configuredHost)
+  if (WILDCARD_HOSTS.has(configured)) return isIP(hostname) !== 0
+  return hostname === configured
 }
 
 /**
@@ -89,6 +119,41 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     // and has no accounts, so there is no one to keep it from, and the difference is
     // between a bug report that names the problem and one that says it broke.
     return c.json({ message: describeError(error) }, 500)
+  })
+
+  app.use('*', async (c, next) => {
+    const requestUrl = new URL(c.req.url)
+    const authority = parseAuthority(c.req.header('Host') ?? requestUrl.host, requestUrl.protocol)
+    if (!authority || !isAllowedHostname(authority.hostname, options.host ?? '127.0.0.1')) {
+      return c.json({ message: 'Request host is not allowed' }, 403)
+    }
+
+    const origin = c.req.header('Origin')
+    if (!SAFE_METHODS.has(c.req.method) && origin !== undefined) {
+      let sameOrigin = false
+      try {
+        sameOrigin = new URL(origin).origin === authority.origin
+      } catch {
+        sameOrigin = false
+      }
+      if (!sameOrigin) return c.json({ message: 'Cross-origin changes are not allowed' }, 403)
+    }
+
+    await next()
+  })
+
+  app.use('/api/*', async (c, next) => {
+    if (['POST', 'PATCH'].includes(c.req.method)) {
+      try {
+        const body: unknown = await c.req.json()
+        if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+          return c.json({ message: 'JSON request body must be an object' }, 400)
+        }
+      } catch {
+        return c.json({ message: 'Malformed JSON request body' }, 400)
+      }
+    }
+    await next()
   })
 
   // The tree changes under the UI whenever a file changes on disk, which is the whole
@@ -141,6 +206,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   app.post('/api/features', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
+      return c.json({ message: 'Invalid sort key' }, 400)
+    }
     const feature = await create(root, {
       parent: typeof body.parent === 'string' ? body.parent : '',
       title: typeof body.title === 'string' ? body.title : '',
@@ -160,6 +228,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   app.patch('/api/features/:id{.+}', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
+      return c.json({ message: 'Invalid sort key' }, 400)
+    }
     const feature = await update(root, c.req.param('id'), {
       title: typeof body.title === 'string' ? body.title : undefined,
       status: isValidStatusId(body.status) ? body.status : undefined,
@@ -174,9 +245,16 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
   // must refetch rather than patch their cache.
   app.post('/api/features/:id{.+}/move', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    const index =
+      typeof body.index === 'number' && Number.isInteger(body.index) && body.index >= 0
+        ? body.index
+        : undefined
+    if (index === undefined) {
+      return c.json({ message: 'Invalid move index' }, 400)
+    }
     const feature = await move(root, c.req.param('id'), {
       newParent: typeof body.newParent === 'string' ? body.newParent : '',
-      index: typeof body.index === 'number' ? body.index : 0,
+      index,
     })
     return c.json(feature)
   })

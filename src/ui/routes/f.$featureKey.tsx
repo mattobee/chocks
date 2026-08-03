@@ -48,6 +48,7 @@ import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES, statusOrUnknown } from '@/lib/status'
 import { featureKey } from '@/lib/ids'
 import { describeError } from '@/lib/errors'
+import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from '@/lib/types'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
 // keeps resolving after the feature is renamed or moved.
@@ -279,7 +280,7 @@ export function FeaturePage() {
                 ref={renameInputRef}
                 aria-label="Feature title"
                 value={title}
-                maxLength={300}
+                maxLength={MAX_TITLE_LENGTH}
                 onChange={(event) => setTitle(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') commitTitle()
@@ -379,7 +380,7 @@ export function FeaturePage() {
                 ref={describeInputRef}
                 aria-label="Description"
                 rows={16}
-                maxLength={10000}
+                maxLength={MAX_DESCRIPTION_LENGTH}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 onKeyDown={(event) => {

@@ -1,5 +1,10 @@
 import type { StatusDefinition } from './status'
 
+export const MAX_TITLE_LENGTH = 300
+export const MAX_TAG_LENGTH = 50
+export const MAX_TAG_COUNT = 20
+export const MAX_DESCRIPTION_LENGTH = 10_000
+
 /**
  * A single feature — one markdown file on disk.
  *

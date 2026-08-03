@@ -44,7 +44,6 @@ export const STATUS_COLOR_NAMES = Object.keys(STATUS_COLORS).filter(
 ) as StatusColor[]
 
 export const DEFAULT_STATUSES: StatusDefinition[] = [
-  { id: 'idea', label: 'Idea', color: 'slate' },
   { id: 'planned', label: 'Planned', color: 'blue' },
   { id: 'pre-release', label: 'Pre-release', color: 'amber' },
   { id: 'released', label: 'Released', color: 'emerald' },
