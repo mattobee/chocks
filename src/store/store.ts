@@ -346,32 +346,30 @@ async function relocate(
     throw error
   }
 
-  let linked = false
-  let movedDir = false
   try {
-    linked = true
     await rm(fromFile)
-    try {
-      await rename(fromDir, toDir)
-      movedDir = true
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      // Leaf feature: no children directory to move.
-    }
   } catch (error) {
-    try {
-      if (movedDir) {
-        await rename(toDir, fromDir)
-      }
-      if (linked) {
-        await link(toFile, fromFile)
-        await rm(toFile, { force: true })
-      }
-    } catch {
-      // If rollback fails, preserve or wrap with original failure context or log.
-    }
-    throw error
+    await recoverRelocation(error, () => rm(toFile, { force: true }))
   }
+
+  try {
+    await rename(fromDir, toDir)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    await recoverRelocation(error, () => rename(toFile, fromFile))
+  }
+}
+
+async function recoverRelocation(error: unknown, rollback: () => Promise<void>): Promise<never> {
+  try {
+    await rollback()
+  } catch (rollbackError) {
+    throw new AggregateError(
+      [error, rollbackError],
+      'Feature relocation failed and could not be rolled back',
+    )
+  }
+  throw error
 }
 
 export interface Backfilled {
