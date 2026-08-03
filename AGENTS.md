@@ -79,7 +79,11 @@ omissions with a line like "general improvements". Each entry ends with a compar
 the previous tag, which shows everything precisely for anyone who wants it.
 
 To release: bump the version in `package.json`, add the matching `## <version>` section to
-the changelog, commit both, then push a `v<version>` tag. The tag triggers the release
-workflow, which reruns everything, refuses to publish if the tag, `package.json` and the
-changelog disagree, publishes to npm, and opens a GitHub release using that changelog
-section as the notes.
+the changelog, commit both to `main`, then push a `v<version>` tag. The tag triggers the
+release workflow, which reruns everything, refuses to publish if the tag is outside `main`
+or disagrees with `package.json` and the changelog, publishes to npm, and opens a GitHub
+release using that changelog section as the notes.
+
+npm publishing uses the trusted publisher for `.github/workflows/release.yml`, scoped to
+the `npm` GitHub environment. It needs no npm token; keep that publisher and environment
+in sync if either name changes.
