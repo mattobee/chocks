@@ -74,3 +74,8 @@ export interface Workspace {
   releaseUrl: string
   config: ChocksConfig
 }
+
+/** What `/api/uncommitted` returns: ids of features with changes not yet committed. */
+export interface UncommittedFeatures {
+  ids: string[]
+}

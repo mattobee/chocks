@@ -28,6 +28,7 @@ export interface FeatureTreeProps {
   statuses: StatusDefinition[]
   matchedIds: ReadonlySet<string>
   filtering: boolean
+  uncommittedIds: ReadonlySet<string>
   onToggle: (id: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
@@ -40,6 +41,7 @@ export function FeatureTree({
   statuses,
   matchedIds,
   filtering,
+  uncommittedIds,
   onToggle,
   onAddChild,
   onEdit,
@@ -129,6 +131,7 @@ export function FeatureTree({
               expanded={row.expanded}
               matched={!filtering || matchedIds.has(row.feature.id)}
               filtering={filtering}
+              uncommitted={uncommittedIds.has(row.feature.id)}
               onToggle={onToggle}
               onAddChild={onAddChild}
               onEdit={onEdit}

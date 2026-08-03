@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { FEATURE_SUFFIX } from '../lib/ids'
 import type { FeatureHistory, HistoryUnavailable } from '../lib/types'
 
 const run = promisify(execFile)
@@ -86,18 +87,48 @@ function isMissingHistory(error: unknown): boolean {
 }
 
 /**
- * True when any feature file has changes that are not committed yet.
+ * Ids of every feature with changes that are not committed yet.
  *
  * Scoped to `root`, the chocks directory, not the whole repo: an edit elsewhere in the
- * checkout has nothing to do with a badge that promises to be about features.
+ * checkout has nothing to do with a badge that promises to be about features. Config files
+ * and anything else in `root` without the feature suffix are filtered out for the same
+ * reason.
  */
-export async function hasUncommittedFeatureChanges(
-  repoRoot: string,
-  root: string,
-): Promise<boolean> {
+export async function uncommittedFeatureIds(repoRoot: string, root: string): Promise<string[]> {
   const relative = path.relative(repoRoot, root)
-  if (relative.startsWith('..')) return false
-  return hasUncommittedChanges(repoRoot, relative)
+  if (relative.startsWith('..')) return []
+
+  // -z sidesteps two things the human-readable format does: quoting of paths with unusual
+  // characters, and the "old -> new" arrow on a rename, which -z instead reports as two
+  // separate NUL-terminated fields. --untracked-files=all expands a brand new subdirectory
+  // into the files inside it, rather than reporting the directory itself as one opaque entry
+  // that never matches the feature suffix.
+  const args =
+    relative === ''
+      ? ['status', '--porcelain=v1', '-z', '--untracked-files=all']
+      : ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', relative]
+
+  let stdout: string
+  try {
+    stdout = await git(repoRoot, args)
+  } catch {
+    return []
+  }
+
+  const prefix = relative === '' ? '' : `${relative}/`
+  const ids: string[] = []
+  const fields = stdout.split('\0').filter((field) => field !== '')
+  for (let index = 0; index < fields.length; index++) {
+    const status = fields[index]!.slice(0, 2)
+    const changedPath = fields[index]!.slice(3)
+    // A rename or copy carries the old path as the following field; skip past it rather
+    // than mistaking it for the next entry's status line.
+    if (status.includes('R') || status.includes('C')) index++
+
+    if (!changedPath.startsWith(prefix) || !changedPath.endsWith(FEATURE_SUFFIX)) continue
+    ids.push(changedPath.slice(prefix.length, -FEATURE_SUFFIX.length))
+  }
+  return ids
 }
 
 async function hasUncommittedChanges(repoRoot: string, relative: string): Promise<boolean> {

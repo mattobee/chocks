@@ -282,20 +282,20 @@ describe('GET /api/uncommitted', () => {
     await run('git', ['-C', root, ...args])
   }
 
-  it('is false with no repo at all', async () => {
+  it('is empty with no repo at all', async () => {
     const response = await app.request('/api/uncommitted')
-    expect(await response.json()).toEqual({ uncommitted: false })
+    expect(await response.json()).toEqual({ ids: [] })
   })
 
-  it('is true once a feature is written but not committed', async () => {
+  it('lists a feature that is written but not committed', async () => {
     await git('init', '-q', '-b', 'main')
-    await createFeature('', 'Auth')
+    const feature = await createFeature('', 'Auth')
 
     const response = await app.request('/api/uncommitted')
-    expect(await response.json()).toEqual({ uncommitted: true })
+    expect(await response.json()).toEqual({ ids: [feature.id] })
   })
 
-  it('is false again once committed', async () => {
+  it('is empty again once committed', async () => {
     await git('init', '-q', '-b', 'main')
     await createFeature('', 'Auth')
     await git('add', '-A')
@@ -310,7 +310,7 @@ describe('GET /api/uncommitted', () => {
     )
 
     const response = await app.request('/api/uncommitted')
-    expect(await response.json()).toEqual({ uncommitted: false })
+    expect(await response.json()).toEqual({ ids: [] })
   })
 })
 

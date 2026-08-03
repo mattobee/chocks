@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CircleDot, FolderGit2 } from 'lucide-react'
+import { FolderGit2, SquareDot } from 'lucide-react'
 import { Badge } from '@/ui/components/ui/badge'
 import { ColorModeSwitcher } from '@/ui/components/color-mode-switcher'
 import { uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
@@ -30,9 +30,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               {workspace.data.name}
             </span>
           )}
-          {uncommitted.data?.uncommitted && (
+          {uncommitted.data && uncommitted.data.ids.length > 0 && (
             <Badge variant="warning" className="gap-1.5">
-              <CircleDot className="size-3.5" aria-hidden="true" />
+              <SquareDot className="size-3.5" aria-hidden="true" />
               Uncommitted changes
             </Badge>
           )}

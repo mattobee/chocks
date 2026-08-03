@@ -1,7 +1,15 @@
 import { Link } from '@tanstack/react-router'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronRight, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  ChevronRight,
+  GripVertical,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  SquareDot,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/ui/components/ui/button'
 import { Badge } from '@/ui/components/ui/badge'
 import {
@@ -29,6 +37,8 @@ export interface FeatureRowProps {
   matched: boolean
   /** True when a filter is active, which disables dragging. */
   filtering: boolean
+  /** Has changes that are not committed yet. */
+  uncommitted: boolean
   onToggle: (id: string) => void
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
@@ -43,6 +53,7 @@ export function FeatureRow({
   expanded,
   matched,
   filtering,
+  uncommitted,
   onToggle,
   onAddChild,
   onEdit,
@@ -97,6 +108,14 @@ export function FeatureRow({
       >
         <GripVertical aria-hidden="true" />
       </Button>
+
+      {uncommitted && (
+        <SquareDot
+          role="img"
+          aria-label="Uncommitted changes"
+          className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
+        />
+      )}
 
       {/* Renaming is Edit's job now, not a second inline path on the row. */}
       <Link
