@@ -9,19 +9,34 @@ Releases before 0.1.3 predate this file.
 
 ### Added
 
-- Test coverage reporting in CI.
+- A feature's title, tags, and description now have length limits (300 characters for a
+  title, 20 tags of up to 50 characters each, 10,000 characters for a description),
+  enforced wherever a feature is created or edited.
 
 ### Changed
 
-- Ideas are no longer included in the default status set, so new trees start with active, done, and backlog.
+- Ideas are no longer included in the default status set, so new trees start with active,
+  done, and backlog.
 
 ### Fixed
 
-- Git status stays live in worktrees and submodules.
-- Symlinks inside the feature store are rejected to prevent path traversal.
-- Feature store operations are serialised and inputs validated, preventing race conditions, filesystem races, or malformed trees during concurrent writes.
-- Custom tags are preserved when dismissing the tag picker.
-- Removed unused runtime dependency on `@tanstack/markdown`.
+- Git status stays live in linked worktrees and submodules, where it previously stopped
+  updating because their `.git` is a file rather than a directory.
+- The local server rejects requests with an unexpected `Host` header, and browser requests
+  that create, edit, move, or delete a feature must come from the same origin, closing a
+  route for a malicious website to change your tree without asking.
+- A feature directory can no longer be a symbolic link, which could otherwise redirect
+  chocks' reads or writes outside `.chocks`.
+- Editing the same tree from more than one place at once (two tabs, or a tab and an agent)
+  now queues the changes instead of one silently overwriting another; a change made
+  outside chocks in between is reported as a conflict rather than lost.
+- A feature that disappears mid-scan is skipped instead of failing the whole scan, and a
+  move that fails partway through is rolled back instead of leaving the tree split across
+  the old and new location.
+- Malformed requests, such as invalid JSON or a reference to a parent that doesn't exist,
+  get a clear error instead of an unhandled crash.
+- Typing a new tag and dismissing the tag picker with Escape keeps that tag selected,
+  instead of discarding it.
 
 [Full changes](https://github.com/mattobee/chocks/compare/v0.4.0...v0.5.0)
 
