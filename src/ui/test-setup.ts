@@ -52,4 +52,4 @@ html.hidePopover ??= vi.fn()
 html.togglePopover ??= vi.fn()
 
 // TanStack Router restores scroll position on navigation; jsdom has no scrolling.
-globalThis.scrollTo ??= vi.fn() as unknown as typeof globalThis.scrollTo
+window.scrollTo = vi.fn()
