@@ -95,7 +95,14 @@ function isMissingHistory(error: unknown): boolean {
  * reason.
  */
 export async function uncommittedFeatureIds(repoRoot: string, root: string): Promise<string[]> {
-  const relative = path.relative(repoRoot, root)
+  if (
+    path.isAbsolute(repoRoot) &&
+    path.isAbsolute(root) &&
+    path.parse(repoRoot).root !== path.parse(root).root
+  ) {
+    return []
+  }
+  const relative = path.relative(repoRoot, root).split(path.sep).join('/')
   if (relative.startsWith('..')) return []
 
   // -z sidesteps two things the human-readable format does: quoting of paths with unusual
