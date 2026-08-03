@@ -145,13 +145,13 @@ describe('watchGit', () => {
   it('watches a real linked worktree', async () => {
     const worktreeDir = await mkdtemp(path.join(tmpdir(), 'chocks-worktree-'))
     try {
+      await commit('initial', 'a.txt', 'one')
       await run('git', ['-C', repo, 'worktree', 'add', '-q', worktreeDir, '-b', 'wt-branch'])
 
       const { promise, fire } = nextChange()
       teardown = watchGit(worktreeDir, fire)
       await new Promise((resolve) => setTimeout(resolve, 400))
 
-      // Commit inside the worktree
       await writeFile(path.join(worktreeDir, 'wt.txt'), 'hello', 'utf8')
       await run('git', ['-C', worktreeDir, 'add', '-A'])
       await run('git', [

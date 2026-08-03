@@ -57,8 +57,8 @@ export function watchFeatures(root: string, onChange: () => void): () => void {
  * `.git/index` covers staging and commits; `.git/HEAD` covers checkouts and branch
  * switches.
  *
- * Returns a no-op teardown when there is no `.git` directory to watch, which includes
- * running chocks outside a repo and the worktree/submodule case where `.git` is a file.
+ * Returns a no-op teardown when git cannot resolve a metadata directory, which includes
+ * running chocks outside a repository.
  */
 export function watchGit(repoRoot: string, onChange: () => void): () => void {
   let gitDir: string
