@@ -96,6 +96,7 @@ test.describe('packaged artefact', () => {
     )
     const pkgJson = JSON.parse(pkgJsonRaw)
     expect(pkgJson.dependencies || {}).toEqual({})
+    expect(pkgJson.optionalDependencies || {}).toEqual({})
   })
 
   test('serves its own UI assets from inside the package', async ({ page }) => {
