@@ -7,12 +7,21 @@ Releases before 0.1.3 predate this file.
 
 ## 0.5.0
 
+### Added
+
+- Test coverage reporting in CI.
+
 ### Changed
 
 - Ideas are no longer included in the default status set, so new trees start with active, done, and backlog.
-- Feature file changes now show correctly in worktrees and submodules.
-- Symlinks inside `.chocks` are rejected to prevent path traversal issues.
-- Feature store operations are serialised and inputs validated, preventing race conditions or malformed trees when multiple writes happen concurrently.
+
+### Fixed
+
+- Git status stays live in worktrees and submodules.
+- Symlinks inside the feature store are rejected to prevent path traversal.
+- Feature store operations are serialised and inputs validated, preventing race conditions, filesystem races, or malformed trees during concurrent writes.
+- Custom tags are preserved when dismissing the tag picker.
+- Removed unused runtime dependency on `@tanstack/markdown`.
 
 [Full changes](https://github.com/mattobee/chocks/compare/v0.4.0...v0.5.0)
 
