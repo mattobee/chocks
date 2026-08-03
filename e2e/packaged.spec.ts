@@ -80,13 +80,22 @@ test.describe('packaged artefact', () => {
     if (workdir) await rm(workdir, { recursive: true, force: true })
   })
 
-  test('ships no tests or sources', () => {
+  test('ships no tests or sources', async () => {
     // Asserted against the tarball rather than the installed directory: package managers
     // lay installs out differently, and pnpm nests a node_modules inside the package.
     const top = [...new Set(packed.map((entry) => entry.split('/')[0]))].sort()
     expect(top).toEqual(['LICENSE', 'README.md', 'dist', 'package.json'])
 
     expect(packed.filter((entry) => /\.test\.|^src\/|^e2e\//.test(entry))).toEqual([])
+
+    // Verify package metadata declares no runtime dependencies
+    const { readFile } = await import('node:fs/promises')
+    const pkgJsonRaw = await readFile(
+      path.join(workdir, 'node_modules', '@mattobee', 'chocks', 'package.json'),
+      'utf8',
+    )
+    const pkgJson = JSON.parse(pkgJsonRaw)
+    expect(pkgJson.dependencies || {}).toEqual({})
   })
 
   test('serves its own UI assets from inside the package', async ({ page }) => {
