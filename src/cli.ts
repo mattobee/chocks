@@ -155,6 +155,7 @@ async function main(): Promise<void> {
     root,
     repoRoot,
     name: path.basename(repoRoot),
+    host,
     version,
     repository,
     uiDir,
