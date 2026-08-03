@@ -7,6 +7,13 @@ Releases before 0.1.3 predate this file.
 
 ## 0.5.0
 
+### Added
+
+- Feature API inputs and tree invariants are validated.
+- Feature store mutations are serialised.
+- Symlinks in the feature store are rejected.
+- Test coverage reporting and CI artifact.
+
 ### Changed
 
 - Ideas are no longer included in the default status set.
@@ -14,6 +21,9 @@ Releases before 0.1.3 predate this file.
 ### Fixed
 
 - Git status stays live in worktrees and submodules.
+- Recover cleanly from filesystem races and failed moves.
+- Removed runtime dependency on `@tanstack/markdown`.
+- Keep custom tags when dismissing picker.
 
 [Full changes](https://github.com/mattobee/chocks/compare/v0.4.0...v0.5.0)
 
