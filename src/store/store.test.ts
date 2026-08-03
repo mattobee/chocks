@@ -109,6 +109,20 @@ describe('scan', () => {
 })
 
 describe('symbolic links', () => {
+  it('refuses to scan a linked store root', async () => {
+    const parent = await mkdtemp(path.join(tmpdir(), 'chocks-linked-root-'))
+    const outside = path.join(parent, 'outside')
+    const linkedRoot = path.join(parent, '.chocks')
+    try {
+      await mkdir(outside)
+      await symlink(outside, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir')
+
+      await expect(scan(linkedRoot)).rejects.toMatchObject({ name: 'StoreError', status: 400 })
+    } finally {
+      await rm(parent, { recursive: true, force: true })
+    }
+  })
+
   it('refuses a linked store root', async () => {
     const parent = await mkdtemp(path.join(tmpdir(), 'chocks-linked-root-'))
     const outside = path.join(parent, 'outside')
@@ -159,6 +173,24 @@ describe('symbolic links', () => {
         /Symbolic links/,
       )
       expect(existsSync(path.join(outside, 'escaped.chocks.md'))).toBe(false)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to remove through a linked directory', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-outside-'))
+    const outsideFile = path.join(outside, 'secret.chocks.md')
+    try {
+      await writeFile(outsideFile, 'secret', 'utf8')
+      await symlink(
+        outside,
+        path.join(root, 'linked'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+
+      await expect(remove(root, 'linked/secret')).rejects.toMatchObject({ status: 400 })
+      expect(existsSync(outsideFile)).toBe(true)
     } finally {
       await rm(outside, { recursive: true, force: true })
     }
