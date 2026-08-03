@@ -194,7 +194,9 @@ export function FeatureDialog({
                 filteredItems={tagItems}
                 multiple
                 value={draft.tags}
-                onValueChange={(tags) => setDraft({ ...draft, tags })}
+                onValueChange={(tags, eventDetails) => {
+                  if (eventDetails.reason !== 'escape-key') setDraft({ ...draft, tags })
+                }}
                 inputValue={tagQuery}
                 onInputValueChange={setTagQuery}
                 autoHighlight
