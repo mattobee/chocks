@@ -2,13 +2,14 @@ import { chmod, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   backfill,
   create,
   move,
   read,
   remove,
+  runStoreMutation,
   scan,
   scanWithIgnored,
   StoreError,
@@ -194,6 +195,122 @@ describe('symbolic links', () => {
     } finally {
       await rm(outside, { recursive: true, force: true })
     }
+  })
+})
+
+describe('mutation queue', () => {
+  it('runs mutations for one root in call order', async () => {
+    const events: string[] = []
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const first = runStoreMutation(root, async () => {
+      events.push('first started')
+      await gate
+      events.push('first finished')
+    })
+    await vi.waitFor(() => expect(events).toEqual(['first started']))
+
+    const second = runStoreMutation(root, async () => {
+      events.push('second')
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(events).toEqual(['first started'])
+
+    release()
+    await Promise.all([first, second])
+    expect(events).toEqual(['first started', 'first finished', 'second'])
+  })
+
+  it('does not block a different root', async () => {
+    const otherRoot = await mkdtemp(path.join(tmpdir(), 'chocks-other-'))
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = false
+    const blocked = runStoreMutation(root, async () => {
+      started = true
+      await gate
+    })
+    await vi.waitFor(() => expect(started).toBe(true))
+
+    try {
+      await expect(runStoreMutation(otherRoot, async () => 'done')).resolves.toBe('done')
+    } finally {
+      release()
+      await blocked
+      await rm(otherRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps every concurrent create', async () => {
+    const created = await Promise.all(
+      Array.from({ length: 20 }, () => create(root, { parent: '', title: 'Auth' })),
+    )
+
+    expect(new Set(created.map((feature) => feature.id)).size).toBe(20)
+    expect(await scan(root)).toHaveLength(20)
+  })
+
+  it('merges concurrent updates in call order', async () => {
+    await create(root, { parent: '', title: 'Auth' })
+
+    await Promise.all([
+      update(root, 'auth', { status: 'released' }),
+      update(root, 'auth', { description: 'Changed.' }),
+    ])
+
+    expect(await read(root, 'auth')).toMatchObject({
+      status: 'released',
+      description: 'Changed.',
+    })
+  })
+
+  it('sees an external edit made while queued', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = false
+    const blocked = runStoreMutation(root, async () => {
+      started = true
+      await gate
+    })
+    await vi.waitFor(() => expect(started).toBe(true))
+
+    const creating = create(root, { parent: '', title: 'Auth' })
+    await given('auth.chocks.md', 'title: External\nstatus: idea\nsort: a0', 'Keep me.')
+    release()
+    await blocked
+
+    const created = await creating
+    expect(created.id).toBe('auth-2')
+    expect((await read(root, 'auth')).description).toBe('Keep me.')
+  })
+
+  it('orders move before a following remove', async () => {
+    await create(root, { parent: '', title: 'Auth' })
+    await create(root, { parent: '', title: 'Billing' })
+
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = false
+    const blocked = runStoreMutation(root, async () => {
+      started = true
+      await gate
+    })
+    await vi.waitFor(() => expect(started).toBe(true))
+
+    const moving = move(root, 'auth', { newParent: 'billing', index: 0 })
+    const removing = remove(root, 'billing/auth')
+    release()
+    await Promise.all([blocked, moving, removing])
+
+    expect((await scan(root)).map((feature) => feature.id)).toEqual(['billing'])
   })
 })
 

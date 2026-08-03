@@ -167,6 +167,17 @@ describe('features API', () => {
     ])
   })
 
+  it('keeps concurrent creates as separate features', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        app.request('/api/features', json({ parent: '', title: 'Authentication' })),
+      ),
+    )
+
+    expect(responses.every((response) => response.status === 201)).toBe(true)
+    expect(await (await app.request('/api/features')).json()).toHaveLength(20)
+  })
+
   it('reads a single nested feature by its path id', async () => {
     await createFeature('', 'Auth')
     await createFeature('auth', 'OAuth')

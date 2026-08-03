@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from 'node:crypto'
-import { lstat, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { link, lstat, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
@@ -39,6 +39,27 @@ export class StoreError extends Error {
     super(message)
     this.name = 'StoreError'
     this.status = status
+  }
+}
+
+const mutationQueues = new Map<string, Promise<void>>()
+
+export async function runStoreMutation<T>(root: string, operation: () => Promise<T>): Promise<T> {
+  const key = path.resolve(root)
+  const previous = mutationQueues.get(key) ?? Promise.resolve()
+  let release: () => void = () => {}
+  const turn = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const tail = previous.then(() => turn)
+  mutationQueues.set(key, tail)
+
+  await previous
+  try {
+    return await operation()
+  } finally {
+    release()
+    if (mutationQueues.get(key) === tail) mutationQueues.delete(key)
   }
 }
 
@@ -159,8 +180,7 @@ export async function scanWithIgnored(
 /**
  * `desired`, or `desired-2`, `desired-3`… until nothing under the same parent claims it.
  *
- * Slugs are filenames, so two siblings with the same slug resolve to the same path and the
- * second write silently overwrites the first.
+ * Slugs are filenames, so two siblings with the same slug would claim the same path.
  */
 function uniqueSlug(desired: string, taken: ReadonlySet<string>): string {
   if (!taken.has(desired)) return desired
@@ -191,7 +211,11 @@ export interface CreateInput {
   slug?: string
 }
 
-export async function create(root: string, input: CreateInput): Promise<Feature> {
+export function create(root: string, input: CreateInput): Promise<Feature> {
+  return runStoreMutation(root, () => createUnlocked(root, input))
+}
+
+async function createUnlocked(root: string, input: CreateInput): Promise<Feature> {
   const title = input.title.trim()
   if (title === '') throw new StoreError('Title is required', 400)
   if (input.parent !== '' && !isValidId(input.parent)) {
@@ -229,7 +253,7 @@ export async function create(root: string, input: CreateInput): Promise<Feature>
   await assertNoSymlinks(root, directory)
   await mkdir(directory, { recursive: true })
   await assertNoSymlinks(root, directory)
-  await writeAtomic(file, serializeFeatureFile(feature))
+  await writeAtomic(file, serializeFeatureFile(feature), null)
   return feature
 }
 
@@ -249,8 +273,12 @@ export interface UpdateInput {
  * returned feature rather than assuming the id they passed in still resolves. Links are
  * unaffected because they are keyed on `uid`, which never changes.
  */
-export async function update(root: string, id: string, patch: UpdateInput): Promise<Feature> {
-  const current = await read(root, id)
+export function update(root: string, id: string, patch: UpdateInput): Promise<Feature> {
+  return runStoreMutation(root, () => updateUnlocked(root, id, patch))
+}
+
+async function updateUnlocked(root: string, id: string, patch: UpdateInput): Promise<Feature> {
+  const { feature: current, content } = await readSnapshot(root, id)
 
   const next: Feature = {
     ...current,
@@ -275,29 +303,38 @@ export async function update(root: string, id: string, patch: UpdateInput): Prom
           .map((feature) => slugOf(feature.id)),
       )
       next.id = joinId(current.parent, uniqueSlug(desired, taken))
-      await relocate(root, id, next.id)
+      await relocate(root, id, next.id, content)
     }
   }
 
-  await writeAtomic(fileFor(root, next.id), serializeFeatureFile(next))
+  await writeAtomic(fileFor(root, next.id), serializeFeatureFile(next), content)
   return next
 }
 
 /** Moves a feature's file and, if it has one, its children directory. */
-async function relocate(root: string, fromId: string, toId: string): Promise<void> {
+async function relocate(
+  root: string,
+  fromId: string,
+  toId: string,
+  expectedContent: string,
+): Promise<void> {
   const fromFile = fileFor(root, fromId)
   const fromDir = dirFor(root, fromId)
   const toFile = fileFor(root, toId)
+  const toDir = dirFor(root, toId)
   const toDirectory = path.dirname(toFile)
   await assertNoSymlinks(root, fromFile)
   await assertNoSymlinks(root, fromDir)
   await assertNoSymlinks(root, toDirectory)
   await mkdir(toDirectory, { recursive: true })
   await assertNoSymlinks(root, toDirectory)
+  await assertUnchanged(fromFile, expectedContent)
+  await assertAbsent(toFile)
+  await assertAbsent(toDir)
   await rename(fromFile, toFile)
 
   try {
-    await rename(fromDir, dirFor(root, toId))
+    await rename(fromDir, toDir)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     // Leaf feature: no children directory to move.
@@ -327,24 +364,33 @@ export interface Backfilled {
  * convenience, and one read-only file is no reason to abandon the rest of the tree or to
  * stop chocks starting.
  */
-export async function backfill(root: string): Promise<Backfilled> {
+export function backfill(root: string): Promise<Backfilled> {
+  return runStoreMutation(root, () => backfillUnlocked(root))
+}
+
+async function backfillUnlocked(root: string): Promise<Backfilled> {
   const features = await scan(root)
   const sortKeys = plannedSortKeys(features)
 
   const counts: Backfilled = { uids: 0, sortKeys: 0, failures: [] }
-  for (const feature of features) {
-    const uid = feature.uid || generateUid()
-    const sort = sortKeys.get(feature.id) ?? feature.sort
-    if (uid === feature.uid && sort === feature.sort) continue
-
+  for (const scanned of features) {
     try {
-      await writeAtomic(fileFor(root, feature.id), serializeFeatureFile({ ...feature, uid, sort }))
+      const { feature, content } = await readSnapshot(root, scanned.id)
+      const uid = feature.uid || generateUid()
+      const sort =
+        feature.sort === scanned.sort ? (sortKeys.get(feature.id) ?? feature.sort) : feature.sort
+      if (uid === feature.uid && sort === feature.sort) continue
+
+      await writeAtomic(
+        fileFor(root, feature.id),
+        serializeFeatureFile({ ...feature, uid, sort }),
+        content,
+      )
+      if (uid !== feature.uid) counts.uids++
+      if (sort !== feature.sort) counts.sortKeys++
     } catch (error) {
-      counts.failures.push(`${feature.id}: ${describeError(error)}`)
-      continue
+      counts.failures.push(`${scanned.id}: ${describeError(error)}`)
     }
-    if (uid !== feature.uid) counts.uids++
-    if (sort !== feature.sort) counts.sortKeys++
   }
   return counts
 }
@@ -391,6 +437,13 @@ function plannedSortKeys(features: Feature[]): Map<string, string> {
 }
 
 export async function read(root: string, id: string): Promise<Feature> {
+  return (await readSnapshot(root, id)).feature
+}
+
+async function readSnapshot(
+  root: string,
+  id: string,
+): Promise<{ feature: Feature; content: string }> {
   const file = fileFor(root, id)
   await assertNoSymlinks(root, file)
   let content: string
@@ -405,19 +458,26 @@ export async function read(root: string, id: string): Promise<Feature> {
   const slug = slugOf(id)
   const parsed = parseFeatureFile(content, humanise(slug))
   return {
-    id,
-    uid: parsed.uid,
-    parent: parentOf(id),
-    title: parsed.title,
-    description: parsed.description,
-    status: parsed.status,
-    tags: parsed.tags,
-    sort: parsed.sort || `~${slug}`,
+    content,
+    feature: {
+      id,
+      uid: parsed.uid,
+      parent: parentOf(id),
+      title: parsed.title,
+      description: parsed.description,
+      status: parsed.status,
+      tags: parsed.tags,
+      sort: parsed.sort || `~${slug}`,
+    },
   }
 }
 
 /** Deletes a feature and, with it, its entire subtree. */
-export async function remove(root: string, id: string): Promise<void> {
+export function remove(root: string, id: string): Promise<void> {
+  return runStoreMutation(root, () => removeUnlocked(root, id))
+}
+
+async function removeUnlocked(root: string, id: string): Promise<void> {
   const file = fileFor(root, id)
   const dir = dirFor(root, id)
   await assertNoSymlinks(root, file)
@@ -438,7 +498,11 @@ export interface MoveInput {
  * Every descendant's id changes, since ids are paths — callers must re-read rather than
  * patch their cache.
  */
-export async function move(root: string, id: string, input: MoveInput): Promise<Feature> {
+export function move(root: string, id: string, input: MoveInput): Promise<Feature> {
+  return runStoreMutation(root, () => moveUnlocked(root, id, input))
+}
+
+async function moveUnlocked(root: string, id: string, input: MoveInput): Promise<Feature> {
   const { newParent, index } = input
   if (newParent !== '' && !isValidId(newParent)) {
     throw new StoreError(`Invalid parent id: ${newParent}`, 400)
@@ -448,7 +512,7 @@ export async function move(root: string, id: string, input: MoveInput): Promise<
   }
 
   // Reading first so an unknown or malformed id fails cleanly, before anything is renamed.
-  await read(root, id)
+  const { content } = await readSnapshot(root, id)
   const all = await scan(root)
 
   const destinationSiblings = childrenOf(all, newParent).filter((feature) => feature.id !== id)
@@ -458,26 +522,64 @@ export async function move(root: string, id: string, input: MoveInput): Promise<
   const sort = sortKeyForIndex(destinationSiblings, index)
 
   // Children live in a sibling directory, which has to follow the file.
-  if (newId !== id) await relocate(root, id, newId)
+  if (newId !== id) await relocate(root, id, newId, content)
 
   // Only the sort key changes: with no title in the patch, update() leaves the file where
   // relocate just put it.
-  return update(root, newId, { sort })
+  return updateUnlocked(root, newId, { sort })
+}
+
+async function assertAbsent(target: string): Promise<void> {
+  try {
+    await lstat(target)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+  throw new StoreError('Feature changed on disk; reload and try again', 409)
+}
+
+async function assertUnchanged(file: string, expectedContent: string): Promise<void> {
+  let current: string
+  try {
+    current = await readFile(file, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new StoreError('Feature changed on disk; reload and try again', 409)
+    }
+    throw error
+  }
+  if (current !== expectedContent) {
+    throw new StoreError('Feature changed on disk; reload and try again', 409)
+  }
 }
 
 /**
- * Writes via a temporary file and a rename.
+ * Writes through a temporary file before publishing atomically.
  *
  * The watcher and the user's editor may both be looking at this file; a partial write
  * would surface as a corrupt feature.
  */
-async function writeAtomic(file: string, content: string): Promise<void> {
+async function writeAtomic(
+  file: string,
+  content: string,
+  expectedContent?: string | null,
+): Promise<void> {
   const temporary = `${file}.${randomBytes(6).toString('hex')}.tmp`
   await writeFile(temporary, content, 'utf8')
   try {
+    if (expectedContent === null) {
+      await link(temporary, file)
+      await rm(temporary, { force: true })
+      return
+    }
+    if (expectedContent !== undefined) await assertUnchanged(file, expectedContent)
     await rename(temporary, file)
   } catch (error) {
     await rm(temporary, { force: true })
+    if (expectedContent === null && (error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new StoreError('Feature changed on disk; reload and try again', 409)
+    }
     throw error
   }
 }
