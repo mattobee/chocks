@@ -1,4 +1,14 @@
-import { chmod, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  link,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -17,6 +27,17 @@ import {
 } from './store'
 import { buildTree, isValidSortKey } from '../lib/tree'
 import type { Feature } from '../lib/types'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    link: vi.fn(actual.link),
+    readFile: vi.fn(actual.readFile),
+    rename: vi.fn(actual.rename),
+    rm: vi.fn(actual.rm),
+  }
+})
 
 let root: string
 
@@ -106,6 +127,15 @@ describe('scan', () => {
     await given('zebra.chocks.md', 'title: Z')
     await given('apple.chocks.md', 'title: A')
     expect(shape(await scan(root))).toEqual(['apple', 'zebra'])
+  })
+
+  it('skips features that disappear between readdir and readFile during scan', async () => {
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
+    vi.mocked(readFile).mockRejectedValueOnce(
+      Object.assign(new Error('Feature disappeared'), { code: 'ENOENT' }),
+    )
+
+    expect(await scan(root)).toEqual([])
   })
 })
 
@@ -542,6 +572,49 @@ describe('move', () => {
     expect(moved.description).toBe('Keep me')
     expect(moved.status).toBe('released')
     expect(moved.tags).toEqual(['api'])
+  })
+
+  it('leaves the source untouched when linking the destination file fails', async () => {
+    const error = Object.assign(new Error('Link failed'), { code: 'EIO' })
+    vi.mocked(link).mockRejectedValueOnce(error)
+
+    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
+  })
+
+  it('removes the destination link when removing the source file fails', async () => {
+    const error = Object.assign(new Error('Remove failed'), { code: 'EACCES' })
+    vi.mocked(rm).mockRejectedValueOnce(error)
+
+    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
+  })
+
+  it('restores the source file when moving the children directory fails', async () => {
+    const error = Object.assign(new Error('Rename failed'), { code: 'EACCES' })
+    vi.mocked(rename).mockRejectedValueOnce(error)
+
+    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
+    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
+    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
+    expect(existsSync(path.join(root, 'billing', 'oauth'))).toBe(false)
+  })
+
+  it('preserves relocation and rollback failures when recovery fails', async () => {
+    const original = Object.assign(new Error('Rename failed'), { code: 'EACCES' })
+    const rollback = Object.assign(new Error('Rollback failed'), { code: 'EIO' })
+    vi.mocked(rename).mockRejectedValueOnce(original).mockRejectedValueOnce(rollback)
+
+    const failure = await move(root, 'auth/oauth', { newParent: 'billing', index: 0 }).catch(
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(AggregateError)
+    expect((failure as AggregateError).errors).toEqual([original, rollback])
   })
 })
 

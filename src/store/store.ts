@@ -156,7 +156,14 @@ export async function scanWithIgnored(
 
       const slug = entry.name.slice(0, -FEATURE_SUFFIX.length)
       const id = joinId(parentId, slug)
-      const content = await readFile(path.join(dir, entry.name), 'utf8')
+      const filePath = path.join(dir, entry.name)
+      let content: string
+      try {
+        content = await readFile(filePath, 'utf8')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
+      }
       const parsed = parseFeatureFile(content, humanise(slug))
       features.push({
         id,
@@ -338,14 +345,31 @@ async function relocate(
     }
     throw error
   }
-  await rm(fromFile)
+
+  try {
+    await rm(fromFile)
+  } catch (error) {
+    await recoverRelocation(error, () => rm(toFile, { force: true }))
+  }
 
   try {
     await rename(fromDir, toDir)
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    // Leaf feature: no children directory to move.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    await recoverRelocation(error, () => rename(toFile, fromFile))
   }
+}
+
+async function recoverRelocation(error: unknown, rollback: () => Promise<void>): Promise<never> {
+  try {
+    await rollback()
+  } catch (rollbackError) {
+    throw new AggregateError(
+      [error, rollbackError],
+      'Feature relocation failed and could not be rolled back',
+    )
+  }
+  throw error
 }
 
 export interface Backfilled {
