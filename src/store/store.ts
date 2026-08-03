@@ -18,10 +18,9 @@ import {
 /**
  * Reads and writes the `.chocks` directory.
  *
- * The layout is `<slug>.chocks.md` for a feature and a sibling `<slug>/` directory for its
- * children, so gaining children never moves the parent's own file. A feature's id is its
- * path without the extension, which makes the filesystem the single source of truth for
- * the hierarchy.
+ * Leaves are `<slug>.chocks.md`. A feature with children is `<slug>/index.chocks.md`, with
+ * its children beside that index. A feature's id is the leaf path without its extension or
+ * the parent directory path, making the filesystem the source of truth for hierarchy.
  */
 
 /**
@@ -95,15 +94,35 @@ export async function runStoreMutation<T>(root: string, operation: () => Promise
   }
 }
 
-/** Resolves a feature id to its file path, refusing anything that escapes the root. */
-function fileFor(root: string, id: string): string {
+/** Resolves a leaf feature id to its file path. */
+function leafFileFor(root: string, id: string): string {
   if (!isValidId(id)) throw new StoreError(`Invalid feature id: ${id}`, 400)
   const file = path.join(root, `${id}${FEATURE_SUFFIX}`)
   assertInside(root, file)
   return file
 }
 
-/** Resolves a feature id to the directory holding its children. */
+/** Resolves a parent feature id to its index file. */
+function indexFileFor(root: string, id: string): string {
+  if (!isValidId(id)) throw new StoreError(`Invalid feature id: ${id}`, 400)
+  const file = path.join(root, id, `index${FEATURE_SUFFIX}`)
+  assertInside(root, file)
+  return file
+}
+
+/** Resolves a feature id to its current leaf or index file. */
+export async function featureFileFor(root: string, id: string): Promise<string> {
+  const directory = dirFor(root, id)
+  await assertNoSymlinks(root, directory)
+  try {
+    if ((await lstat(directory)).isDirectory()) return indexFileFor(root, id)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  return leafFileFor(root, id)
+}
+
+/** Resolves a feature id to its directory form. */
 function dirFor(root: string, id: string): string {
   if (id === '') return root
   if (!isValidId(id)) throw new StoreError(`Invalid feature id: ${id}`, 400)
@@ -144,13 +163,7 @@ async function assertNoSymlinks(root: string, target: string): Promise<void> {
   }
 }
 
-/**
- * Reads every feature under the root.
- *
- * A directory with no matching `.md` file is not an error: its children are still read,
- * and `buildTree` surfaces them as roots rather than hiding them. That only happens when
- * files are hand-edited, and losing sight of them would be worse than an odd-looking tree.
- */
+/** Reads every feature under the root. */
 export async function scan(root: string): Promise<Feature[]> {
   const { features } = await scanWithIgnored(root)
   return features
@@ -164,6 +177,28 @@ export async function scanWithIgnored(
   const features: Feature[] = []
   const ignored: string[] = []
 
+  async function addFeature(filePath: string, id: string, parent: string): Promise<void> {
+    let content: string
+    try {
+      content = await readFile(filePath, 'utf8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+      throw error
+    }
+    const slug = slugOf(id)
+    const parsed = parseFeatureFile(content, humanise(slug))
+    features.push({
+      id,
+      uid: parsed.uid,
+      parent,
+      title: parsed.title,
+      description: parsed.description,
+      status: parsed.status,
+      tags: parsed.tags,
+      sort: parsed.sort || `~${slug}`,
+    })
+  }
+
   async function walk(dir: string, parentId: string): Promise<void> {
     let entries
     try {
@@ -173,42 +208,47 @@ export async function scanWithIgnored(
       throw error
     }
 
+    if (
+      parentId === '' &&
+      entries.some((entry) => entry.isFile() && entry.name === `index${FEATURE_SUFFIX}`)
+    ) {
+      throw new StoreError(
+        `Invalid feature index at ${path.join(root, `index${FEATURE_SUFFIX}`)}: remove the root index.chocks.md`,
+        400,
+      )
+    }
+
     for (const entry of entries) {
       if (entry.name.startsWith('.')) continue
+      const entryPath = path.join(dir, entry.name)
       if (entry.isDirectory()) {
-        await walk(path.join(dir, entry.name), joinId(parentId, entry.name))
+        const id = joinId(parentId, entry.name)
+        const indexFile = path.join(entryPath, `index${FEATURE_SUFFIX}`)
+        let hasIndex = false
+        try {
+          hasIndex = (await lstat(indexFile)).isFile()
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        if (!hasIndex) {
+          throw new StoreError(
+            `Invalid feature directory ${entryPath}: add index.chocks.md or remove the directory`,
+            400,
+          )
+        }
+        await addFeature(indexFile, id, parentId)
+        await walk(entryPath, id)
         continue
       }
       if (!entry.isFile()) continue
       if (!entry.name.endsWith(FEATURE_SUFFIX)) {
-        // Any other markdown here is someone's notes or a README, not a feature.
-        if (entry.name.endsWith('.md')) ignored.push(path.join(dir, entry.name))
+        if (entry.name.endsWith('.md')) ignored.push(entryPath)
         continue
       }
+      if (entry.name === `index${FEATURE_SUFFIX}`) continue
 
       const slug = entry.name.slice(0, -FEATURE_SUFFIX.length)
-      const id = joinId(parentId, slug)
-      const filePath = path.join(dir, entry.name)
-      let content: string
-      try {
-        content = await readFile(filePath, 'utf8')
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
-        throw error
-      }
-      const parsed = parseFeatureFile(content, humanise(slug))
-      features.push({
-        id,
-        uid: parsed.uid,
-        parent: parentId,
-        title: parsed.title,
-        description: parsed.description,
-        status: parsed.status,
-        tags: parsed.tags,
-        // A file written by hand may have no sort key; fall back to the slug so ordering
-        // is at least stable and alphabetical rather than random.
-        sort: parsed.sort || `~${slug}`,
-      })
+      await addFeature(entryPath, joinId(parentId, slug), parentId)
     }
   }
 
@@ -226,6 +266,25 @@ function uniqueSlug(desired: string, taken: ReadonlySet<string>): string {
   let suffix = 2
   while (taken.has(`${desired}-${suffix}`)) suffix++
   return `${desired}-${suffix}`
+}
+
+async function promote(root: string, id: string): Promise<void> {
+  const directory = dirFor(root, id)
+  try {
+    if ((await lstat(directory)).isDirectory()) return
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+
+  const leaf = leafFileFor(root, id)
+  await assertNoSymlinks(root, leaf)
+  await mkdir(directory)
+  try {
+    await rename(leaf, indexFileFor(root, id))
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true })
+    throw error
+  }
 }
 
 export interface CreateInput {
@@ -298,7 +357,8 @@ async function createUnlocked(root: string, input: CreateInput): Promise<Feature
     sort: input.sort ?? sortKeyForIndex(siblings, siblings.length),
   }
 
-  const file = fileFor(root, feature.id)
+  if (input.parent !== '') await promote(root, input.parent)
+  const file = leafFileFor(root, feature.id)
   const directory = path.dirname(file)
   await assertNoSymlinks(root, directory)
   await mkdir(directory, { recursive: true })
@@ -361,62 +421,35 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
     }
   }
 
-  await writeAtomic(fileFor(root, next.id), serializeFeatureFile(next), content)
+  await writeAtomic(await featureFileFor(root, next.id), serializeFeatureFile(next), content)
   return next
 }
 
-/** Moves a feature's file and, if it has one, its children directory. */
+/** Moves a leaf file or a parent directory as one filesystem entry. */
 async function relocate(
   root: string,
   fromId: string,
   toId: string,
   expectedContent: string,
 ): Promise<void> {
-  const fromFile = fileFor(root, fromId)
-  const fromDir = dirFor(root, fromId)
-  const toFile = fileFor(root, toId)
-  const toDir = dirFor(root, toId)
-  const toDirectory = path.dirname(toFile)
-  await assertNoSymlinks(root, fromFile)
-  await assertNoSymlinks(root, fromDir)
+  const fromFile = await featureFileFor(root, fromId)
+  const fromEntry = fromFile === indexFileFor(root, fromId) ? dirFor(root, fromId) : fromFile
+  const toEntry = fromEntry === dirFor(root, fromId) ? dirFor(root, toId) : leafFileFor(root, toId)
+  const toDirectory = path.dirname(toEntry)
+  await assertNoSymlinks(root, fromEntry)
   await assertNoSymlinks(root, toDirectory)
   await mkdir(toDirectory, { recursive: true })
   await assertNoSymlinks(root, toDirectory)
   await assertUnchanged(fromFile, expectedContent)
-  await assertAbsent(toDir)
+  await assertAbsent(toEntry)
   try {
-    await link(fromFile, toFile)
+    await rename(fromEntry, toEntry)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new StoreError('Feature changed on disk; reload and try again', 409)
     }
     throw error
   }
-
-  try {
-    await rm(fromFile)
-  } catch (error) {
-    await recoverRelocation(error, () => rm(toFile, { force: true }))
-  }
-
-  try {
-    await rename(fromDir, toDir)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
-    await recoverRelocation(error, () => rename(toFile, fromFile))
-  }
-}
-
-async function recoverRelocation(error: unknown, rollback: () => Promise<void>): Promise<never> {
-  try {
-    await rollback()
-  } catch (rollbackError) {
-    throw new AggregateError(
-      [error, rollbackError],
-      'Feature relocation failed and could not be rolled back',
-    )
-  }
-  throw error
 }
 
 export interface Backfilled {
@@ -460,7 +493,7 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
       if (uid === feature.uid && sort === feature.sort) continue
 
       await writeAtomic(
-        fileFor(root, feature.id),
+        await featureFileFor(root, feature.id),
         serializeFeatureFile({ ...feature, uid, sort }),
         content,
       )
@@ -522,7 +555,7 @@ async function readSnapshot(
   root: string,
   id: string,
 ): Promise<{ feature: Feature; content: string }> {
-  const file = fileFor(root, id)
+  const file = await featureFileFor(root, id)
   await assertNoSymlinks(root, file)
   let content: string
   try {
@@ -556,12 +589,10 @@ export function remove(root: string, id: string): Promise<void> {
 }
 
 async function removeUnlocked(root: string, id: string): Promise<void> {
-  const file = fileFor(root, id)
-  const dir = dirFor(root, id)
-  await assertNoSymlinks(root, file)
-  await assertNoSymlinks(root, dir)
-  await rm(file, { force: true })
-  await rm(dir, { recursive: true, force: true })
+  const file = await featureFileFor(root, id)
+  const entry = file === indexFileFor(root, id) ? dirFor(root, id) : file
+  await assertNoSymlinks(root, entry)
+  await rm(entry, { recursive: true, force: true })
 }
 
 export interface MoveInput {
@@ -609,7 +640,7 @@ async function moveUnlocked(root: string, id: string, input: MoveInput): Promise
   const newId = joinId(newParent, uniqueSlug(slugOf(id), taken))
   const sort = sortKeyForIndex(destinationSiblings, index)
 
-  // Children live in a sibling directory, which has to follow the file.
+  if (newParent !== '') await promote(root, newParent)
   if (newId !== id) await relocate(root, id, newId, content)
 
   // Only the sort key changes: with no title in the patch, update() leaves the file where

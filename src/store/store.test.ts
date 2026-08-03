@@ -1,12 +1,13 @@
 import {
   chmod,
-  link,
   mkdtemp,
   mkdir,
   readFile,
   rename,
   rm,
+  stat,
   symlink,
+  utimes,
   writeFile,
 } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -25,7 +26,8 @@ import {
   StoreError,
   update,
 } from './store'
-import { buildTree, isValidSortKey } from '../lib/tree'
+import { buildTree, findByKey, isValidSortKey } from '../lib/tree'
+import { featureKey } from '../lib/ids'
 import {
   MAX_DESCRIPTION_LENGTH,
   MAX_TAG_COUNT,
@@ -57,6 +59,15 @@ afterEach(async () => {
 
 /** Writes a feature file directly, bypassing the store, to set up fixtures. */
 async function given(relativePath: string, frontmatter: string, body = ''): Promise<void> {
+  const parts = relativePath.split('/')
+  for (let depth = 1; depth < parts.length; depth++) {
+    const parent = path.join(root, ...parts.slice(0, depth))
+    const leaf = `${parent}.chocks.md`
+    if (existsSync(leaf)) {
+      await mkdir(parent)
+      await rename(leaf, path.join(parent, 'index.chocks.md'))
+    }
+  }
   const file = path.join(root, relativePath)
   await mkdir(path.dirname(file), { recursive: true })
   await writeFile(file, `---\n${frontmatter}\n---\n\n${body}\n`, 'utf8')
@@ -121,12 +132,18 @@ describe('scan', () => {
     expect((await scan(root)).map((f) => f.id)).toEqual(['real'])
   })
 
-  it('still surfaces children whose parent file is missing', async () => {
-    // Only happens if files are hand-edited, but hiding them would be worse.
-    await given('orphan/child.chocks.md', 'title: Child\nsort: a0')
-    const features = await scan(root)
-    expect(features.map((f) => f.id)).toEqual(['orphan/child'])
-    expect(shape(features)).toEqual(['orphan/child'])
+  it('rejects a directory without an index file with repair instructions', async () => {
+    await mkdir(path.join(root, 'orphan'))
+
+    await expect(scan(root)).rejects.toThrow(
+      /orphan.*add index\.chocks\.md or remove the directory/,
+    )
+  })
+
+  it('rejects an index file at the store root', async () => {
+    await given('index.chocks.md', 'title: Invalid\nsort: a0')
+
+    await expect(scan(root)).rejects.toThrow(/root index\.chocks\.md/)
   })
 
   it('gives sort-less files a stable alphabetical order', async () => {
@@ -362,8 +379,28 @@ describe('create', () => {
     const child = await create(root, { parent: 'auth', title: 'OAuth' })
     expect(child.id).toBe('auth/oauth')
     expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
-    // The parent's own file must not have moved.
-    expect(existsSync(path.join(root, 'auth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth', 'index.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth.chocks.md'))).toBe(false)
+  })
+
+  it('promotes a leaf on first child without changing content, uid, or mtime', async () => {
+    const parent = await create(root, {
+      parent: '',
+      title: 'Auth',
+      description: 'Keep this body.',
+      tags: ['api'],
+    })
+    const leaf = path.join(root, 'auth.chocks.md')
+    const timestamp = new Date('2020-01-02T03:04:05.000Z')
+    await utimes(leaf, timestamp, timestamp)
+    const before = await readFile(leaf, 'utf8')
+
+    await create(root, { parent: 'auth', title: 'OAuth' })
+
+    const index = path.join(root, 'auth', 'index.chocks.md')
+    expect(await readFile(index, 'utf8')).toBe(before)
+    expect((await stat(index)).mtime.getTime()).toBe(timestamp.getTime())
+    expect((await read(root, 'auth')).uid).toBe(parent.uid)
   })
 
   it('appends after existing siblings', async () => {
@@ -475,12 +512,18 @@ describe('update', () => {
     expect(updated.uid).toMatch(/^[a-f][0-9a-f]{9}$/)
   })
 
-  it('takes the children directory with it when renaming', async () => {
-    await create(root, { parent: '', title: 'Auth' })
+  it('renames a parent directory and keeps uid links stable', async () => {
+    const parent = await create(root, { parent: '', title: 'Auth' })
     await create(root, { parent: 'auth', title: 'OAuth' })
+    const key = featureKey(parent)
+
     await update(root, 'auth', { title: 'Identity' })
 
-    expect((await scan(root)).map((f) => f.id).sort()).toEqual(['identity', 'identity/oauth'])
+    const features = await scan(root)
+    expect(features.map((f) => f.id).sort()).toEqual(['identity', 'identity/oauth'])
+    expect(findByKey(features, key)?.id).toBe('identity')
+    expect(existsSync(path.join(root, 'identity', 'index.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth'))).toBe(false)
   })
 
   it('does not move the file when the title changes but the slug does not', async () => {
@@ -618,47 +661,14 @@ describe('move', () => {
     expect(moved.tags).toEqual(['api'])
   })
 
-  it('leaves the source untouched when linking the destination file fails', async () => {
-    const error = Object.assign(new Error('Link failed'), { code: 'EIO' })
-    vi.mocked(link).mockRejectedValueOnce(error)
-
-    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
-    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
-    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
-    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
-  })
-
-  it('removes the destination link when removing the source file fails', async () => {
-    const error = Object.assign(new Error('Remove failed'), { code: 'EACCES' })
-    vi.mocked(rm).mockRejectedValueOnce(error)
-
-    await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
-    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
-    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
-    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
-  })
-
-  it('restores the source file when moving the children directory fails', async () => {
+  it('leaves a parent source untouched when its directory rename fails', async () => {
+    await create(root, { parent: 'billing', title: 'Invoices' })
     const error = Object.assign(new Error('Rename failed'), { code: 'EACCES' })
     vi.mocked(rename).mockRejectedValueOnce(error)
 
     await expect(move(root, 'auth/oauth', { newParent: 'billing', index: 0 })).rejects.toBe(error)
-    expect(existsSync(path.join(root, 'auth', 'oauth.chocks.md'))).toBe(true)
-    expect(existsSync(path.join(root, 'billing', 'oauth.chocks.md'))).toBe(false)
-    expect(existsSync(path.join(root, 'auth', 'oauth'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth', 'oauth', 'index.chocks.md'))).toBe(true)
     expect(existsSync(path.join(root, 'billing', 'oauth'))).toBe(false)
-  })
-
-  it('preserves relocation and rollback failures when recovery fails', async () => {
-    const original = Object.assign(new Error('Rename failed'), { code: 'EACCES' })
-    const rollback = Object.assign(new Error('Rollback failed'), { code: 'EIO' })
-    vi.mocked(rename).mockRejectedValueOnce(original).mockRejectedValueOnce(rollback)
-
-    const failure = await move(root, 'auth/oauth', { newParent: 'billing', index: 0 }).catch(
-      (error: unknown) => error,
-    )
-    expect(failure).toBeInstanceOf(AggregateError)
-    expect((failure as AggregateError).errors).toEqual([original, rollback])
   })
 })
 
@@ -787,7 +797,7 @@ describe('backfill', () => {
   it('reports an unwritable file and carries on with the rest', async () => {
     // Backfilling is a convenience. One read-only file must not cost the other hundred,
     // and must not stop chocks starting.
-    await mkdir(path.join(root, 'locked'), { recursive: true })
+    await given('locked.chocks.md', 'title: Locked\nuid: aaa0000001\nsort: a0')
     await given('locked/stuck.chocks.md', 'title: Stuck')
     await given('fine.chocks.md', 'title: Fine')
     await chmod(path.join(root, 'locked'), 0o500)
@@ -847,7 +857,8 @@ describe('feature suffix', () => {
   it('ignores markdown without the suffix, so a README is not a phantom feature', async () => {
     await given('auth.chocks.md', 'title: Auth\nsort: a0')
     await writeFile(path.join(root, 'README.md'), '# How this directory works', 'utf8')
-    await mkdir(path.join(root, 'auth'), { recursive: true })
+    await mkdir(path.join(root, 'auth'))
+    await rename(path.join(root, 'auth.chocks.md'), path.join(root, 'auth', 'index.chocks.md'))
     await writeFile(path.join(root, 'auth', 'notes.md'), 'scratch', 'utf8')
 
     expect((await scan(root)).map((f) => f.id)).toEqual(['auth'])

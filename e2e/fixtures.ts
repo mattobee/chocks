@@ -97,8 +97,11 @@ export const test = base.extend<{ workspace: Workspace }>({
     // Signing would prompt, and these commits are throwaway.
     await git('config', 'commit.gpgsign', 'false')
 
+    const parentIds = new Set(SEED.map(([id]) => id.slice(0, id.lastIndexOf('/'))).filter(Boolean))
     for (const [id, title, status, sort, uid] of SEED) {
-      const file = path.join(chocks, `${id}.chocks.md`)
+      const file = parentIds.has(id)
+        ? path.join(chocks, id, 'index.chocks.md')
+        : path.join(chocks, `${id}.chocks.md`)
       await mkdir(path.dirname(file), { recursive: true })
       await writeFile(
         file,
@@ -137,8 +140,25 @@ export const test = base.extend<{ workspace: Workspace }>({
         url,
         git,
         commit,
-        read: (id) => readFile(path.join(chocks, `${id}.chocks.md`), 'utf8'),
-        write: (id, contents) => writeFile(path.join(chocks, `${id}.chocks.md`), contents, 'utf8'),
+        read: (id) => {
+          const directory = path.join(chocks, id)
+          return readFile(
+            existsSync(directory)
+              ? path.join(directory, 'index.chocks.md')
+              : path.join(chocks, `${id}.chocks.md`),
+            'utf8',
+          )
+        },
+        write: (id, contents) => {
+          const directory = path.join(chocks, id)
+          return writeFile(
+            existsSync(directory)
+              ? path.join(directory, 'index.chocks.md')
+              : path.join(chocks, `${id}.chocks.md`),
+            contents,
+            'utf8',
+          )
+        },
         changed: async () =>
           (await git('status', '--porcelain'))
             .split('\n')

@@ -10,13 +10,8 @@ import { serve } from '@hono/node-server'
 import { createApp } from './server/app'
 import { FEATURE_SUFFIX } from './lib/ids'
 import { backfill, scanWithIgnored } from './store/store'
+import { migrateLayout } from './store/migrate'
 import { CONFIG_FILENAME, loadConfig } from './store/config'
-
-/**
- * The suffix features used before 0.4, kept only to explain where someone's tree went.
- * Remove once that release is old news.
- */
-const LEGACY_SUFFIX = '.feature.md'
 
 const HELP = `
 chocks — track planned and existing features as a tree, in your repo
@@ -134,6 +129,11 @@ async function main(): Promise<void> {
   const created = !existsSync(root)
   if (created) await mkdir(root, { recursive: true })
 
+  const migration = await migrateLayout(root, repoRoot)
+  if (migration.moved > 0) {
+    console.log(`chocks: migrated ${migration.moved} feature file(s) to the current .chocks layout`)
+  }
+
   // Hand-written files get their uid and sort key now. Done at startup rather than during
   // a read so that GETs stay free of side effects.
   const backfilled = await backfill(root)
@@ -182,13 +182,6 @@ async function main(): Promise<void> {
           `\n    ${names.slice(0, 5).join('\n    ')}` +
           (names.length > 5 ? `\n    …and ${names.length - 5} more` : ''),
       )
-      const legacy = names.filter((name) => name.endsWith(LEGACY_SUFFIX))
-      if (legacy.length > 0) {
-        console.log(
-          `\n  ${legacy.length} of those use the old ${LEGACY_SUFFIX} suffix, which chocks no` +
-            ` longer reads. Rename them to ${FEATURE_SUFFIX}.`,
-        )
-      }
     }
     if (backfilled.failures.length > 0) {
       console.log(

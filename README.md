@@ -28,17 +28,22 @@ The feature tree belongs next to the code that implements it.
 
 ## Layout
 
-A feature is `<slug>.chocks.md`. Its children live in a sibling `<slug>/` directory:
+A leaf feature is `<slug>.chocks.md`. A feature with children is a `<slug>/` directory
+containing `index.chocks.md` alongside those children:
 
 ```
 .chocks/
-  authentication.chocks.md
   authentication/
-    oauth-providers.chocks.md
+    index.chocks.md
     oauth-providers/
+      index.chocks.md
       github.chocks.md
       google.chocks.md
 ```
+
+Every feature directory must contain `index.chocks.md`. A directory without one is invalid,
+as is `index.chocks.md` directly under `.chocks/`. Adding a first child automatically changes
+a leaf into directory form. Removing its last child leaves directory form in place.
 
 ```markdown
 ---
@@ -74,14 +79,16 @@ lifecycle: creating, editing and deleting a thing usually ship at different time
 not one. Stop splitting once you'd be naming something no user or PM would ever refer to
 separately, or that only exists because of how the code happens to be organised.
 
-A feature is <slug>.chocks.md; its children live in a sibling <slug>/ directory. For
-each feature, write a title, a status, tags for cross-cutting concerns such as "api" or
-"billing", and a couple of sentences describing it in the markdown body. The status must
-be one of planned, pre-release, released, deprecated or dropped, unless
-.chocks/config.yaml defines a different set, in which case use those ids exactly. Guess
-released for something that looks fully built, pre-release for something still missing
-pieces, and planned for something referenced but not started. Skip uid and sort: chocks
-fills those in the first time it runs. For example:
+A leaf feature is <slug>.chocks.md. A feature with children is a <slug>/ directory with
+its own content in <slug>/index.chocks.md and its children alongside that index. Never
+create both <slug>.chocks.md and <slug>/ for one feature, and never create a feature
+directory without index.chocks.md. For each feature, write a title, a status, tags for
+cross-cutting concerns such as "api" or "billing", and a couple of sentences describing
+it in the markdown body. The status must be one of planned, pre-release, released,
+deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case
+use those ids exactly. Guess released for something that looks fully built, pre-release
+for something still missing pieces, and planned for something referenced but not started.
+Skip uid and sort: chocks fills those in the first time it runs. For example:
 
 ---
 title: OAuth providers
@@ -137,9 +144,12 @@ npx chocks [options]
 ```
 
 It walks up from the working directory to find the repo root, creating `.chocks` on first
-run. Symbolic links inside the feature directory are refused so reads and writes cannot
-escape it. Binds to loopback unless you pass `--host`. Requests for any other host are
-rejected, and browser changes must come from the same origin.
+run. Before binding, it migrates the old sibling file and directory layout to index files
+and renames remaining `*.feature.md` files to `*.chocks.md`. Clean git repositories use
+`git mv`; other trees use filesystem moves. Symbolic links inside the feature directory
+are refused so reads and writes cannot escape it. Binds to loopback unless you pass
+`--host`. Requests for any other host are rejected, and browser changes must come from the
+same origin.
 
 ## What the UI does
 
