@@ -77,6 +77,11 @@ jobs:
             exit 1
           fi
 
+          # CHANGELOG.md wraps prose across lines for a readable diff. GitHub renders a
+          # release body as a comment, not as a file, so it turns each of those line
+          # breaks into a literal <br>. Reflow to one line per paragraph before publishing.
+          pnpm exec prettier --prose-wrap never --parser markdown --write release-notes.md
+
       - name: Publish with provenance
         run: npm publish --access public --provenance
 
