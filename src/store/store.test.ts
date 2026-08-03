@@ -26,7 +26,13 @@ import {
   update,
 } from './store'
 import { buildTree, isValidSortKey } from '../lib/tree'
-import type { Feature } from '../lib/types'
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_TAG_COUNT,
+  MAX_TAG_LENGTH,
+  MAX_TITLE_LENGTH,
+  type Feature,
+} from '../lib/types'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
@@ -408,19 +414,44 @@ describe('create', () => {
     expect((await scan(root)).length).toBe(1)
   })
 
+  it('still mints its own identity when none is given', async () => {
+    const first = await create(root, { parent: '', title: 'One' })
+    const second = await create(root, { parent: '', title: 'Two' })
+
+    expect(first.uid).toMatch(/^[a-f][0-9a-f]{9}$/)
+    expect(second.uid).not.toBe(first.uid)
+    expect(first.sort < second.sort).toBe(true)
+  })
+
   it('rejects an excessively long title', async () => {
-    await expect(create(root, { parent: '', title: 'a'.repeat(201) })).rejects.toThrow(StoreError)
+    await expect(
+      create(root, { parent: '', title: 'a'.repeat(MAX_TITLE_LENGTH + 1) }),
+    ).rejects.toThrow(StoreError)
   })
 
   it('rejects an excessively long tag', async () => {
     await expect(
-      create(root, { parent: '', title: 'Valid', tags: ['a'.repeat(51)] }),
+      create(root, { parent: '', title: 'Valid', tags: ['a'.repeat(MAX_TAG_LENGTH + 1)] }),
+    ).rejects.toThrow(StoreError)
+  })
+
+  it('rejects too many tags', async () => {
+    await expect(
+      create(root, {
+        parent: '',
+        title: 'Valid',
+        tags: Array.from({ length: MAX_TAG_COUNT + 1 }, (_, index) => String(index)),
+      }),
     ).rejects.toThrow(StoreError)
   })
 
   it('rejects an excessively long description', async () => {
     await expect(
-      create(root, { parent: '', title: 'Valid', description: 'a'.repeat(100_001) }),
+      create(root, {
+        parent: '',
+        title: 'Valid',
+        description: 'a'.repeat(MAX_DESCRIPTION_LENGTH + 1),
+      }),
     ).rejects.toThrow(StoreError)
   })
 })
@@ -545,6 +576,12 @@ describe('move', () => {
     const moved = after.find((f) => f.id === 'auth')!
     expect(moved.sort > auth.sort).toBe(true)
     expect(shape(after)[0]).toBe('billing')
+  })
+
+  it('refuses to move a feature inside itself', async () => {
+    await expect(move(root, 'auth', { newParent: 'auth/oauth', index: 0 })).rejects.toThrow(
+      /inside itself/,
+    )
   })
 
   it('refuses to move a feature to a non-existent parent', async () => {

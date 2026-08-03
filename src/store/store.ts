@@ -7,7 +7,13 @@ import { generateNKeysBetween } from 'fractional-indexing'
 import { childrenOf, isValidSortKey, sortKeyForIndex } from '../lib/tree'
 import { describeError } from '../lib/errors'
 import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
-import type { Feature } from '../lib/types'
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_TAG_COUNT,
+  MAX_TAG_LENGTH,
+  MAX_TITLE_LENGTH,
+  type Feature,
+} from '../lib/types'
 
 /**
  * Reads and writes the `.chocks` directory.
@@ -43,9 +49,6 @@ export class StoreError extends Error {
 }
 
 const mutationQueues = new Map<string, Promise<void>>()
-const MAX_TITLE_LENGTH = 200
-const MAX_TAG_LENGTH = 50
-const MAX_DESCRIPTION_LENGTH = 100_000
 
 function validateInput(title?: string, tags?: string[], description?: string): void {
   if (title !== undefined) {
@@ -54,6 +57,9 @@ function validateInput(title?: string, tags?: string[], description?: string): v
     }
   }
   if (tags !== undefined) {
+    if (tags.length > MAX_TAG_COUNT) {
+      throw new StoreError(`Tags exceed maximum count of ${MAX_TAG_COUNT}`, 400)
+    }
     for (const tag of tags) {
       if (tag.length > MAX_TAG_LENGTH) {
         throw new StoreError(`Tag exceeds maximum length of ${MAX_TAG_LENGTH} characters`, 400)
@@ -252,10 +258,14 @@ async function createUnlocked(root: string, input: CreateInput): Promise<Feature
   const title = input.title.trim()
   if (title === '') throw new StoreError('Title is required', 400)
   validateInput(title, input.tags, input.description)
+  if (input.sort !== undefined && !isValidSortKey(input.sort)) {
+    throw new StoreError('Invalid sort key', 400)
+  }
   if (input.parent !== '' && !isValidId(input.parent)) {
     throw new StoreError(`Invalid parent id: ${input.parent}`, 400)
   }
 
+  if (input.parent !== '') await assertNoSymlinks(root, dirFor(root, input.parent))
   const existing = await scan(root)
   if (input.parent !== '') {
     const parentExists = existing.some((feature) => feature.id === input.parent)
@@ -319,6 +329,9 @@ export function update(root: string, id: string, patch: UpdateInput): Promise<Fe
 
 async function updateUnlocked(root: string, id: string, patch: UpdateInput): Promise<Feature> {
   validateInput(patch.title, patch.tags, patch.description)
+  if (patch.sort !== undefined && !isValidSortKey(patch.sort)) {
+    throw new StoreError('Invalid sort key', 400)
+  }
   const { feature: current, content } = await readSnapshot(root, id)
 
   const next: Feature = {
@@ -569,6 +582,9 @@ export function move(root: string, id: string, input: MoveInput): Promise<Featur
 
 async function moveUnlocked(root: string, id: string, input: MoveInput): Promise<Feature> {
   const { newParent, index } = input
+  if (!Number.isInteger(index) || index < 0) {
+    throw new StoreError('Invalid move index', 400)
+  }
   if (newParent !== '' && !isValidId(newParent)) {
     throw new StoreError(`Invalid parent id: ${newParent}`, 400)
   }

@@ -52,7 +52,9 @@ Supports GitHub and Google. Needs a token refresh story before this is done.
 ```
 
 The markdown body is the description, and everything is editable by hand: the running UI
-picks up changes immediately. A feature's id is its path, so there's no `parent` field
+picks up changes immediately. Features saved through chocks allow titles up to 300 characters,
+20 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id
+is its path, so there's no `parent` field
 that can disagree with the filesystem, and moving or retitling a feature is just a rename.
 Links keep working after a move, because they resolve on a `uid` generated once per
 feature rather than on the path.

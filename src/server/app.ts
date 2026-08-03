@@ -145,7 +145,10 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
   app.use('/api/*', async (c, next) => {
     if (['POST', 'PATCH'].includes(c.req.method)) {
       try {
-        await c.req.json()
+        const body: unknown = await c.req.json()
+        if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+          return c.json({ message: 'JSON request body must be an object' }, 400)
+        }
       } catch {
         return c.json({ message: 'Malformed JSON request body' }, 400)
       }
@@ -197,6 +200,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   app.post('/api/features', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
+      return c.json({ message: 'Invalid sort key' }, 400)
+    }
     const feature = await create(root, {
       parent: typeof body.parent === 'string' ? body.parent : '',
       title: typeof body.title === 'string' ? body.title : '',
