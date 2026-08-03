@@ -5,6 +5,18 @@ don't appear here.
 
 Releases before 0.1.3 predate this file.
 
+## 0.5.0
+
+### Changed
+
+- Ideas are no longer included in the default status set.
+
+### Fixed
+
+- Git status stays live in worktrees and submodules.
+
+[Full changes](https://github.com/mattobee/chocks/compare/v0.4.0...v0.5.0)
+
 ## 0.4.0
 
 ### Changed
