@@ -5,6 +5,41 @@ don't appear here.
 
 Releases before 0.1.3 predate this file.
 
+## 0.5.0
+
+### Added
+
+- A feature's title, tags, and description now have length limits: 300 characters for the
+  title, 20 tags of up to 50 characters each, 10,000 for the description. They're enforced
+  wherever a feature is created or edited.
+
+### Changed
+
+- Ideas are no longer included in the default status set, so new trees start with active,
+  done, and backlog.
+
+### Fixed
+
+- Git status now stays live in linked worktrees and submodules. It previously stopped
+  updating there because their `.git` is a file, not a directory.
+- The local server rejects requests with an unexpected `Host` header, and browser requests
+  that create, edit, move, or delete a feature must come from the same origin. That closes
+  a route for a malicious website to change your tree without you asking.
+- A feature directory can no longer be a symbolic link, which could otherwise redirect
+  chocks reads or writes outside `.chocks`.
+- Editing the same tree from more than one place at once (two tabs, or a tab and an agent)
+  now queues the changes instead of one silently overwriting another. A change made
+  outside chocks while that's in flight is reported as a conflict rather than lost.
+- A feature that disappears mid-scan is skipped instead of failing the whole scan. A move
+  that fails partway through is rolled back instead of leaving the tree split across the
+  old and new location.
+- Malformed requests, such as invalid JSON or a reference to a parent that doesn't exist,
+  get a clear error instead of an unhandled crash.
+- Typing a new tag and dismissing the tag picker with Escape keeps that tag selected,
+  instead of discarding it.
+
+[Full changes](https://github.com/mattobee/chocks/compare/v0.4.0...v0.5.0)
+
 ## 0.4.0
 
 ### Changed
