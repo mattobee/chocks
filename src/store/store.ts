@@ -329,9 +329,16 @@ async function relocate(
   await mkdir(toDirectory, { recursive: true })
   await assertNoSymlinks(root, toDirectory)
   await assertUnchanged(fromFile, expectedContent)
-  await assertAbsent(toFile)
   await assertAbsent(toDir)
-  await rename(fromFile, toFile)
+  try {
+    await link(fromFile, toFile)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new StoreError('Feature changed on disk; reload and try again', 409)
+    }
+    throw error
+  }
+  await rm(fromFile)
 
   try {
     await rename(fromDir, toDir)
