@@ -137,9 +137,7 @@ describe('tags', () => {
     expect(await screen.findByRole('option', { name: 'Create "new-tag"' })).toBeInTheDocument()
   })
 
-  // Escape takes a newly typed tag back off again, after the chip has already rendered.
-  // Tracked in #56; unmark this when that is fixed.
-  it.fails('creates a typed tag that is not on the list', async () => {
+  it('creates a typed tag that is not on the list', async () => {
     const { user, onSubmit } = setup({ availableTags: ['ux'] })
     await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Sign in')
     await user.type(screen.getByRole('combobox', { name: 'Tags' }), 'new-tag')
