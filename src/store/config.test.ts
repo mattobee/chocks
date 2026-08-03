@@ -13,24 +13,24 @@ describe('parseConfig', () => {
   it('reads a full status list', () => {
     const { config, problems } = parseConfig(`
 statuses:
-  - id: idea
-    label: Idea
-    color: slate
+  - id: planned
+    label: Planned
+    color: blue
   - id: shipped
     label: Shipped
     color: emerald
 `)
     expect(problems).toEqual([])
     expect(config.statuses).toEqual([
-      { id: 'idea', label: 'Idea', color: 'slate' },
+      { id: 'planned', label: 'Planned', color: 'blue' },
       { id: 'shipped', label: 'Shipped', color: 'emerald' },
     ])
   })
 
   it('accepts a bare string as shorthand and derives the label', () => {
-    const { config } = parseConfig('statuses:\n  - idea\n  - in-review\n')
+    const { config } = parseConfig('statuses:\n  - planned\n  - in-review\n')
     expect(config.statuses).toEqual([
-      { id: 'idea', label: 'Idea', color: 'slate' },
+      { id: 'planned', label: 'Planned', color: 'slate' },
       { id: 'in-review', label: 'In review', color: 'slate' },
     ])
   })
@@ -59,7 +59,7 @@ statuses:
   })
 
   it('drops a duplicate id and says so', () => {
-    const { config, problems } = parseConfig('statuses:\n  - idea\n  - idea\n')
+    const { config, problems } = parseConfig('statuses:\n  - planned\n  - planned\n')
     expect(problems[0]).toContain('duplicate')
     expect(config.statuses).toHaveLength(1)
   })
@@ -77,7 +77,7 @@ statuses:
   })
 
   it('falls back when statuses is not a list', () => {
-    const { config, problems } = parseConfig('statuses: idea\n')
+    const { config, problems } = parseConfig('statuses: planned\n')
     expect(problems[0]).toContain('must be a list')
     expect(config.statuses).toEqual(DEFAULT_STATUSES)
   })
@@ -94,7 +94,6 @@ describe('default statuses', () => {
     // "In progress" was removed deliberately: a released feature is usually still being
     // worked on, so an effort-shaped status collides with every other state.
     expect(DEFAULT_STATUSES.map((status) => status.id)).toEqual([
-      'idea',
       'planned',
       'pre-release',
       'released',

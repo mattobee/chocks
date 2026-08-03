@@ -109,7 +109,7 @@ test.describe('live reload', () => {
 
     await workspace.write(
       'billing',
-      '---\ntitle: Billing and plans\nstatus: idea\nsort: a1\nuid: aaa0000005\n---\n\nEdited on disk.\n',
+      '---\ntitle: Billing and plans\nstatus: planned\nsort: a1\nuid: aaa0000005\n---\n\nEdited on disk.\n',
     )
 
     // No reload: the file watcher pushes the change over SSE.

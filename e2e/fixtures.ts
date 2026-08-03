@@ -78,7 +78,7 @@ const SEED = [
   ['auth/oauth', 'OAuth providers', 'pre-release', 'a0', 'aaa0000002'],
   ['auth/oauth/github', 'GitHub', 'released', 'a0', 'aaa0000003'],
   ['auth/oauth/google', 'Google', 'planned', 'a1', 'aaa0000004'],
-  ['billing', 'Billing', 'idea', 'a1', 'aaa0000005'],
+  ['billing', 'Billing', 'planned', 'a1', 'aaa0000005'],
 ] as const
 
 export const test = base.extend<{ workspace: Workspace }>({

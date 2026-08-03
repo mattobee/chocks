@@ -77,10 +77,10 @@ separately, or that only exists because of how the code happens to be organised.
 A feature is <slug>.chocks.md; its children live in a sibling <slug>/ directory. For
 each feature, write a title, a status, tags for cross-cutting concerns such as "api" or
 "billing", and a couple of sentences describing it in the markdown body. The status must
-be one of idea, planned, pre-release, released, deprecated or dropped, unless
+be one of planned, pre-release, released, deprecated or dropped, unless
 .chocks/config.yaml defines a different set, in which case use those ids exactly. Guess
 released for something that looks fully built, pre-release for something still missing
-pieces, and idea for something referenced but not started. Skip uid and sort: chocks
+pieces, and planned for something referenced but not started. Skip uid and sort: chocks
 fills those in the first time it runs. For example:
 
 ---
@@ -105,7 +105,7 @@ diff at a time rather than asking for the whole tree in one pass.
 
 ## Statuses
 
-The defaults are a lifecycle, not a workflow: Idea, Planned, Pre-release, Released,
+The defaults are a lifecycle, not a workflow: Planned, Pre-release, Released,
 Deprecated, plus Dropped for something considered and rejected.
 
 Each one describes where a feature is, not how much effort is going into it. That's
