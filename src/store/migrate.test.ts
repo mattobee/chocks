@@ -47,6 +47,56 @@ describe('migrateLayout', () => {
     expect(await migrateLayout(root, repo)).toEqual({ moved: 0, usedGit: false })
   })
 
+  it('uses filesystem moves for ignored untracked features in a clean repository', async () => {
+    await run('git', ['-C', repo, 'init', '-q', '-b', 'main'])
+    await writeFile(path.join(repo, '.gitignore'), '.chocks/\n', 'utf8')
+    await run('git', ['-C', repo, 'add', '.gitignore'])
+    await run('git', [
+      '-C',
+      repo,
+      '-c',
+      'user.email=test@example.com',
+      '-c',
+      'user.name=Test',
+      'commit',
+      '-q',
+      '-m',
+      'ignore chocks',
+    ])
+    await given('auth.chocks.md', 'Auth')
+    await mkdir(path.join(root, 'auth'))
+
+    expect(await migrateLayout(root, repo)).toEqual({ moved: 1, usedGit: false })
+    expect(existsSync(path.join(root, 'auth', 'index.chocks.md'))).toBe(true)
+  })
+
+  it('disambiguates reserved index features before creating parent indexes', async () => {
+    await given('auth.chocks.md', 'Auth')
+    await given('auth/index.chocks.md', 'Index child')
+    await given('index.feature.md', 'Root index')
+
+    expect(await migrateLayout(root, repo)).toEqual({ moved: 3, usedGit: false })
+    expect(await readFile(path.join(root, 'auth', 'index.chocks.md'), 'utf8')).toContain(
+      'title: Auth',
+    )
+    expect(await readFile(path.join(root, 'auth', 'index-2.chocks.md'), 'utf8')).toContain(
+      'title: Index child',
+    )
+    expect(await readFile(path.join(root, 'index-2.chocks.md'), 'utf8')).toContain(
+      'title: Root index',
+    )
+  })
+
+  it('rejects two legacy files that map to one destination', async () => {
+    await given('auth.chocks.md', 'Auth')
+    await given('auth.feature.md', 'Other auth')
+    await mkdir(path.join(root, 'auth'))
+
+    await expect(migrateLayout(root, repo)).rejects.toThrow(/more than one feature maps/)
+    expect(existsSync(path.join(root, 'auth.chocks.md'))).toBe(true)
+    expect(existsSync(path.join(root, 'auth.feature.md'))).toBe(true)
+  })
+
   it('uses git mv when the repository is clean', async () => {
     await run('git', ['-C', repo, 'init', '-q', '-b', 'main'])
     await given('auth.chocks.md', 'Auth')

@@ -1,5 +1,6 @@
 import {
   chmod,
+  link,
   mkdtemp,
   mkdir,
   readFile,
@@ -144,6 +145,20 @@ describe('scan', () => {
     await given('index.chocks.md', 'title: Invalid\nsort: a0')
 
     await expect(scan(root)).rejects.toThrow(/root index\.chocks\.md/)
+  })
+
+  it('rejects duplicate leaf and directory forms', async () => {
+    await given('auth.chocks.md', 'title: Leaf\nsort: a0')
+    await mkdir(path.join(root, 'auth'))
+    await writeFile(
+      path.join(root, 'auth', 'index.chocks.md'),
+      '---\ntitle: Directory\nsort: a0\n---\n',
+      'utf8',
+    )
+
+    await expect(scan(root)).rejects.toThrow(
+      /remove either auth\.chocks\.md or the auth\/ directory/,
+    )
   })
 
   it('gives sort-less files a stable alphabetical order', async () => {
@@ -403,6 +418,23 @@ describe('create', () => {
     expect((await read(root, 'auth')).uid).toBe(parent.uid)
   })
 
+  it('does not delete files added while a failed promotion is cleaned up', async () => {
+    await create(root, { parent: '', title: 'Auth' })
+    const error = Object.assign(new Error('Rename failed'), { code: 'EACCES' })
+    vi.mocked(rename).mockImplementationOnce(async () => {
+      await writeFile(path.join(root, 'auth', 'concurrent.txt'), 'keep', 'utf8')
+      throw error
+    })
+
+    const failure = await create(root, { parent: 'auth', title: 'OAuth' }).catch(
+      (caught: unknown) => caught,
+    )
+
+    expect(failure).toBeInstanceOf(AggregateError)
+    expect((failure as AggregateError).errors[0]).toBe(error)
+    expect(await readFile(path.join(root, 'auth', 'concurrent.txt'), 'utf8')).toBe('keep')
+  })
+
   it('appends after existing siblings', async () => {
     const first = await create(root, { parent: '', title: 'First' })
     const second = await create(root, { parent: '', title: 'Second' })
@@ -415,6 +447,18 @@ describe('create', () => {
     expect(first.id).toBe('auth')
     expect(second.id).toBe('auth-2')
     expect((await scan(root)).length).toBe(2)
+  })
+
+  it('disambiguates the reserved index slug', async () => {
+    const topLevel = await create(root, { parent: '', title: 'Index' })
+    const parent = await create(root, { parent: '', title: 'Parent' })
+    const nested = await create(root, { parent: parent.id, title: 'Index' })
+
+    expect(topLevel.id).toBe('index-2')
+    expect(nested.id).toBe('parent/index-2')
+    expect(
+      (await scan(root).then((features) => features.map((feature) => feature.id))).sort(),
+    ).toEqual(['index-2', 'parent', 'parent/index-2'])
   })
 
   it('rejects an empty title', async () => {
@@ -659,6 +703,16 @@ describe('move', () => {
     expect(moved.description).toBe('Keep me')
     expect(moved.status).toBe('released')
     expect(moved.tags).toEqual(['api'])
+  })
+
+  it('does not overwrite a raced destination when moving a leaf', async () => {
+    const error = Object.assign(new Error('Destination exists'), { code: 'EEXIST' })
+    vi.mocked(link).mockRejectedValueOnce(error)
+
+    await expect(
+      move(root, 'auth/oauth/github', { newParent: 'billing', index: 0 }),
+    ).rejects.toMatchObject({ status: 409 })
+    expect(existsSync(path.join(root, 'auth', 'oauth', 'github.chocks.md'))).toBe(true)
   })
 
   it('leaves a parent source untouched when its directory rename fails', async () => {

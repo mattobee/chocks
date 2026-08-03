@@ -1,5 +1,15 @@
 import { randomBytes, randomInt } from 'node:crypto'
-import { link, lstat, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import {
+  link,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  rmdir,
+  writeFile,
+} from 'node:fs/promises'
 import path from 'node:path'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
@@ -223,6 +233,13 @@ export async function scanWithIgnored(
       const entryPath = path.join(dir, entry.name)
       if (entry.isDirectory()) {
         const id = joinId(parentId, entry.name)
+        const leafName = `${entry.name}${FEATURE_SUFFIX}`
+        if (entries.some((candidate) => candidate.isFile() && candidate.name === leafName)) {
+          throw new StoreError(
+            `Invalid feature ${id}: remove either ${leafName} or the ${entry.name}/ directory`,
+            400,
+          )
+        }
         const indexFile = path.join(entryPath, `index${FEATURE_SUFFIX}`)
         let hasIndex = false
         try {
@@ -262,7 +279,7 @@ export async function scanWithIgnored(
  * Slugs are filenames, so two siblings with the same slug would claim the same path.
  */
 function uniqueSlug(desired: string, taken: ReadonlySet<string>): string {
-  if (!taken.has(desired)) return desired
+  if (desired !== 'index' && !taken.has(desired)) return desired
   let suffix = 2
   while (taken.has(`${desired}-${suffix}`)) suffix++
   return `${desired}-${suffix}`
@@ -282,7 +299,14 @@ async function promote(root: string, id: string): Promise<void> {
   try {
     await rename(leaf, indexFileFor(root, id))
   } catch (error) {
-    await rm(directory, { recursive: true, force: true })
+    try {
+      await rmdir(directory)
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Feature promotion failed and the new directory is no longer empty',
+      )
+    }
     throw error
   }
 }
@@ -417,7 +441,7 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
           .map((feature) => slugOf(feature.id)),
       )
       next.id = joinId(current.parent, uniqueSlug(desired, taken))
-      await relocate(root, id, next.id, content)
+      if (next.id !== id) await relocate(root, id, next.id, content)
     }
   }
 
@@ -433,20 +457,48 @@ async function relocate(
   expectedContent: string,
 ): Promise<void> {
   const fromFile = await featureFileFor(root, fromId)
-  const fromEntry = fromFile === indexFileFor(root, fromId) ? dirFor(root, fromId) : fromFile
-  const toEntry = fromEntry === dirFor(root, fromId) ? dirFor(root, toId) : leafFileFor(root, toId)
+  const fromDirectory = dirFor(root, fromId)
+  const isParent = fromFile === indexFileFor(root, fromId)
+  const fromEntry = isParent ? fromDirectory : fromFile
+  const toEntry = isParent ? dirFor(root, toId) : leafFileFor(root, toId)
   const toDirectory = path.dirname(toEntry)
   await assertNoSymlinks(root, fromEntry)
   await assertNoSymlinks(root, toDirectory)
   await mkdir(toDirectory, { recursive: true })
   await assertNoSymlinks(root, toDirectory)
   await assertUnchanged(fromFile, expectedContent)
-  await assertAbsent(toEntry)
+
+  if (isParent) {
+    await assertAbsent(toEntry)
+    try {
+      await rename(fromEntry, toEntry)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        throw new StoreError('Feature changed on disk; reload and try again', 409)
+      }
+      throw error
+    }
+    return
+  }
+
   try {
-    await rename(fromEntry, toEntry)
+    await link(fromFile, toEntry)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new StoreError('Feature changed on disk; reload and try again', 409)
+    }
+    throw error
+  }
+  try {
+    await rm(fromFile)
+  } catch (error) {
+    try {
+      await rm(toEntry, { force: true })
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Feature relocation failed and could not be rolled back',
+      )
     }
     throw error
   }

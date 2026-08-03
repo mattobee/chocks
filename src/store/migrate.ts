@@ -12,13 +12,22 @@ export interface MigrationResult {
   usedGit: boolean
 }
 
-async function canUseGit(repoRoot: string, root: string): Promise<boolean> {
+async function canUseGit(repoRoot: string, root: string, sources: string[]): Promise<boolean> {
   const relative = path.relative(repoRoot, root)
   if (relative.startsWith('..') || path.isAbsolute(relative)) return false
   try {
     await run('git', ['-C', repoRoot, 'rev-parse', '--is-inside-work-tree'])
     const { stdout } = await run('git', ['-C', repoRoot, 'status', '--porcelain'])
-    return stdout.trim() === ''
+    if (stdout.trim() !== '') return false
+    await run('git', [
+      '-C',
+      repoRoot,
+      'ls-files',
+      '--error-unmatch',
+      '--',
+      ...sources.map((source) => path.relative(repoRoot, source)),
+    ])
+    return true
   } catch {
     return false
   }
@@ -27,7 +36,26 @@ async function canUseGit(repoRoot: string, root: string): Promise<boolean> {
 export async function migrateLayout(root: string, repoRoot: string): Promise<MigrationResult> {
   const moves: Array<{ from: string; to: string }> = []
 
-  async function walk(directory: string): Promise<void> {
+  async function uniqueIndexLeaf(directory: string): Promise<string> {
+    let suffix = 2
+    for (;;) {
+      const candidate = path.join(directory, `index-${suffix}${FEATURE_SUFFIX}`)
+      try {
+        await lstat(candidate)
+      } catch (error) {
+        if (
+          (error as NodeJS.ErrnoException).code === 'ENOENT' &&
+          !moves.some((move) => move.to === candidate)
+        ) {
+          return candidate
+        }
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+      suffix++
+    }
+  }
+
+  async function walk(directory: string, oldLayoutDirectory = false): Promise<void> {
     let entries
     try {
       entries = await readdir(directory, { withFileTypes: true })
@@ -36,9 +64,26 @@ export async function migrateLayout(root: string, repoRoot: string): Promise<Mig
       throw error
     }
 
+    const oldParentSlugs = new Set(
+      entries
+        .filter(
+          (entry) =>
+            entry.isFile() &&
+            (entry.name.endsWith(FEATURE_SUFFIX) || entry.name.endsWith(LEGACY_SUFFIX)),
+        )
+        .map((entry) =>
+          entry.name.slice(
+            0,
+            -(entry.name.endsWith(FEATURE_SUFFIX) ? FEATURE_SUFFIX.length : LEGACY_SUFFIX.length),
+          ),
+        ),
+    )
+
     for (const entry of entries) {
       if (entry.name.startsWith('.')) continue
-      if (entry.isDirectory()) await walk(path.join(directory, entry.name))
+      if (entry.isDirectory()) {
+        await walk(path.join(directory, entry.name), oldParentSlugs.has(entry.name))
+      }
     }
 
     for (const entry of entries) {
@@ -59,11 +104,14 @@ export async function migrateLayout(root: string, repoRoot: string): Promise<Mig
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }
+      const reservedIndex = slug === 'index' && (directory === root || oldLayoutDirectory)
       const to = hasSiblingDirectory
         ? path.join(sibling, `index${FEATURE_SUFFIX}`)
-        : suffix === LEGACY_SUFFIX
-          ? path.join(directory, `${slug}${FEATURE_SUFFIX}`)
-          : null
+        : reservedIndex
+          ? await uniqueIndexLeaf(directory)
+          : suffix === LEGACY_SUFFIX
+            ? path.join(directory, `${slug}${FEATURE_SUFFIX}`)
+            : null
       if (to) moves.push({ from, to })
     }
   }
@@ -71,6 +119,15 @@ export async function migrateLayout(root: string, repoRoot: string): Promise<Mig
   await walk(root)
   if (moves.length === 0) return { moved: 0, usedGit: false }
 
+  const destinations = new Set<string>()
+  for (const move of moves) {
+    if (destinations.has(move.to)) {
+      throw new Error(`Cannot migrate ${move.from}: more than one feature maps to ${move.to}`)
+    }
+    destinations.add(move.to)
+  }
+
+  const sources = new Set(moves.map((move) => move.from))
   for (const move of moves) {
     try {
       await lstat(move.to)
@@ -78,10 +135,16 @@ export async function migrateLayout(root: string, repoRoot: string): Promise<Mig
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
       throw error
     }
-    throw new Error(`Cannot migrate ${move.from}: destination already exists at ${move.to}`)
+    if (!sources.has(move.to)) {
+      throw new Error(`Cannot migrate ${move.from}: destination already exists at ${move.to}`)
+    }
   }
 
-  const usedGit = await canUseGit(repoRoot, root)
+  const usedGit = await canUseGit(
+    repoRoot,
+    root,
+    moves.map((move) => move.from),
+  )
   for (const move of moves) {
     await mkdir(path.dirname(move.to), { recursive: true })
     if (usedGit) {
