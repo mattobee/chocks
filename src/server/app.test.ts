@@ -100,7 +100,6 @@ describe('GET /api/workspace', () => {
     expect(body.name).toBe('test-repo')
     // No config.yaml present, so the defaults are served.
     expect(body.config.statuses.map((status) => status.id)).toEqual([
-      'idea',
       'planned',
       'pre-release',
       'released',
@@ -311,7 +310,7 @@ describe('features API', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'Not A Slug' }),
     })
-    expect(((await response.json()) as Feature).status).toBe('idea')
+    expect(((await response.json()) as Feature).status).toBe('planned')
   })
 })
 
@@ -398,7 +397,7 @@ describe('watching for changes', () => {
     // What an agent seeding the tree writes: no uid, and no tab open to notice.
     await writeFile(
       path.join(root, 'headless.chocks.md'),
-      '---\ntitle: Headless\nstatus: idea\n---\n\nWritten with no uid.\n',
+      '---\ntitle: Headless\nstatus: planned\n---\n\nWritten with no uid.\n',
       'utf8',
     )
 
@@ -438,7 +437,7 @@ describe('SSE /api/events', () => {
     // would — no uid, the way a hand-written file arrives.
     await writeFile(
       path.join(root, 'seeded.chocks.md'),
-      '---\ntitle: Seeded\nstatus: idea\n---\n\nWritten with no uid.\n',
+      '---\ntitle: Seeded\nstatus: planned\n---\n\nWritten with no uid.\n',
       'utf8',
     )
 

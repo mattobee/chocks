@@ -94,7 +94,6 @@ describe('default statuses', () => {
     // "In progress" was removed deliberately: a released feature is usually still being
     // worked on, so an effort-shaped status collides with every other state.
     expect(DEFAULT_STATUSES.map((status) => status.id)).toEqual([
-      'idea',
       'planned',
       'pre-release',
       'released',
