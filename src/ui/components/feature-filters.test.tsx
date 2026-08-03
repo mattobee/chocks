@@ -27,7 +27,7 @@ describe('status dropdown', () => {
       'aria-checked',
       'true',
     )
-    expect(screen.getByRole('menuitemcheckbox', { name: 'Idea' })).toHaveAttribute(
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Planned' })).toHaveAttribute(
       'aria-checked',
       'false',
     )
