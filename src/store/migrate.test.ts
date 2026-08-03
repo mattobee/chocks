@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -28,6 +28,22 @@ afterEach(async () => {
 })
 
 describe('migrateLayout', () => {
+  it('rejects a symlinked root before moving files', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-migrate-outside-'))
+    await rm(root, { recursive: true })
+    await symlink(outside, root, process.platform === 'win32' ? 'junction' : 'dir')
+    await writeFile(path.join(outside, 'auth.chocks.md'), 'auth', 'utf8')
+    await mkdir(path.join(outside, 'auth'))
+
+    try {
+      await expect(migrateLayout(root, repo)).rejects.toThrow(/Symbolic links/)
+      expect(existsSync(path.join(outside, 'auth.chocks.md'))).toBe(true)
+      expect(existsSync(path.join(outside, 'auth', 'index.chocks.md'))).toBe(false)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
   it('moves old sibling layouts and renames both old extensions', async () => {
     await given('auth.chocks.md', 'Auth')
     await given('auth/oauth.feature.md', 'OAuth')

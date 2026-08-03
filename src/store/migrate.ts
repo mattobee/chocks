@@ -34,6 +34,10 @@ async function canUseGit(repoRoot: string, root: string, sources: string[]): Pro
 }
 
 export async function migrateLayout(root: string, repoRoot: string): Promise<MigrationResult> {
+  if ((await lstat(root)).isSymbolicLink()) {
+    throw new Error('Symbolic links are not allowed for the chocks directory')
+  }
+
   const moves: Array<{ from: string; to: string }> = []
 
   async function uniqueIndexLeaf(directory: string): Promise<string> {
