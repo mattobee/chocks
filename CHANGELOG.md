@@ -13,7 +13,7 @@ Releases before 0.1.3 predate this file.
 
 ### Security
 
-- The bundled hono is updated to 4.12.34, which   carries fixes for four advisories. Chocks
+- The bundled hono is updated to 4.12.34, which carries fixes for four advisories. Chocks
   only uses hono's core routing, so none of the affected modules apply, but the upgrade
   keeps the dependency clear of known issues.
 
@@ -76,7 +76,7 @@ Releases before 0.1.3 predate this file.
 ### Added
 
 - Files that appear while Chocks is running get their permanent id straight away whether
-  or not a tab is open. Point an agent at your repo   with Chocks running headless and you
+  or not a tab is open. Point an agent at your repo with Chocks running headless and you
   no longer have to restart it before committing.
 - Search has its own clear button, and "Clear filters" resets the status and tag filters
   without touching the search text.
