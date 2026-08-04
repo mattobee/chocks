@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
@@ -8,6 +8,7 @@ import { parseArgs } from 'node:util'
 import { spawn } from 'node:child_process'
 import { serve } from '@hono/node-server'
 import { createApp } from './server/app'
+import { formatContext } from './lib/context'
 import { FEATURE_SUFFIX } from './lib/ids'
 import { backfill, scanWithIgnored } from './store/store'
 import { migrateLayout } from './store/migrate'
@@ -18,6 +19,10 @@ chocks — track planned and existing features as a tree, in your repo
 
 Usage
   npx chocks [options]
+  npx chocks context [options]
+
+Commands
+  context             Print the feature tree as JSON Lines
 
 Options
   -d, --dir <path>    Feature directory (default: .chocks next to the repo root)
@@ -96,8 +101,9 @@ function openBrowser(url: string): void {
   }
 }
 
-async function main(): Promise<void> {
-  const { values } = parseArgs({
+export async function main(args = process.argv.slice(2)): Promise<void> {
+  const { values, positionals } = parseArgs({
+    args,
     options: {
       dir: { type: 'string', short: 'd' },
       port: { type: 'string', short: 'p' },
@@ -107,7 +113,7 @@ async function main(): Promise<void> {
       'no-open': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h' },
     },
-    allowPositionals: false,
+    allowPositionals: true,
   })
 
   if (values.help) {
@@ -115,8 +121,28 @@ async function main(): Promise<void> {
     return
   }
 
+  const command = positionals[0]
+  if (positionals.length > 1 || (command && command !== 'context')) {
+    console.error(`Unknown command: ${positionals.join(' ')}`)
+    process.exitCode = 1
+    return
+  }
+
   const repoRoot = findRepoRoot(process.cwd())
   const root = path.resolve(values.dir ?? path.join(repoRoot, '.chocks'))
+
+  if (command === 'context') {
+    const { features, ignored } = await scanWithIgnored(root)
+    if (ignored.length > 0) {
+      console.error(
+        `chocks: skipped ${ignored.length} markdown file(s) without the ${FEATURE_SUFFIX} suffix`,
+      )
+    }
+    const output = formatContext(features)
+    if (output) process.stdout.write(`${output}\n`)
+    return
+  }
+
   const port = Number(values.port ?? process.env.PORT ?? 4321)
   const host = values.host ?? '127.0.0.1'
 
@@ -246,7 +272,17 @@ function reportFatal(what: string, error: unknown): never {
   process.exit(1)
 }
 
-process.on('uncaughtException', (error) => reportFatal('crashed', error))
-process.on('unhandledRejection', (reason) => reportFatal('crashed', reason))
+export function isDirectInvocation(entry = process.argv[1]): boolean {
+  if (!entry) return false
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry)
+  } catch {
+    return false
+  }
+}
 
-main().catch((error: unknown) => reportFatal('could not start', error))
+if (isDirectInvocation()) {
+  process.on('uncaughtException', (error) => reportFatal('crashed', error))
+  process.on('unhandledRejection', (reason) => reportFatal('crashed', reason))
+  main().catch((error: unknown) => reportFatal('could not start', error))
+}

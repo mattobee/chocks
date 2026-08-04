@@ -110,6 +110,28 @@ land, with or without a tab open. If it isn't, it does the same the next time it
 For a big or unfamiliar codebase, narrow the same prompt to one directory or one PR's
 diff at a time rather than asking for the whole tree in one pass.
 
+## Agent context
+
+`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has
+one feature's path, title, status, tags and a summary taken from the first paragraph of its
+description. It writes only to stdout and does not start the server or open a browser.
+
+Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of
+inferring it from the code:
+
+```markdown
+## Product context
+
+At the start of a session, run `npx chocks context` and use its feature tree as context
+for product scope, status and terminology.
+```
+
+Pass `--dir` when the feature directory is somewhere other than `.chocks`:
+
+```sh
+npx chocks context --dir docs/features
+```
+
 ## Statuses
 
 The defaults are a lifecycle, not a workflow: Planned, Pre-release, Released,
@@ -135,6 +157,9 @@ statuses:
 
 ```
 npx chocks [options]
+npx chocks context [options]
+
+  context             Print the feature tree as JSON Lines
 
   -d, --dir <path>    Feature directory (default: .chocks next to the repo root)
   -p, --port <port>   Port to listen on (default: 4321)
