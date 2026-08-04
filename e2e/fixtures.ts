@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { test as base, expect } from '@playwright/test'
+import { parentOf } from '../src/lib/ids'
 
 const run = promisify(execFile)
 const REPO_ROOT = path.resolve(import.meta.dirname, '..')
@@ -97,7 +98,8 @@ export const test = base.extend<{ workspace: Workspace }>({
     // Signing would prompt, and these commits are throwaway.
     await git('config', 'commit.gpgsign', 'false')
 
-    const parentIds = new Set(SEED.map(([id]) => id.slice(0, id.lastIndexOf('/'))).filter(Boolean))
+    // A seeded feature is written in directory form only when another seed sits under it.
+    const parentIds = new Set(SEED.map(([id]) => parentOf(id)).filter(Boolean))
     for (const [id, title, status, sort, uid] of SEED) {
       const file = parentIds.has(id)
         ? path.join(chocks, id, 'index.chocks.md')

@@ -295,6 +295,7 @@ function uniqueSlug(desired: string, taken: ReadonlySet<string>): string {
 
 async function promote(root: string, id: string): Promise<void> {
   const directory = dirFor(root, id)
+  await assertNoSymlinks(root, directory)
   try {
     if ((await lstat(directory)).isDirectory()) return
   } catch (error) {
@@ -481,7 +482,11 @@ async function relocate(
     try {
       await rename(fromEntry, toEntry)
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      // A directory that appeared since `assertAbsent` reports ENOTEMPTY rather than
+      // EEXIST, and that is the shape a raced destination actually takes: a valid one
+      // holds an index file.
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'EEXIST' || code === 'ENOTEMPTY') {
         throw new StoreError('Feature changed on disk; reload and try again', 409)
       }
       throw error

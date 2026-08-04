@@ -266,6 +266,21 @@ describe('symbolic links', () => {
     }
   })
 
+  it('refuses to promote a linked parent rather than failing on mkdir', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-outside-'))
+    try {
+      await given('auth.chocks.md', 'title: Auth\nuid: aaa0000001\nsort: a0')
+      await symlink(outside, path.join(root, 'auth'), 'dir')
+
+      await expect(create(root, { parent: 'auth', title: 'OAuth' })).rejects.toThrow(
+        /Symbolic links/,
+      )
+      expect(existsSync(path.join(outside, 'oauth.chocks.md'))).toBe(false)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
   it('refuses to resolve a linked leaf file, so callers cannot follow it', async () => {
     // The history route uses the path from featureFileFor directly, with no read to
     // re-check it.
@@ -743,6 +758,19 @@ describe('move', () => {
       move(root, 'auth/oauth/github', { newParent: 'billing', index: 0 }),
     ).rejects.toMatchObject({ status: 409 })
     expect(existsSync(path.join(root, 'auth', 'oauth', 'github.chocks.md'))).toBe(true)
+  })
+
+  it('reports a raced parent destination as a conflict, not a crash', async () => {
+    // rename onto a directory that gained an index since assertAbsent reports ENOTEMPTY.
+    await create(root, { parent: 'billing', title: 'Invoices' })
+    vi.mocked(rename).mockRejectedValueOnce(
+      Object.assign(new Error('Directory not empty'), { code: 'ENOTEMPTY' }),
+    )
+
+    await expect(
+      move(root, 'auth/oauth', { newParent: 'billing', index: 0 }),
+    ).rejects.toMatchObject({ status: 409 })
+    expect(existsSync(path.join(root, 'auth', 'oauth', 'index.chocks.md'))).toBe(true)
   })
 
   it('leaves a parent source untouched when its directory rename fails', async () => {
