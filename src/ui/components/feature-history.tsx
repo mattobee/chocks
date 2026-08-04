@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { GitCommitVertical, SquareDot } from 'lucide-react'
-import { Badge } from '@/ui/components/ui/badge'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { historyQuery } from '@/ui/lib/queries'
 
@@ -49,10 +48,10 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
       */}
       <div role="status" aria-live="polite" className="empty:hidden">
         {data.uncommitted ? (
-          <Badge variant="warning" className="gap-1.5">
-            <SquareDot className="size-3.5" aria-hidden="true" />
-            Uncommitted changes
-          </Badge>
+          <span className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+            <SquareDot className="size-4" aria-hidden="true" />
+            Modified
+          </span>
         ) : (
           <span className="sr-only">All changes committed</span>
         )}

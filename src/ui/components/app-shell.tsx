@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FolderGit2, SquareDot } from 'lucide-react'
-import { Badge } from '@/ui/components/ui/badge'
 import { ColorModeSwitcher } from '@/ui/components/color-mode-switcher'
 import { uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
 
@@ -31,10 +30,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           )}
           {uncommitted.data && uncommitted.data.ids.length > 0 && (
-            <Badge variant="warning" className="gap-1.5">
-              <SquareDot className="size-3.5" aria-hidden="true" />
-              Uncommitted changes
-            </Badge>
+            <span className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+              <SquareDot className="size-4" aria-hidden="true" />
+              Modified
+            </span>
           )}
           <div className="ms-auto">
             <ColorModeSwitcher />

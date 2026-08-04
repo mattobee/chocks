@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/ui/components/ui/button'
 import { Badge } from '@/ui/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,11 +111,20 @@ export function FeatureRow({
       </Button>
 
       {uncommitted && (
-        <SquareDot
-          role="img"
-          aria-label="Uncommitted changes"
-          className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
-        />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <span className="shrink-0">
+                <SquareDot
+                  role="img"
+                  aria-label="Modified"
+                  className="size-4 text-amber-700 dark:text-amber-400"
+                />
+              </span>
+            }
+          />
+          <TooltipContent>Modified</TooltipContent>
+        </Tooltip>
       )}
 
       {/* Renaming is Edit's job now, not a second inline path on the row. */}

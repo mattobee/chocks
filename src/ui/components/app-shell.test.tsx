@@ -77,13 +77,13 @@ describe('uncommitted changes badge in the header', () => {
   it('shows up when any feature has unsaved changes', async () => {
     await setup({}, ['auth'])
 
-    expect(await screen.findByText('Uncommitted changes')).toBeInTheDocument()
+    expect(await screen.findByText('Modified')).toBeInTheDocument()
   })
 
   it('stays hidden when every feature is committed', async () => {
     await setup()
 
     await waitFor(() => expect(screen.getByText('Page content')).toBeInTheDocument())
-    expect(screen.queryByText('Uncommitted changes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Modified')).not.toBeInTheDocument()
   })
 })

@@ -106,11 +106,11 @@ describe('accessible names', () => {
 describe('uncommitted changes', () => {
   it('shows a marker next to the title when the feature has unsaved changes', async () => {
     await setup({ uncommitted: true })
-    expect(screen.getByRole('img', { name: 'Uncommitted changes' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Modified' })).toBeInTheDocument()
   })
 
   it('shows no marker for a committed feature', async () => {
     await setup({ uncommitted: false })
-    expect(screen.queryByRole('img', { name: 'Uncommitted changes' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Modified' })).not.toBeInTheDocument()
   })
 })
