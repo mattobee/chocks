@@ -167,6 +167,19 @@ describe('uncommittedFeatureIds', () => {
     expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual(['auth/oauth'])
   })
 
+  it('reports a directory feature by its id, not index/index', async () => {
+    await mkdir(path.join(repo, '.chocks', 'auth'), { recursive: true })
+    const file = path.join(repo, '.chocks', 'auth', 'index.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual(['auth'])
+  })
+
+  it('ignores a bare index.chocks.md that is not a feature', async () => {
+    const file = path.join(repo, '.chocks', 'index.chocks.md')
+    await writeFile(file, '---\ntitle: Root\n---\n', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual([])
+  })
+
   it('ignores an edit outside the chocks directory', async () => {
     const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')

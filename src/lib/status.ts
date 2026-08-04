@@ -39,6 +39,9 @@ export const STATUS_COLORS = {
 
 export type StatusColor = keyof typeof STATUS_COLORS
 
+/** Text colour for the uncommitted-changes indicator (header, history, tree rows). */
+export const MODIFIED_COLOR = 'text-amber-700 dark:text-amber-400' as const
+
 export const STATUS_COLOR_NAMES = Object.keys(STATUS_COLORS).filter(
   (name) => name !== 'unknown',
 ) as StatusColor[]

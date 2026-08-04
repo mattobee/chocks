@@ -23,7 +23,7 @@ function Shortcuts() {
 function RootLayout() {
   return (
     <HotkeysProvider>
-      <TooltipProvider delay={0}>
+      <TooltipProvider>
         <UndoProvider>
           <Shortcuts />
           <Outlet />

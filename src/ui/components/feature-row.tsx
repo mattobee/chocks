@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/ui/components/ui/button'
 import { Badge } from '@/ui/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { featureKey } from '@/lib/ids'
 import type { Feature } from '@/lib/types'
 import type { StatusDefinition } from '@/lib/status'
+import { MODIFIED_COLOR } from '@/lib/status'
 
 export const INDENT_WIDTH = 24
 
@@ -111,20 +111,11 @@ export function FeatureRow({
       </Button>
 
       {uncommitted && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <span className="shrink-0">
-                <SquareDot
-                  role="img"
-                  aria-label="Modified"
-                  className="size-4 text-amber-700 dark:text-amber-400"
-                />
-              </span>
-            }
-          />
-          <TooltipContent>Modified</TooltipContent>
-        </Tooltip>
+        <SquareDot
+          role="img"
+          aria-label="Modified"
+          className={`size-4 shrink-0 ${MODIFIED_COLOR}`}
+        />
       )}
 
       {/* Renaming is Edit's job now, not a second inline path on the row. */}

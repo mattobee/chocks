@@ -95,15 +95,8 @@ function isMissingHistory(error: unknown): boolean {
  * reason.
  */
 export async function uncommittedFeatureIds(repoRoot: string, root: string): Promise<string[]> {
-  if (
-    path.isAbsolute(repoRoot) &&
-    path.isAbsolute(root) &&
-    path.parse(repoRoot).root !== path.parse(root).root
-  ) {
-    return []
-  }
   const relative = path.relative(repoRoot, root).split(path.sep).join('/')
-  if (relative.startsWith('..')) return []
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return []
 
   // -z sidesteps two things the human-readable format does: quoting of paths with unusual
   // characters, and the "old -> new" arrow on a rename, which -z instead reports as two
@@ -133,7 +126,12 @@ export async function uncommittedFeatureIds(repoRoot: string, root: string): Pro
     if (status.includes('R') || status.includes('C')) index++
 
     if (!changedPath.startsWith(prefix) || !changedPath.endsWith(FEATURE_SUFFIX)) continue
-    ids.push(changedPath.slice(prefix.length, -FEATURE_SUFFIX.length))
+    let id = changedPath.slice(prefix.length, -FEATURE_SUFFIX.length)
+    // A feature directory has an index.chocks.md inside it, not a file named after the
+    // feature. Git reports the inner file, so strip that suffix to match the feature id.
+    if (id.endsWith('/index')) id = id.slice(0, -'/index'.length)
+    if (id === 'index') continue
+    ids.push(id)
   }
   return ids
 }
