@@ -36,6 +36,16 @@ describe('chocks context', () => {
     expect(await runContext()).toBe('')
   })
 
+  it('reports ignored markdown files on stderr', async () => {
+    await feature('auth.md', 'title: Authentication\nstatus: released')
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(await runContext()).toBe('')
+    expect(error).toHaveBeenCalledWith(
+      'chocks: skipped 1 markdown file(s) without the .chocks.md suffix',
+    )
+  })
+
   it('prints a nested tree in stable tree order', async () => {
     await feature(
       'auth/index.chocks.md',

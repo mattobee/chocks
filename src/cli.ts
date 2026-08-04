@@ -10,7 +10,7 @@ import { serve } from '@hono/node-server'
 import { createApp } from './server/app'
 import { formatContext } from './lib/context'
 import { FEATURE_SUFFIX } from './lib/ids'
-import { backfill, scan, scanWithIgnored } from './store/store'
+import { backfill, scanWithIgnored } from './store/store'
 import { migrateLayout } from './store/migrate'
 import { CONFIG_FILENAME, loadConfig } from './store/config'
 
@@ -132,7 +132,13 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const root = path.resolve(values.dir ?? path.join(repoRoot, '.chocks'))
 
   if (command === 'context') {
-    const output = formatContext(await scan(root))
+    const { features, ignored } = await scanWithIgnored(root)
+    if (ignored.length > 0) {
+      console.error(
+        `chocks: skipped ${ignored.length} markdown file(s) without the ${FEATURE_SUFFIX} suffix`,
+      )
+    }
+    const output = formatContext(features)
     if (output) process.stdout.write(`${output}\n`)
     return
   }
