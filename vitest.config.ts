@@ -40,7 +40,7 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['src/{lib,store,server}/**/*.test.ts'],
+          include: ['src/*.test.ts', 'src/{lib,store,server}/**/*.test.ts'],
         },
       },
       {
