@@ -124,7 +124,7 @@ test.describe('uncommitted indicator', () => {
     await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
     await expect(titleHeading(page)).toHaveText('OAuth providers')
 
-    const status = page.getByRole('status')
+    const status = page.getByRole('main').getByRole('status')
     await expect(status).toHaveText('All changes committed')
 
     await page.getByRole('button', { name: 'Edit description' }).click()
