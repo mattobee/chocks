@@ -113,8 +113,8 @@ diff at a time rather than asking for the whole tree in one pass.
 ## Agent context
 
 `chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has
-one feature's path, title, status, tags and the first paragraph of its description. It writes
-only to stdout and does not start the server or open a browser.
+one feature's path, title, status, tags and a summary taken from the first paragraph of its
+description. It writes only to stdout and does not start the server or open a browser.
 
 Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of
 inferring it from the code:

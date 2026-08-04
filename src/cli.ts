@@ -272,10 +272,16 @@ function reportFatal(what: string, error: unknown): never {
   process.exit(1)
 }
 
-if (
-  process.argv[1] &&
-  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
-) {
+export function isDirectInvocation(entry = process.argv[1]): boolean {
+  if (!entry) return false
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry)
+  } catch {
+    return false
+  }
+}
+
+if (isDirectInvocation()) {
   process.on('uncaughtException', (error) => reportFatal('crashed', error))
   process.on('unhandledRejection', (reason) => reportFatal('crashed', reason))
   main().catch((error: unknown) => reportFatal('could not start', error))

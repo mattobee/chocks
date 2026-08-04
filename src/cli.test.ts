@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { main } from './cli'
+import { isDirectInvocation, main } from './cli'
 
 let root: string
 
@@ -32,6 +32,10 @@ async function feature(relativePath: string, frontmatter: string, description = 
 }
 
 describe('chocks context', () => {
+  it('does not auto-run for a missing entry path', () => {
+    expect(isDirectInvocation(path.join(root, 'absent'))).toBe(false)
+  })
+
   it('prints nothing for an empty tree', async () => {
     expect(await runContext()).toBe('')
   })
@@ -74,21 +78,21 @@ describe('chocks context', () => {
           title: 'Authentication',
           status: 'released',
           tags: ['security'],
-          description: 'Sign in and out.',
+          summary: 'Sign in and out.',
         },
         {
           path: 'auth/oauth',
           title: 'OAuth',
           status: 'pre-release',
           tags: ['api'],
-          description: 'Connect providers.',
+          summary: 'Connect providers.',
         },
         {
           path: 'auth/passwords',
           title: 'Passwords',
           status: 'planned',
           tags: ['security', 'accounts'],
-          description: 'Reset passwords.',
+          summary: 'Reset passwords.',
         },
       ]
         .map((entry) => JSON.stringify(entry))
@@ -116,7 +120,7 @@ describe('chocks context', () => {
         title: 'Search',
         status: 'shipped',
         tags: ['discovery'],
-        description: 'Find features.',
+        summary: 'Find features.',
       })}\n`,
     )
   })
