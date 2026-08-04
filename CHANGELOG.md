@@ -13,7 +13,7 @@ Releases before 0.1.3 predate this file.
 
 ### Changed
 
-- Parent features now live in one directory with their children, using `index.chocks.md` for the parent's content. Existing trees migrate automatically when chocks starts.
+- Parent features now live in one directory with their children, using `index.chocks.md` for the parent's content. Existing trees migrate automatically the first time chocks 0.6.0 runs. That migration is one way: once it has run, 0.5.0 and earlier can't read the tree, so don't roll back to an older version after upgrading.
 - The per-feature tag limit is now 100 (was 20).
 
 [Full changes](https://github.com/mattobee/chocks/compare/v0.5.0...v0.6.0)
