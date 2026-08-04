@@ -48,18 +48,23 @@ describe('featureHistory', () => {
     expect(new Date(history.commits[0]!.date).getTime()).toBeGreaterThan(0)
   })
 
-  it('follows the file across a rename', async () => {
-    // This is the case that matters: retitling a feature renames its file, so without
-    // --follow a feature's history would appear to start at its last rename.
-    const before = path.join(repo, '.chocks', 'auth.chocks.md')
+  it('follows a parent index across a directory rename', async () => {
+    const beforeDirectory = path.join(repo, '.chocks', 'auth')
+    await mkdir(beforeDirectory)
+    const before = path.join(beforeDirectory, 'index.chocks.md')
     await writeFile(before, '---\ntitle: Auth\n---\n', 'utf8')
+    await writeFile(
+      path.join(beforeDirectory, 'oauth.chocks.md'),
+      '---\ntitle: OAuth\n---\n',
+      'utf8',
+    )
     await commit('feat: add auth')
 
-    const after = path.join(repo, '.chocks', 'authentication.chocks.md')
-    await rename(before, after)
+    const afterDirectory = path.join(repo, '.chocks', 'authentication')
+    await rename(beforeDirectory, afterDirectory)
     await commit('refactor: retitle auth')
 
-    const history = await featureHistory(repo, after)
+    const history = await featureHistory(repo, path.join(afterDirectory, 'index.chocks.md'))
     expect(history.commits.map((entry) => entry.subject)).toEqual([
       'refactor: retitle auth',
       'feat: add auth',

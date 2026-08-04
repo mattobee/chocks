@@ -3,13 +3,23 @@ import { readFile } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import path from 'node:path'
 import { Hono } from 'hono'
-import { backfill, create, move, read, remove, scan, StoreError, update } from '../store/store'
+import {
+  backfill,
+  create,
+  featureFileFor,
+  move,
+  read,
+  remove,
+  scan,
+  StoreError,
+  update,
+} from '../store/store'
 import { isValidStatusId } from '../lib/status'
 import { isValidSortKey } from '../lib/tree'
 import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
 import { featureHistory } from './git'
-import { FEATURE_SUFFIX, isValidId, isValidUid } from '../lib/ids'
+import { isValidId, isValidUid } from '../lib/ids'
 import { describeError } from '../lib/errors'
 
 export interface ServerOptions {
@@ -192,7 +202,7 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
   app.get('/api/history/:id{.+}', async (c) => {
     const id = c.req.param('id')
     if (!isValidId(id)) return c.json({ message: `Invalid feature id: ${id}` }, 400)
-    const file = path.join(root, `${id}${FEATURE_SUFFIX}`)
+    const file = await featureFileFor(root, id)
     return c.json(await featureHistory(options.repoRoot ?? root, file))
   })
 
