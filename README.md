@@ -1,4 +1,4 @@
-# chocks
+# Chocks
 
 Every feature of your product, from planned to deprecated, as a tree of markdown files in your repo.
 
@@ -123,7 +123,7 @@ Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan ins
 ## Product context
 
 At the start of a session, run `npx chocks context` and use its feature tree as context
-for product scope, status and terminology.
+for your product's scope, status and terminology.
 ```
 
 Pass `--dir` when the feature directory is somewhere other than `.chocks`:
@@ -151,7 +151,7 @@ It walks up from the working directory to find the repo root, creating `.chocks`
 
 ## What the UI does
 
-Tree view with expand/collapse, inline rename and status, drag to reorder and reparent, and search and status/tag filters that prune the tree while keeping ancestors visible. Every feature also has its own page at `/f/<slug>~<uid>`, showing its breadcrumb trail, description, sub-features and git history, the commits that touched that file. chocks has no revision model of its own on purpose: the repo already records who changed what and why, usually in the same commit as the code the feature describes.
+Tree view with expand/collapse, inline rename and status, drag to reorder and reparent, and search and status/tag filters that prune the tree while keeping ancestors visible. Every feature also has its own page at `/f/<slug>~<uid>`, showing its breadcrumb trail, description, sub-features and git history, the commits that touched that file. Chocks has no revision model of its own on purpose: the repo already records who changed what and why, usually in the same commit as the code the feature describes.
 
 `Cmd+Z` undoes the last change, `Cmd+Shift+Z` redoes it, and both work several steps back. That is a safety net for the edit you regret a second later, not a history: it survives a refresh but goes when you close the tab, and nothing extra is written to `.chocks`. Undoing a delete puts the whole subtree back with the same uids, so links to it keep working. If a feature has changed on disk since, the undo is refused rather than applied over the top.
 
