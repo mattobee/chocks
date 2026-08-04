@@ -10,6 +10,7 @@ Releases before 0.1.3 predate this file.
 ### Added
 
 - `chocks context` prints the feature tree as JSON Lines, so coding agents can read its product scope, status, and terminology without crawling `.chocks`.
+- A badge shows in the header next to the repo name whenever any feature in the tree has uncommitted changes. The badge on a feature's own history page uses the same styling.
 
 ### Security
 
