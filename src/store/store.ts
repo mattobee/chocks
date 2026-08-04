@@ -120,7 +120,13 @@ function indexFileFor(root: string, id: string): string {
   return file
 }
 
-/** Resolves a feature id to its current leaf or index file. */
+/**
+ * Resolves a feature id to its current leaf or index file.
+ *
+ * Both forms are checked for symlinks here rather than left to the caller, because callers
+ * outside this module use the returned path directly. `readSnapshot` re-checks the file it
+ * is about to open, which is cheap and keeps that guarantee local to the read.
+ */
 export async function featureFileFor(root: string, id: string): Promise<string> {
   const directory = dirFor(root, id)
   await assertNoSymlinks(root, directory)
@@ -129,7 +135,9 @@ export async function featureFileFor(root: string, id: string): Promise<string> 
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
-  return leafFileFor(root, id)
+  const leaf = leafFileFor(root, id)
+  await assertNoSymlinks(root, leaf)
+  return leaf
 }
 
 /** Resolves a feature id to its directory form. */

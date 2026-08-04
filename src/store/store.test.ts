@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   backfill,
   create,
+  featureFileFor,
   move,
   read,
   remove,
@@ -260,6 +261,35 @@ describe('symbolic links', () => {
 
       await expect(remove(root, 'linked/secret')).rejects.toMatchObject({ status: 400 })
       expect(existsSync(outsideFile)).toBe(true)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to resolve a linked leaf file, so callers cannot follow it', async () => {
+    // The history route uses the path from featureFileFor directly, with no read to
+    // re-check it.
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-outside-'))
+    try {
+      const target = path.join(outside, 'secret.chocks.md')
+      await writeFile(target, '---\ntitle: Secret\nsort: a0\n---\n', 'utf8')
+      await symlink(target, path.join(root, 'leak.chocks.md'))
+
+      await expect(featureFileFor(root, 'leak')).rejects.toThrow(/Symbolic links/)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('skips a linked feature file rather than reading through it', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'chocks-outside-'))
+    try {
+      const target = path.join(outside, 'secret.chocks.md')
+      await writeFile(target, '---\ntitle: Secret\nsort: a0\n---\n', 'utf8')
+      await symlink(target, path.join(root, 'leak.chocks.md'))
+      await given('real.chocks.md', 'title: Real\nsort: a0')
+
+      expect((await scan(root)).map((feature) => feature.id)).toEqual(['real'])
     } finally {
       await rm(outside, { recursive: true, force: true })
     }
