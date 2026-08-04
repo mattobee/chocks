@@ -1,6 +1,6 @@
 # Changelog
 
-What changed for people using chocks. Internal tidying, dependency bumps and documentation
+What changed for people using Chocks. Internal tidying, dependency bumps and documentation
 don't appear here.
 
 Releases before 0.1.3 predate this file.
@@ -13,13 +13,13 @@ Releases before 0.1.3 predate this file.
 
 ### Security
 
-- The bundled hono is updated to 4.12.34, which carries fixes for four advisories. chocks
+- The bundled hono is updated to 4.12.34, which   carries fixes for four advisories. Chocks
   only uses hono's core routing, so none of the affected modules apply, but the upgrade
   keeps the dependency clear of known issues.
 
 ### Changed
 
-- Parent features now live in one directory with their children, using `index.chocks.md` for the parent's content. Existing trees migrate automatically the first time chocks 0.6.0 runs. That migration is one way: once it has run, 0.5.0 and earlier can't read the tree, so don't roll back to an older version after upgrading.
+- Parent features now live in one directory with their children, using `index.chocks.md` for the parent's content. Existing trees migrate automatically the first time Chocks 0.6.0 runs. That migration is one way: once it has run, 0.5.0 and earlier can't read the tree, so don't roll back to an older version after upgrading.
 - The per-feature tag limit is now 100 (was 20).
 
 [Full changes](https://github.com/mattobee/chocks/compare/v0.5.0...v0.6.0)
@@ -45,10 +45,10 @@ Releases before 0.1.3 predate this file.
   that create, edit, move, or delete a feature must come from the same origin. That closes
   a route for a malicious website to change your tree without you asking.
 - A feature directory can no longer be a symbolic link, which could otherwise redirect
-  chocks reads or writes outside `.chocks`.
+  Chocks reads or writes outside `.chocks`.
 - Editing the same tree from more than one place at once (two tabs, or a tab and an agent)
   now queues the changes instead of one silently overwriting another. A change made
-  outside chocks while that's in flight is reported as a conflict rather than lost.
+  outside Chocks while that's in flight is reported as a conflict rather than lost.
 - A feature that disappears mid-scan is skipped instead of failing the whole scan. A move
   that fails partway through is rolled back instead of leaving the tree split across the
   old and new location.
@@ -64,7 +64,7 @@ Releases before 0.1.3 predate this file.
 ### Changed
 
 - Feature files are named `<slug>.chocks.md` rather than `<slug>.feature.md`. Rename any
-  you already have: chocks no longer reads the old suffix, and says so at startup, naming
+  you already have: Chocks no longer reads the old suffix, and says so at startup, naming
   the files it skipped. The old name is Cucumber's Markdown with Gherkin spec, so a repo
   doing BDD had two unrelated meanings for one extension.
 - Status and tag filters are multi-select dropdowns instead of toggle chips, so they no
@@ -75,8 +75,8 @@ Releases before 0.1.3 predate this file.
 
 ### Added
 
-- Files that appear while chocks is running get their permanent id straight away whether
-  or not a tab is open. Point an agent at your repo with chocks running headless and you
+- Files that appear while Chocks is running get their permanent id straight away whether
+  or not a tab is open. Point an agent at your repo   with Chocks running headless and you
   no longer have to restart it before committing.
 - Search has its own clear button, and "Clear filters" resets the status and tag filters
   without touching the search text.
@@ -121,13 +121,13 @@ Releases before 0.1.3 predate this file.
   a delete puts the whole subtree back with the same uids, so links to it keep working.
   The stack survives a refresh and goes when you close the tab; nothing extra is written
   to `.chocks`.
-- The footer shows which version of chocks is running, linked to its release notes.
+- The footer shows which version of Chocks is running, linked to its release notes.
 
 ### Fixed
 
 - Dragging a feature works on a tree seeded without sort keys, which previously failed
   with "Internal error". That covers any tree an agent wrote.
-- chocks starts and keeps running when a feature file or `config.yaml` cannot be written
+- Chocks starts and keeps running when a feature file or `config.yaml` cannot be written
   or read, reporting what it could not do rather than stopping.
 - Errors say what went wrong instead of "Internal error".
 
@@ -137,7 +137,7 @@ Releases before 0.1.3 predate this file.
 
 ### Added
 
-- Features seeded into `.chocks` while chocks is running now get their permanent id
+- Features seeded into `.chocks` while Chocks is running now get their permanent id
   straight away, so links to them work without a restart.
 
 ### Fixed
