@@ -1,6 +1,6 @@
 ---
 title: Expand and collapse
-status: idea
+status: released
 sort: a0
 uid: ea2d787a90
 ---

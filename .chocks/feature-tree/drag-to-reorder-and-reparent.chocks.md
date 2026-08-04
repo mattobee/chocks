@@ -1,6 +1,6 @@
 ---
 title: Drag to reorder and reparent
-status: idea
+status: released
 tags:
   - ux
 sort: a1

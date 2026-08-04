@@ -8,9 +8,6 @@
 # Colours: slate, blue, amber, emerald, orange, rose, violet, muted.
 
 statuses:
-  - id: idea
-    label: Idea
-    color: slate
   - id: planned
     label: Planned
     color: blue
