@@ -17,7 +17,7 @@ export function formatContext(features: Feature[]): string {
         title: feature.title,
         status: feature.status,
         tags: feature.tags,
-        description: feature.description,
+        description: feature.description.split(/\r?\n\s*\r?\n/, 1)[0] ?? '',
       } satisfies ContextEntry),
       ...lines(children),
     ])

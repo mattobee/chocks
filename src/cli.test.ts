@@ -46,7 +46,7 @@ describe('chocks context', () => {
     )
   })
 
-  it('prints a nested tree in stable tree order', async () => {
+  it('prints a nested tree with first description paragraphs in stable order', async () => {
     await feature(
       'auth/index.chocks.md',
       'title: Authentication\nstatus: released\ntags: [security]\nsort: a0',
@@ -84,7 +84,7 @@ describe('chocks context', () => {
           title: 'Passwords',
           status: 'planned',
           tags: ['security', 'accounts'],
-          description: 'Reset passwords.\n\nIncludes expiry.',
+          description: 'Reset passwords.',
         },
       ]
         .map((entry) => JSON.stringify(entry))
