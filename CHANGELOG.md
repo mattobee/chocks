@@ -5,6 +5,20 @@ don't appear here.
 
 Releases before 0.1.3 predate this file.
 
+## 0.6.0
+
+### Added
+
+- `chocks context` prints the feature tree as JSON Lines, so coding agents can read its
+  product scope, status, and terminology without crawling `.chocks`.
+
+### Changed
+
+- Parent features now live in one directory with their children, using `index.chocks.md`
+  for the parent's content. Existing trees migrate automatically when chocks starts.
+
+[Full changes](https://github.com/mattobee/chocks/compare/v0.5.0...v0.6.0)
+
 ## 0.5.0
 
 ### Added
