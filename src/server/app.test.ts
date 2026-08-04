@@ -1,9 +1,13 @@
+import { execFile } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from './app'
 import type { Feature, Workspace } from '../lib/types'
+
+const run = promisify(execFile)
 
 let root: string
 let app: ReturnType<typeof createApp>['app']
@@ -385,6 +389,43 @@ describe('history route', () => {
   it('refuses a traversing id', async () => {
     const response = await app.request('/api/history/..%2F..%2Fetc%2Fpasswd')
     expect(response.status).toBe(400)
+  })
+})
+
+describe('GET /api/uncommitted', () => {
+  async function git(...args: string[]): Promise<void> {
+    await run('git', ['-C', root, ...args])
+  }
+
+  it('is empty with no repo at all', async () => {
+    const response = await app.request('/api/uncommitted')
+    expect(await response.json()).toEqual({ ids: [] })
+  })
+
+  it('lists a feature that is written but not committed', async () => {
+    await git('init', '-q', '-b', 'main')
+    const feature = await createFeature('', 'Auth')
+
+    const response = await app.request('/api/uncommitted')
+    expect(await response.json()).toEqual({ ids: [feature.id] })
+  })
+
+  it('is empty again once committed', async () => {
+    await git('init', '-q', '-b', 'main')
+    await createFeature('', 'Auth')
+    await git('add', '-A')
+    await git(
+      '-c',
+      'user.email=t@example.com',
+      '-c',
+      'user.name=Tester',
+      'commit',
+      '-m',
+      'feat: add auth',
+    )
+
+    const response = await app.request('/api/uncommitted')
+    expect(await response.json()).toEqual({ ids: [] })
   })
 })
 

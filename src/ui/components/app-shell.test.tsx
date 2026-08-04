@@ -4,18 +4,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppShell } from './app-shell'
 import { renderWithRouter } from '@/ui/test-utils'
 import { DEFAULT_STATUSES } from '@/lib/status'
-import type { Workspace } from '@/lib/types'
+import type { UncommittedFeatures, Workspace } from '@/lib/types'
 
 const workspace = vi.fn<() => Promise<Workspace>>()
+const uncommitted = vi.fn<() => Promise<UncommittedFeatures>>()
 
 vi.mock('@/ui/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/ui/lib/api')>()
-  return { ...actual, api: { ...actual.api, workspace: () => workspace() } }
+  return {
+    ...actual,
+    api: { ...actual.api, workspace: () => workspace(), uncommitted: () => uncommitted() },
+  }
 })
 
-afterEach(() => workspace.mockReset())
+afterEach(() => {
+  workspace.mockReset()
+  uncommitted.mockReset()
+})
 
-async function setup(overrides: Partial<Workspace> = {}) {
+async function setup(overrides: Partial<Workspace> = {}, uncommittedIds: string[] = []) {
   workspace.mockResolvedValue({
     root: '/repo/.chocks',
     name: 'chocks',
@@ -24,6 +31,7 @@ async function setup(overrides: Partial<Workspace> = {}) {
     config: { statuses: DEFAULT_STATUSES },
     ...overrides,
   })
+  uncommitted.mockResolvedValue({ ids: uncommittedIds })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   await renderWithRouter(
     <QueryClientProvider client={client}>
@@ -62,5 +70,20 @@ describe('version in the footer', () => {
 
     await waitFor(() => expect(screen.getByText('Page content')).toBeInTheDocument())
     expect(screen.getByRole('contentinfo')).toHaveTextContent('')
+  })
+})
+
+describe('uncommitted changes badge in the header', () => {
+  it('shows up when any feature has unsaved changes', async () => {
+    await setup({}, ['auth'])
+
+    expect(await screen.findByText('Uncommitted changes')).toBeInTheDocument()
+  })
+
+  it('stays hidden when every feature is committed', async () => {
+    await setup()
+
+    await waitFor(() => expect(screen.getByText('Page content')).toBeInTheDocument())
+    expect(screen.queryByText('Uncommitted changes')).not.toBeInTheDocument()
   })
 })

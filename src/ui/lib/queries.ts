@@ -5,6 +5,7 @@ export const queryKeys = {
   workspace: ['workspace'] as const,
   features: ['features'] as const,
   history: (id: string) => ['history', id] as const,
+  uncommitted: ['uncommitted'] as const,
 }
 
 export const workspaceQuery = () =>
@@ -12,6 +13,14 @@ export const workspaceQuery = () =>
 
 export const featuresQuery = () =>
   queryOptions({ queryKey: queryKeys.features, queryFn: api.listFeatures })
+
+export const uncommittedQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.uncommitted,
+    queryFn: api.uncommitted,
+    // Shelling out to git; the file/git watchers push a refetch when it can have changed.
+    staleTime: 60_000,
+  })
 
 export const historyQuery = (id: string) =>
   queryOptions({

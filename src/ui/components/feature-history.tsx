@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { GitCommitVertical, PencilLine } from 'lucide-react'
-import { Badge } from '@/ui/components/ui/badge'
+import { GitCommitVertical, SquareDot } from 'lucide-react'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { historyQuery } from '@/ui/lib/queries'
+import { MODIFIED_COLOR } from '@/lib/status'
 
 /**
  * A feature's history, read straight from git.
@@ -49,10 +49,10 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
       */}
       <div role="status" aria-live="polite" className="empty:hidden">
         {data.uncommitted ? (
-          <Badge variant="outline" className="w-fit gap-1.5">
-            <PencilLine className="size-3.5" aria-hidden="true" />
-            Uncommitted changes
-          </Badge>
+          <span className={`flex items-center gap-1.5 text-sm ${MODIFIED_COLOR}`}>
+            <SquareDot className="size-4" aria-hidden="true" />
+            Modified
+          </span>
         ) : (
           <span className="sr-only">All changes committed</span>
         )}

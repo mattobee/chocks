@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FolderGit2 } from 'lucide-react'
+import { FolderGit2, SquareDot } from 'lucide-react'
+import { MODIFIED_COLOR } from '@/lib/status'
 import { ColorModeSwitcher } from '@/ui/components/color-mode-switcher'
-import { workspaceQuery } from '@/ui/lib/queries'
+import { uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
 
 /** One place to change the page width, so pages can't drift apart. */
 const CONTAINER = 'mx-auto w-full max-w-4xl px-6'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const workspace = useQuery(workspaceQuery())
+  const uncommitted = useQuery(uncommittedQuery())
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -27,6 +29,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               <FolderGit2 className="size-4" aria-hidden="true" />
               {workspace.data.name}
             </span>
+          )}
+          {uncommitted.data && uncommitted.data.ids.length > 0 && (
+            <div role="status" aria-live="polite">
+              <span className={`flex items-center gap-1.5 text-sm ${MODIFIED_COLOR}`}>
+                <SquareDot className="size-4" aria-hidden="true" />
+                Uncommitted changes
+              </span>
+            </div>
           )}
           <div className="ms-auto">
             <ColorModeSwitcher />

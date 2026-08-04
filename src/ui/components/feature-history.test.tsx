@@ -38,7 +38,7 @@ describe('uncommitted indicator', () => {
     setup({ commits: [commit], uncommitted: true })
     const region = await screen.findByRole('status')
     expect(region).toHaveAttribute('aria-live', 'polite')
-    expect(region).toHaveTextContent('Uncommitted changes')
+    expect(region).toHaveTextContent('Modified')
   })
 
   it('still has a region, and readable text, once committed', async () => {
