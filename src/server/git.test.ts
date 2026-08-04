@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { featureHistory, isGitRepo } from './git'
+import { featureHistory, isGitRepo, uncommittedFeatureIds } from './git'
 
 const run = promisify(execFile)
 
@@ -138,6 +138,85 @@ describe('featureHistory', () => {
     const history = await featureHistory(repo, '/etc/passwd')
     expect(history.unavailable).toBe('failed')
     expect(history.commits).toEqual([])
+  })
+})
+
+describe('uncommittedFeatureIds', () => {
+  it('is empty with nothing but committed features', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual([])
+  })
+
+  it('lists every changed feature, not just one', async () => {
+    const auth = path.join(repo, '.chocks', 'auth.chocks.md')
+    const oauth = path.join(repo, '.chocks', 'oauth.chocks.md')
+    await writeFile(auth, '---\ntitle: Auth\n---\n', 'utf8')
+    await writeFile(oauth, '---\ntitle: OAuth\n---\n', 'utf8')
+    await commit('feat: add auth and oauth')
+
+    await writeFile(oauth, '---\ntitle: OAuth\nstatus: released\n---\n', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual(['oauth'])
+  })
+
+  it('reports a nested feature by its full id', async () => {
+    await mkdir(path.join(repo, '.chocks', 'auth'), { recursive: true })
+    const oauth = path.join(repo, '.chocks', 'auth', 'oauth.chocks.md')
+    await writeFile(oauth, '---\ntitle: OAuth\n---\n', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual(['auth/oauth'])
+  })
+
+  it('reports a directory feature by its id, not index/index', async () => {
+    await mkdir(path.join(repo, '.chocks', 'auth'), { recursive: true })
+    const file = path.join(repo, '.chocks', 'auth', 'index.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual(['auth'])
+  })
+
+  it('ignores a bare index.chocks.md that is not a feature', async () => {
+    const file = path.join(repo, '.chocks', 'index.chocks.md')
+    await writeFile(file, '---\ntitle: Root\n---\n', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual([])
+  })
+
+  it('ignores an edit outside the chocks directory', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+
+    await writeFile(path.join(repo, 'README.md'), 'unrelated edit', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual([])
+  })
+
+  it('ignores a non-feature file inside the chocks directory', async () => {
+    await writeFile(path.join(repo, '.chocks', 'config.yaml'), 'statuses: []', 'utf8')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual([])
+  })
+
+  it('reports the new id of a renamed feature, not the old one', async () => {
+    const before = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(before, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+
+    await rename(before, path.join(repo, '.chocks', 'authentication.chocks.md'))
+    await git('add', '-A')
+    expect(await uncommittedFeatureIds(repo, path.join(repo, '.chocks'))).toEqual([
+      'authentication',
+    ])
+  })
+
+  it('is empty outside a repo rather than throwing', async () => {
+    const loose = await mkdtemp(path.join(tmpdir(), 'chocks-loose-'))
+    try {
+      expect(await uncommittedFeatureIds(loose, loose)).toEqual([])
+    } finally {
+      await rm(loose, { recursive: true, force: true })
+    }
+  })
+
+  it('is empty for a chocks directory outside the repo', async () => {
+    expect(await uncommittedFeatureIds(repo, '/etc')).toEqual([])
   })
 })
 

@@ -1,4 +1,4 @@
-import type { Feature, FeatureHistory, Workspace } from '../../lib/types'
+import type { Feature, FeatureHistory, UncommittedFeatures, Workspace } from '../../lib/types'
 
 /**
  * Client for the local chocks server.
@@ -46,6 +46,8 @@ export const api = {
   workspace: () => request<Workspace>('/api/workspace'),
 
   listFeatures: () => request<Feature[]>('/api/features'),
+
+  uncommitted: () => request<UncommittedFeatures>('/api/uncommitted'),
 
   /** `uid`, `sort` and `slug` put a deleted feature back as itself. Not for new ones. */
   createFeature: (input: {

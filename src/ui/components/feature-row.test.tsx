@@ -28,6 +28,7 @@ async function setup(overrides: Partial<FeatureRowProps> = {}) {
             expanded={false}
             matched
             filtering={false}
+            uncommitted={false}
             {...handlers}
             {...overrides}
           />
@@ -99,5 +100,17 @@ describe('accessible names', () => {
   it('links the title to the feature page', async () => {
     await setup()
     expect(screen.getByRole('link', { name: 'Auth' })).toHaveAttribute('href', '/f/auth~a1b2c3d4e5')
+  })
+})
+
+describe('uncommitted changes', () => {
+  it('shows a marker next to the title when the feature has unsaved changes', async () => {
+    await setup({ uncommitted: true })
+    expect(screen.getByRole('img', { name: 'Modified' })).toBeInTheDocument()
+  })
+
+  it('shows no marker for a committed feature', async () => {
+    await setup({ uncommitted: false })
+    expect(screen.queryByRole('img', { name: 'Modified' })).not.toBeInTheDocument()
   })
 })

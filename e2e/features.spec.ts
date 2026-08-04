@@ -124,14 +124,14 @@ test.describe('uncommitted indicator', () => {
     await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
     await expect(titleHeading(page)).toHaveText('OAuth providers')
 
-    const status = page.getByRole('status')
+    const status = page.getByRole('main').getByRole('status')
     await expect(status).toHaveText('All changes committed')
 
     await page.getByRole('button', { name: 'Edit description' }).click()
     await page.getByRole('textbox', { name: 'Description' }).fill('Now with Apple.')
     await page.getByRole('button', { name: 'Save' }).click()
 
-    await expect(status).toHaveText('Uncommitted changes', { timeout: 10_000 })
+    await expect(status).toHaveText('Modified', { timeout: 10_000 })
 
     // Committing does not touch the feature file, so this only clears if git is watched.
     await workspace.commit('docs: describe oauth')

@@ -13,7 +13,7 @@ import { Skeleton } from '@/ui/components/ui/skeleton'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useExpanded } from '@/ui/hooks/use-expanded'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
-import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
+import { featuresQuery, uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
 import {
   allTags,
   buildTree,
@@ -47,10 +47,15 @@ function TreePage() {
 
   const features = useQuery(featuresQuery())
   const workspace = useQuery(workspaceQuery())
+  const uncommitted = useQuery(uncommittedQuery())
   const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
   useWatchFiles()
 
   const featureList = useMemo(() => features.data ?? [], [features.data])
+  const uncommittedIds = useMemo(
+    () => new Set(uncommitted.data?.ids ?? []),
+    [uncommitted.data?.ids],
+  )
   const { create, update, remove, move } = useFeatureMutations(featureList)
   const { expanded, toggle, setExpanded } = useExpanded()
 
@@ -180,6 +185,7 @@ function TreePage() {
             statuses={statuses}
             matchedIds={filtered.matchedIds}
             filtering={filtering}
+            uncommittedIds={uncommittedIds}
             onToggle={toggle}
             onAddChild={openCreate}
             onEdit={(feature) => {

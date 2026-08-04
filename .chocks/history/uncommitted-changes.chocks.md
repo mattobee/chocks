@@ -8,3 +8,5 @@ uid: d55f21547f
 ---
 
 Says when a feature has edits that are not committed yet. Committing does not touch the file, so git is watched separately from the tree.
+
+The same indicator sits in the header, next to the repo name, whenever any feature has unsaved changes — not just the one currently open. A marker also appears on every modified row in the tree.

@@ -1,6 +1,6 @@
 ---
 title: Live reload from disk
-status: released
+status: deprecated
 sort: Zz
 uid: ad33f4333b
 ---

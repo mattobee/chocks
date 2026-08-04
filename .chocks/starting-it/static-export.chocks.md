@@ -1,6 +1,6 @@
 ---
 title: Static export
-status: planned
+status: deprecated
 tags:
   - api
 sort: a0

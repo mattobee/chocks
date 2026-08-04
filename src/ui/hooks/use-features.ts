@@ -17,7 +17,7 @@ function message(error: unknown, fallback: string): string {
  *
  * A feature write changes the tree and also its git status, so both are refetched. A git
  * event leaves the files alone but changes their history, which is what makes the
- * "uncommitted changes" indicator clear itself the moment you commit.
+ * "uncommitted changes" indicators clear themselves the moment you commit.
  */
 export function useWatchFiles(): void {
   const queryClient = useQueryClient()
@@ -28,6 +28,7 @@ export function useWatchFiles(): void {
           void queryClient.invalidateQueries({ queryKey: queryKeys.features })
         }
         void queryClient.invalidateQueries({ queryKey: ['history'] })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.uncommitted })
       }),
     [queryClient],
   )
