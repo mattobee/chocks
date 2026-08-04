@@ -11,6 +11,12 @@ Releases before 0.1.3 predate this file.
 
 - `chocks context` prints the feature tree as JSON Lines, so coding agents can read its product scope, status, and terminology without crawling `.chocks`.
 
+### Security
+
+- The bundled hono is updated to 4.12.34, which carries fixes for four advisories. chocks
+  only uses hono's core routing, so none of the affected modules apply, but the upgrade
+  keeps the dependency clear of known issues.
+
 ### Changed
 
 - Parent features now live in one directory with their children, using `index.chocks.md` for the parent's content. Existing trees migrate automatically the first time chocks 0.6.0 runs. That migration is one way: once it has run, 0.5.0 and earlier can't read the tree, so don't roll back to an older version after upgrading.
