@@ -36,6 +36,10 @@ describe('chocks context', () => {
     expect(await runContext()).toBe('')
   })
 
+  it('prints nothing when the feature directory does not exist', async () => {
+    expect(await runContext(path.join(root, 'absent'))).toBe('')
+  })
+
   it('reports ignored markdown files on stderr', async () => {
     await feature('auth.md', 'title: Authentication\nstatus: released')
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
