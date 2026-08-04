@@ -1,123 +1,123 @@
 # chocks
 
-Track planned and existing features as a nested tree, stored as files in your repo.
+Every feature of your product, from planned to deprecated, as a tree of markdown files in your repo.
 
-Like Storybook, chocks is a dev tool that lives alongside the code rather than a service
-you sign into. Run it in a repo, get a UI on localhost, and your feature tree is a
-directory of markdown files you commit, branch, diff and review like anything else.
+Your issue tracker tracks work. Tickets close and disappear, and once they have, nothing tells you what the product does or what state each part of it is in. Chocks tracks that instead.
+
+It's a dev tool, not a service you sign into. Run it in a repo, get a UI on localhost, and your feature tree is a directory of markdown files you commit, branch, diff and review like anything else.
 
 ```sh
 pnpm add -D @mattobee/chocks
 pnpm chocks
 ```
 
-Published to npm. The source lives in a private repo, but the package itself is public,
-so installing it needs no registry config and no token.
-
 ## Why files
 
 The feature tree belongs next to the code that implements it.
 
-- **The plan changes in the same pull request as the code.** A reviewer sees the feature
-  move to `done` in the same diff that makes it true.
-- **Branches work.** Sketch a feature tree on a spike branch and throw it away with the
-  branch.
+- **The plan changes in the same pull request as the code.** A reviewer sees the feature move to `released` in the same diff that makes it true.
+- **Branches work.** Sketch a feature tree on a spike branch and throw it away with the branch.
 - **No account, no server, no sync.** Access control is having the repo checked out.
-- **Nothing to lose.** Worst case, `.chocks` is a folder of markdown you can read in any
-  editor.
+- **Agents can read it.** `chocks context` prints the whole tree in one go, so a coding agent starts a session knowing what the product does and what state each part is in, rather than inferring it from the code.
+- **Nothing to lose.** Worst case, `.chocks` is a folder of markdown you can read in any editor.
+
+A tree lives in one repo. For a product spread across several, you can keep a tree in each, or put the whole product in one dedicated chocks repo. One tree gives you one map of the product. The cost is that the plan no longer changes in the same pull request as the code, which is what stops a tree going stale. I'd keep a tree per repo, but that's a preference rather than a rule.
+
+## Statuses
+
+The defaults are a lifecycle, not a workflow: Planned, Pre-release, Released, Deprecated, plus Dropped for something considered and rejected.
+
+Each one says where a feature is, not how much effort is going into it. That's deliberate. "In progress" collides with every other state, since a released feature is usually still being worked on. Activity is a separate axis, so use a tag for that instead.
+
+It's also the difference between chocks and an issue tracker in markdown. A ticket describes work that finishes and goes away. A status describes the product, which is still there afterwards.
+
+Override them in `.chocks/config.yaml`:
+
+```yaml
+statuses:
+  - id: idea
+    label: Idea
+    color: slate
+  - id: shipped
+    label: Shipped
+    color: emerald
+```
+
+### What doesn't belong in the tree
+
+I moved this repo's own ideas and not-yet-started features out of chocks and into GitHub issues. What stayed is everything that's a statement about what shipped: released, pre-release, deprecated and dropped.
+
+That's the boundary I'd suggest. Planned is for something you've decided to build and want visible in the tree, not for a backlog of maybes. If you're reordering the tree to work out what to do next, that belongs in your issue tracker instead.
+
+It's a judgement call rather than anything the tool enforces, so ignore it if your team works differently.
 
 ## Layout
 
-A leaf feature is `<slug>.chocks.md`. A feature with children is a `<slug>/` directory
-containing `index.chocks.md` alongside those children:
+A leaf feature is `<slug>.chocks.md`. A feature with children is a `<slug>/` directory containing `index.chocks.md` alongside those children:
 
 ```
 .chocks/
-  authentication/
+  notifications/
     index.chocks.md
-    oauth-providers/
+    email/
       index.chocks.md
-      github.chocks.md
-      google.chocks.md
+      daily-digest.chocks.md
+      instant-alerts.chocks.md
 ```
 
-Every feature directory must contain `index.chocks.md`. A directory without one is invalid,
-as is `index.chocks.md` directly under `.chocks/`. Adding a first child automatically changes
-a leaf into directory form. Removing its last child leaves directory form in place.
+Every feature directory must contain `index.chocks.md`. A directory without one is invalid, as is `index.chocks.md` directly under `.chocks/`. Adding a first child automatically changes a leaf into directory form. Removing its last child leaves directory form in place.
 
 ```markdown
 ---
-title: OAuth providers
-status: in-progress
+title: Daily digest email
+status: pre-release
 tags:
-  - api
+  - notifications
 ---
 
-Supports GitHub and Google. Needs a token refresh story before this is done.
+Sends once a day with everything you missed. Still behind a flag while the send time is settled.
 ```
 
-The markdown body is the description, and everything is editable by hand: the running UI
-picks up changes immediately. Features saved through chocks allow titles up to 300 characters,
-20 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id
-is its path, so there's no `parent` field
-that can disagree with the filesystem, and moving or retitling a feature is just a rename.
-Links keep working after a move, because they resolve on a `uid` generated once per
-feature rather than on the path.
+The markdown body is the description, and everything is editable by hand: the running UI picks up changes immediately. Features saved through chocks allow titles up to 300 characters, 100 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id is its path, so there's no `parent` field that can disagree with the filesystem, and moving or retitling a feature is just a rename. Links keep working after a move, because they resolve on a `uid` generated once per feature rather than on the path.
 
 ## Seeding a tree
 
-A new install has no tree. The fastest way to fill one in is pointing a coding agent at
-the repo and asking it to read the code for you.
+A new install has no tree. The fastest way to fill one in is pointing a coding agent at the repo and asking it to read the code for you.
 
 ```
 Read this codebase and populate .chocks with a feature tree.
 
-A feature is a capability someone outside the team would recognise, not a file, a
-function or an internal system. Split down to individual actions where each has its own
-lifecycle: creating, editing and deleting a thing usually ship at different times, so
-`create-audit`, `edit-audit` and `delete-audit` belong under `audits/` as three features,
-not one. Stop splitting once you'd be naming something no user or PM would ever refer to
-separately, or that only exists because of how the code happens to be organised.
+A feature is a capability someone outside the team would recognise, not a file, a function or an internal system. Split down to individual actions where each has its own lifecycle: creating, editing and deleting a thing usually ship at different times, so `create-invoice`, `edit-invoice` and `delete-invoice` belong under `invoices/` as three features, not one. Stop splitting once you'd be naming something no user or PM would ever refer to separately, or that only exists because of how the code happens to be organised.
 
-A leaf feature is <slug>.chocks.md. A feature with children is a <slug>/ directory with
-its own content in <slug>/index.chocks.md and its children alongside that index. Never
-create both <slug>.chocks.md and <slug>/ for one feature, and never create a feature
-directory without index.chocks.md. For each feature, write a title, a status, tags for
-cross-cutting concerns such as "api" or "billing", and a couple of sentences describing
-it in the markdown body. The status must be one of planned, pre-release, released,
-deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case
-use those ids exactly. Guess released for something that looks fully built, pre-release
-for something still missing pieces, and planned for something referenced but not started.
-Skip uid and sort: chocks fills those in the first time it runs. For example:
+A leaf feature is <slug>.chocks.md. A feature with children is a <slug>/ directory with its own content in <slug>/index.chocks.md and its children alongside that index. Never create both <slug>.chocks.md and <slug>/ for one feature, and never create a feature directory without index.chocks.md.
+
+For each feature, write a title, a status, tags for cross-cutting concerns such as "api" or "billing", and a couple of sentences describing it in the markdown body. The status must be one of planned, pre-release, released, deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case use those ids exactly. Use released for something that looks fully built, and pre-release for something still missing pieces.
+
+Only add features you can see in the code. Leave out anything referenced but not built, like a TODO or an empty route. You can't tell from the code whether it's planned or abandoned, and a wrong guess is harder to notice later than a gap.
+
+Skip uid and sort. chocks fills those in the first time it runs. For example:
 
 ---
-title: OAuth providers
+title: Daily digest email
 status: pre-release
 tags:
-  - api
+  - notifications
 ---
 
-Supports GitHub and Google. Needs a token refresh story before this is done.
+Sends once a day with everything you missed. Still behind a flag while the send time is settled.
 ```
 
-Review the result before committing it. An agent can only see what's in the repo, so it
-will get statuses wrong for anything still in your head and miss features that were
-deliberately dropped. That's a starting point to edit, not a finished tree.
+Review the result before committing it. An agent can only see what's in the repo, so it will get statuses wrong for anything still in your head and miss features that were deliberately dropped. That's a starting point to edit, not a finished tree.
 
-If chocks is running while the agent works, it backfills uids for the new files as they
-land, with or without a tab open. If it isn't, it does the same the next time it starts.
+If chocks is running while the agent works, it backfills uids for the new files as they land, with or without a tab open. If it isn't, it does the same the next time it starts.
 
-For a big or unfamiliar codebase, narrow the same prompt to one directory or one PR's
-diff at a time rather than asking for the whole tree in one pass.
+For a big or unfamiliar codebase, narrow the same prompt to one directory or one PR's diff at a time rather than asking for the whole tree in one pass.
 
 ## Agent context
 
-`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has
-one feature's path, title, status, tags and a summary taken from the first paragraph of its
-description. It writes only to stdout and does not start the server or open a browser.
+`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, tags and a summary taken from the first paragraph of its description. It writes only to stdout and does not start the server or open a browser.
 
-Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of
-inferring it from the code:
+Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of inferring it from the code:
 
 ```markdown
 ## Product context
@@ -130,27 +130,6 @@ Pass `--dir` when the feature directory is somewhere other than `.chocks`:
 
 ```sh
 npx chocks context --dir docs/features
-```
-
-## Statuses
-
-The defaults are a lifecycle, not a workflow: Planned, Pre-release, Released,
-Deprecated, plus Dropped for something considered and rejected.
-
-Each one describes where a feature is, not how much effort is going into it. That's
-deliberate: "in progress" collides with every other state, since a released feature is
-usually still being worked on. Activity is a separate axis, so use a tag for that instead.
-
-Override them in `.chocks/config.yaml`:
-
-```yaml
-statuses:
-  - id: idea
-    label: Idea
-    color: slate
-  - id: shipped
-    label: Shipped
-    color: emerald
 ```
 
 ## Usage
@@ -168,28 +147,13 @@ npx chocks context [options]
   -h, --help          Show this message
 ```
 
-It walks up from the working directory to find the repo root, creating `.chocks` on first
-run. Before binding, it migrates the old sibling file and directory layout to index files
-and renames remaining `*.feature.md` files to `*.chocks.md`. Clean git repositories use
-`git mv`; other trees use filesystem moves. Symbolic links inside the feature directory
-are refused so reads and writes cannot escape it. Binds to loopback unless you pass
-`--host`. Requests for any other host are rejected, and browser changes must come from the
-same origin.
+It walks up from the working directory to find the repo root, creating `.chocks` on first run. Before binding, it migrates the old sibling file and directory layout to index files and renames remaining `*.feature.md` files to `*.chocks.md`. Clean git repositories use `git mv`; other trees use filesystem moves. Symbolic links inside the feature directory are refused so reads and writes cannot escape it. Binds to loopback unless you pass `--host`. Requests for any other host are rejected, and browser changes must come from the same origin.
 
 ## What the UI does
 
-Tree view with expand/collapse, inline rename and status, drag to reorder and reparent,
-and search and status/tag filters that prune the tree while keeping ancestors visible.
-Every feature also has its own page at `/f/<slug>~<uid>`, showing its breadcrumb trail,
-description, sub-features and git history, the commits that touched that file. chocks has
-no revision model of its own on purpose: the repo already records who changed what and
-why, usually in the same commit as the code the feature describes.
+Tree view with expand/collapse, inline rename and status, drag to reorder and reparent, and search and status/tag filters that prune the tree while keeping ancestors visible. Every feature also has its own page at `/f/<slug>~<uid>`, showing its breadcrumb trail, description, sub-features and git history, the commits that touched that file. chocks has no revision model of its own on purpose: the repo already records who changed what and why, usually in the same commit as the code the feature describes.
 
-`Cmd+Z` undoes the last change, `Cmd+Shift+Z` redoes it, and both work several steps back.
-That is a safety net for the edit you regret a second later, not a history: it survives a
-refresh but goes when you close the tab, and nothing extra is written to `.chocks`. Undoing a delete
-puts the whole subtree back with the same uids, so links to it keep working. If a feature
-has changed on disk since, the undo is refused rather than applied over the top.
+`Cmd+Z` undoes the last change, `Cmd+Shift+Z` redoes it, and both work several steps back. That is a safety net for the edit you regret a second later, not a history: it survives a refresh but goes when you close the tab, and nothing extra is written to `.chocks`. Undoing a delete puts the whole subtree back with the same uids, so links to it keep working. If a feature has changed on disk since, the undo is refused rather than applied over the top.
 
 ## Development
 
@@ -202,6 +166,4 @@ pnpm test:e2e     # builds, then runs Playwright
 pnpm build        # dist/ui (Vite) + dist/cli.mjs (tsdown)
 ```
 
-`src/lib` is pure and shared by both sides: tree building, filtering, drag projection and
-sort keys. `src/store` owns the file format and the filesystem. `src/server` is Hono.
-`src/ui` is React, Tailwind and shadcn/ui on Base UI.
+`src/lib` is pure and shared by both sides: tree building, filtering, drag projection and sort keys. `src/store` owns the file format and the filesystem. `src/server` is Hono. `src/ui` is React, Tailwind and shadcn/ui on Base UI.
