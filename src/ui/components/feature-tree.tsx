@@ -149,8 +149,10 @@ export function FeatureTree({
           <div className="bg-background flex items-center gap-2 rounded-md border px-2 py-1 text-sm shadow-lg">
             <span className="truncate">{activeFeature.title}</span>
             {/* Read-only: the overlay floats over the tree mid-drag, so nothing in it can
-                be interactive. */}
-            <span className="flex items-center gap-1.5 text-muted-foreground">
+                be interactive. StatusDot takes its size from context, and this span is
+                the one place using it outside a shadcn component that already sets that
+                convention, so it states it directly. */}
+            <span className="flex items-center gap-1.5 text-muted-foreground [&_svg:not([class*='size-'])]:size-4">
               <StatusDot statuses={statuses} status={activeFeature.status} />
               {statusOrUnknown(statuses, activeFeature.status).label}
             </span>
