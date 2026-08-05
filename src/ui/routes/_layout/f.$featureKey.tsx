@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { Pencil, Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
+import { Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
 
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusDropdown } from '@/ui/components/status-dropdown'
@@ -303,8 +303,8 @@ export function FeaturePage() {
               {/* The page's heading, which it did not have before: the title was an input
                   dressed as one, so there was nothing for a screen reader to navigate to. */}
               <h1 className="flex-1 text-3xl font-semibold tracking-tight">{feature.title}</h1>
-              {/* Same as the description's Edit: short visible label, longer accessible one
-                  so it still says what it renames when read out of context. */}
+              {/* Short visible label; the longer accessible name says what it renames when
+                  read out of context, where "Rename" alone doesn't. */}
               <Button
                 ref={renameButtonRef}
                 variant="secondary"
@@ -312,7 +312,6 @@ export function FeaturePage() {
                 aria-label="Rename feature"
                 onClick={() => setRenaming(true)}
               >
-                <Pencil data-icon="inline-start" />
                 Rename
               </Button>
             </>
@@ -341,19 +340,14 @@ export function FeaturePage() {
         <div className="mb-8">
           <div className="mb-3 flex items-center gap-3">
             <h2 className="flex-1 text-lg font-semibold">Description</h2>
-            {/* Visible text is Edit, to match Add above it. The longer accessible name is
-                for anyone listing the page's buttons, where Edit on its own says nothing
-                about what it edits. It contains the visible label, so the two agree. */}
             {!describing && (
               <Button
                 ref={describeButtonRef}
                 variant="secondary"
                 size="sm"
-                aria-label="Edit description"
                 onClick={() => setDescribing(true)}
               >
-                <Pencil data-icon="inline-start" />
-                Edit
+                Edit description
               </Button>
             )}
           </div>
