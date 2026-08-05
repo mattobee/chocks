@@ -106,7 +106,7 @@ test.describe('packaged artefact', () => {
     })
 
     await page.goto(url)
-    await expect(page.getByRole('heading', { name: 'Features' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'chocks', level: 1 })).toBeVisible()
     expect(failures).toEqual([])
   })
 
@@ -117,7 +117,11 @@ test.describe('packaged artefact', () => {
     await page.getByRole('textbox', { name: 'Title' }).fill('Installed and working')
     await page.getByRole('button', { name: 'Create' }).click()
 
-    await expect(page.getByRole('link', { name: 'Installed and working' })).toBeVisible()
+    // Scoped to the tree: creating navigates straight to the new feature, and its
+    // breadcrumb's current-page entry carries the same accessible name and role.
+    await expect(
+      page.getByRole('tree').getByRole('link', { name: 'Installed and working' }),
+    ).toBeVisible()
     const files = await readdir(path.join(workdir, '.chocks'))
     expect(files).toContain('installed-and-working.chocks.md')
   })
