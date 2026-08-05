@@ -50,7 +50,7 @@ describe('request security', () => {
   it.each(['POST', 'PATCH', 'DELETE'])('rejects a cross-origin %s', async (method) => {
     const response = await app.request('/api/features', {
       method,
-      headers: { Host: 'localhost:4321', Origin: 'https://attacker.example' },
+      headers: { Host: 'localhost:2457', Origin: 'https://attacker.example' },
     })
 
     expect(response.status).toBe(403)
@@ -61,8 +61,8 @@ describe('request security', () => {
       ...json({ parent: '', title: 'Allowed' }),
       headers: {
         'Content-Type': 'application/json',
-        Host: 'localhost:4321',
-        Origin: 'http://localhost:4321',
+        Host: 'localhost:2457',
+        Origin: 'http://localhost:2457',
       },
     })
 
@@ -71,12 +71,12 @@ describe('request security', () => {
 
   it('allows the configured network host', async () => {
     const networked = createApp({ root, name: 'test-repo', host: 'workstation.local' })
-    const response = await networked.app.request('http://workstation.local:4321/api/features', {
+    const response = await networked.app.request('http://workstation.local:2457/api/features', {
       ...json({ parent: '', title: 'Networked' }),
       headers: {
         'Content-Type': 'application/json',
-        Host: 'workstation.local:4321',
-        Origin: 'http://workstation.local:4321',
+        Host: 'workstation.local:2457',
+        Origin: 'http://workstation.local:2457',
       },
     })
     await networked.stop()
@@ -86,7 +86,7 @@ describe('request security', () => {
 
   it('allows IP addresses when bound to a wildcard host', async () => {
     const networked = createApp({ root, name: 'test-repo', host: '0.0.0.0' })
-    const response = await networked.app.request('http://192.0.2.1:4321/api/workspace')
+    const response = await networked.app.request('http://192.0.2.1:2457/api/workspace')
     await networked.stop()
 
     expect(response.status).toBe(200)
