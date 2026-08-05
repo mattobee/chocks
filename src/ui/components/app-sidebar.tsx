@@ -258,7 +258,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link to="/" className="gap-2">
+              {/* Explicit name, or the two spans inside concatenate into it — "chocks
+                  <workspace name>" instead of the clean, workspace-independent "chocks"
+                  a link back home ought to have. The workspace name stays visible for
+                  sighted users; it just isn't part of what this control is called. */}
+              <Link to="/" className="gap-2" aria-label="chocks">
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <FolderGit2 className="size-4" />
                 </div>
@@ -311,14 +315,35 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Plus />
           </Button>
         </div>
+
+        {/*
+          Filtering silently prunes the tree below, which a screen reader user would
+          otherwise have no way to notice. Rendered unconditionally so the region exists
+          before the count first appears — a live region added to the DOM already
+          populated announces nothing.
+        */}
+        <div className="px-3 pb-1">
+          <span
+            role="status"
+            aria-live="polite"
+            aria-label="Search results"
+            className="text-sidebar-foreground/60 text-xs"
+          >
+            {filtering &&
+              `${filtered.matchedIds.size} ${filtered.matchedIds.size === 1 ? 'match' : 'matches'}`}
+          </span>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup className="min-h-0 flex-1">
           <SidebarGroupLabel>Features</SidebarGroupLabel>
           <SidebarGroupContent>
+            {/* A sibling of the tree, not a child: `role="tree"` only permits `treeitem`
+                and `group` as children per ARIA, and this is neither — axe flags it as a
+                critical structural violation if it ends up inside. */}
+            <AssistiveTreeDescription tree={tree} />
             <Tree indent={INDENT_WIDTH} tree={tree}>
-              <AssistiveTreeDescription tree={tree} />
               {items.map((item) => {
                 const feature = item.getItemData()
                 const isFolder = item.isFolder()
@@ -425,7 +450,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="text-sidebar-foreground/40 px-3 py-2 text-xs">
+        {/* /40 measured at 2.69:1 against the sidebar background, short of the 4.5:1 this
+            text needs at this size. /60 matches the group label above, already at a
+            passing contrast for the same size and weight. */}
+        <div className="text-sidebar-foreground/60 px-3 py-2 text-xs">
           {workspace.data?.version && `chocks ${workspace.data.version}`}
         </div>
       </SidebarFooter>
