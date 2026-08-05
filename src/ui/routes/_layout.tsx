@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { Separator } from '@/ui/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/ui/components/ui/sidebar'
 import { AppSidebar } from '@/ui/components/app-sidebar'
 import { ColorModeSwitcher } from '@/ui/components/color-mode-switcher'
@@ -16,7 +15,6 @@ function SidebarLayout() {
         <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
           </div>
           <div className="ms-auto">
             <ColorModeSwitcher />
