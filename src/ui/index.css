@@ -1,4 +1,9 @@
 @import 'tailwindcss';
+/* .chocks is tracked in git (it's the app's own data, not build output), so Tailwind's
+   automatic source detection can't skip it the way it skips gitignored paths. Without this
+   it treats every feature file as a candidate source, and writing one — on every status
+   change, rename, or drag — retriggers a scan that forces a full page reload in dev. */
+@source not '../../.chocks';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
