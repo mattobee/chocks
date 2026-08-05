@@ -36,6 +36,7 @@ import {
   InputGroupInput,
 } from '@/ui/components/ui/input-group'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
+import { FeatureFilterMenu } from '@/ui/components/feature-filter-menu'
 import { cn } from '@/lib/utils'
 import {
   allTags,
@@ -115,8 +116,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { expanded, setExpanded } = useExpanded()
   const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
 
-  const [query, setQuery] = useState('')
+  const [filters, setFilters] = useState<TreeFilters>({ query: '', statuses: [], tags: [] })
   const [dialogOpen, setDialogOpen] = useState(false)
+  const tags = useMemo(() => allTags(featureList), [featureList])
 
   function handleCreate(draft: FeatureDraft) {
     create.mutate(
@@ -151,7 +153,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setExpanded(next)
   }, [currentKey, featureList, setExpanded])
 
-  const filters: TreeFilters = useMemo(() => ({ query, statuses: [], tags: [] }), [query])
   const rawTree = useMemo(() => buildTree(featureList), [featureList])
   const filtered = useMemo(() => filterTree(rawTree, filters), [rawTree, filters])
   const filtering = isFiltering(filters)
@@ -280,21 +281,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               aria-label="Search features"
               placeholder="Search…"
               className="h-8 text-xs [&::-webkit-search-cancel-button]:hidden"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={filters.query}
+              onChange={(e) => setFilters({ ...filters, query: e.target.value })}
             />
-            {query !== '' && (
+            {filters.query !== '' && (
               <InputGroupAddon align="inline-end">
                 <InputGroupButton
                   aria-label="Clear search"
                   size="icon-xs"
-                  onClick={() => setQuery('')}
+                  onClick={() => setFilters({ ...filters, query: '' })}
                 >
                   <X className="size-3" />
                 </InputGroupButton>
               </InputGroupAddon>
             )}
           </InputGroup>
+          <FeatureFilterMenu
+            statuses={statuses}
+            tags={tags}
+            filters={filters}
+            onChange={setFilters}
+          />
           <Button
             variant="ghost"
             size="icon-sm"
@@ -428,7 +435,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <FeatureDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        availableTags={allTags(featureList)}
+        availableTags={tags}
         statuses={statuses}
         busy={create.isPending}
         onSubmit={handleCreate}
