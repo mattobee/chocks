@@ -35,7 +35,7 @@ import {
 } from '@/ui/components/ui/input-group'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
-import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
+import { useFeatureMutations } from '@/ui/hooks/use-features'
 import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
 import { featuresQuery, uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES, MODIFIED_COLOR } from '@/lib/status'
@@ -58,7 +58,6 @@ export function FeaturePage() {
   const workspace = useQuery(workspaceQuery())
   const uncommitted = useQuery(uncommittedQuery())
   const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
-  useWatchFiles()
 
   const featureList = features.data ?? []
   const uncommittedIds = useMemo(

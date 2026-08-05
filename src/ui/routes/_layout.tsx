@@ -2,12 +2,17 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/ui/components/ui/sidebar'
 import { AppSidebar } from '@/ui/components/app-sidebar'
 import { ColorModeSwitcher } from '@/ui/components/color-mode-switcher'
+import { useWatchFiles } from '@/ui/hooks/use-features'
 
 export const Route = createFileRoute('/_layout')({
   component: SidebarLayout,
 })
 
 function SidebarLayout() {
+  // Once here rather than per page: the sidebar shows the tree on every route under this
+  // layout, not just the feature page that used to be the only place watching for it.
+  useWatchFiles()
+
   return (
     <SidebarProvider>
       <AppSidebar />
