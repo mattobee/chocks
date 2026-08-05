@@ -308,6 +308,7 @@ export function FeaturePage() {
               <Button
                 ref={renameButtonRef}
                 variant="secondary"
+                size="sm"
                 aria-label="Rename feature"
                 onClick={() => setRenaming(true)}
               >
@@ -347,6 +348,7 @@ export function FeaturePage() {
               <Button
                 ref={describeButtonRef}
                 variant="secondary"
+                size="sm"
                 aria-label="Edit description"
                 onClick={() => setDescribing(true)}
               >
@@ -401,7 +403,7 @@ export function FeaturePage() {
           <h2 className="flex-1 text-lg font-semibold">
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
-          <Button variant="secondary" onClick={() => setChildDialogOpen(true)}>
+          <Button variant="secondary" size="sm" onClick={() => setChildDialogOpen(true)}>
             <Plus data-icon="inline-start" />
             Add sub-feature
           </Button>
