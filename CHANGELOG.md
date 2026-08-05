@@ -5,6 +5,14 @@ don't appear here.
 
 Releases before 0.1.3 predate this file.
 
+## 0.6.1
+
+### Changed
+
+- The default port is now 2457, was 4321, which collided with Astro's dev server default.
+
+[Full changes](https://github.com/mattobee/chocks/compare/v0.6.0...v0.6.1)
+
 ## 0.6.0
 
 ### Added
