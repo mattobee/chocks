@@ -101,7 +101,9 @@ function TreeItem<T = any>({ item, className, render, children, ...props }: Tree
       typeof item.isDragTarget === "function" ? item.isDragTarget() || false : undefined,
     "data-search-match":
       typeof item.isMatchingSearch === "function" ? item.isMatchingSearch() || false : undefined,
-    "aria-expanded": item.isExpanded(),
+    // Deliberately not set here: Headless Tree's own getProps() provides it, conditional on
+    // the item being a folder, and that value wins in the merge below. An unconditional
+    // version here would only override it with aria-expanded on leaf rows.
   }
 
   return (

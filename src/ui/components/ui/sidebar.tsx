@@ -66,7 +66,12 @@ function SidebarProvider({
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
 
-  const [_open, _setOpen] = React.useState(defaultOpen)
+  const [_open, _setOpen] = React.useState<boolean>(() => {
+    // The open state is written to a cookie on every toggle, so honour it on the way back
+    // in too — otherwise hiding the sidebar just brings it back on the next reload.
+    const match = document.cookie.match(/(?:^|;\s*)sidebar_state=(true|false)/)
+    return match ? match[1] === "true" : defaultOpen
+  })
   const open = openProp ?? _open
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
@@ -86,7 +91,9 @@ function SidebarProvider({
   }, [isMobile, setOpen, setOpenMobile])
 
   const [width, setWidthState] = React.useState<number>(() => {
-    const match = document.cookie.match(/(?:^|;\s*)sidebar_width=(\d+)/)
+    const match = document.cookie.match(
+      new RegExp(`(?:^|;\\s*)${SIDEBAR_WIDTH_COOKIE_NAME}=(\\d+)`),
+    )
     const stored = match ? Number(match[1]) : NaN
     return Number.isFinite(stored) ? clampSidebarWidth(stored) : defaultWidth
   })
