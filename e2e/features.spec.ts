@@ -70,6 +70,30 @@ test.describe('reordering', () => {
   })
 })
 
+test.describe('status', () => {
+  test('changes a feature status from the row and writes it to the file', async ({
+    page,
+    workspace,
+  }) => {
+    await page.goto(workspace.url)
+
+    const billing = page.getByRole('button', { name: 'Status of Billing' })
+    await expect(billing).toHaveText(/Planned/)
+    await billing.click()
+    await page.getByRole('menuitemradio', { name: 'Released' }).click()
+
+    await expect
+      .poll(
+        async () =>
+          (await workspace.read('billing')).split('\n').find((l) => l.startsWith('status:')),
+        {
+          timeout: 5000,
+        },
+      )
+      .toBe('status: released')
+  })
+})
+
 /** The title is a heading until you ask to edit it, so every rename starts with a click. */
 async function renameTo(page: Page, next: string) {
   await page.getByRole('button', { name: 'Rename feature' }).click()

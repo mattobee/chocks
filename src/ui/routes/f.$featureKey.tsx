@@ -1,10 +1,10 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { Pencil, Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
 import { AppShell } from '@/ui/components/app-shell'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
-import { StatusBadge } from '@/ui/components/status-badge'
+import { StatusDropdown } from '@/ui/components/status-dropdown'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,18 +34,11 @@ import {
   InputGroupTextarea,
 } from '@/ui/components/ui/input-group'
 import { Skeleton } from '@/ui/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-} from '@/ui/components/ui/select'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
 import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
 import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
-import { featuresQuery, workspaceQuery } from '@/ui/lib/queries'
-import { DEFAULT_STATUSES, statusOrUnknown } from '@/lib/status'
+import { featuresQuery, uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
+import { DEFAULT_STATUSES, MODIFIED_COLOR } from '@/lib/status'
 import { featureKey } from '@/lib/ids'
 import { describeError } from '@/lib/errors'
 import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from '@/lib/types'
@@ -63,10 +56,15 @@ export function FeaturePage() {
 
   const features = useQuery(featuresQuery())
   const workspace = useQuery(workspaceQuery())
+  const uncommitted = useQuery(uncommittedQuery())
   const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
   useWatchFiles()
 
   const featureList = features.data ?? []
+  const uncommittedIds = useMemo(
+    () => new Set(uncommitted.data?.ids ?? []),
+    [uncommitted.data?.ids],
+  )
   const { create, update, remove } = useFeatureMutations(featureList)
 
   const [description, setDescription] = useState('')
@@ -331,23 +329,12 @@ export function FeaturePage() {
         )}
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
-          <Select
-            value={feature.status}
-            onValueChange={(value) => update.mutate({ id: featureId, status: String(value) })}
-          >
-            <SelectTrigger aria-label="Status" className="h-8 w-auto rounded-full">
-              {statusOrUnknown(statuses, feature.status).label}
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {statuses.map((status) => (
-                  <SelectItem key={status.id} value={status.id}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <StatusDropdown
+            statuses={statuses}
+            status={feature.status}
+            ariaLabel="Status"
+            onChange={(status) => update.mutate({ id: featureId, status })}
+          />
         </div>
 
         <div className="mb-8">
@@ -428,16 +415,35 @@ export function FeaturePage() {
           <ul className="divide-y overflow-hidden rounded-lg border">
             {children.map((child) => (
               <li key={child.id}>
-                <Item
-                  className="rounded-none border-0"
-                  render={<Link to="/f/$featureKey" params={{ featureKey: featureKey(child) }} />}
-                >
+                {/* The title is the link, not the whole row: the row carries a status
+                    picker, and an interactive control cannot live inside an anchor. */}
+                <Item className="rounded-none border-0">
                   <ItemContent>
-                    <ItemTitle>{child.title}</ItemTitle>
+                    <ItemTitle>
+                      {uncommittedIds.has(child.id) && (
+                        <SquareDot
+                          role="img"
+                          aria-label="Modified"
+                          className={`size-4 shrink-0 ${MODIFIED_COLOR}`}
+                        />
+                      )}
+                      <Link
+                        to="/f/$featureKey"
+                        params={{ featureKey: featureKey(child) }}
+                        className="hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none rounded-md"
+                      >
+                        {child.title}
+                      </Link>
+                    </ItemTitle>
                   </ItemContent>
                   <ItemActions>
-                    <StatusBadge statuses={statuses} status={child.status} />
-                    <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+                    <StatusDropdown
+                      statuses={statuses}
+                      status={child.status}
+                      ariaLabel={`Status of ${child.title}`}
+                      size="xs"
+                      onChange={(status) => update.mutate({ id: child.id, status })}
+                    />
                   </ItemActions>
                 </Item>
               </li>

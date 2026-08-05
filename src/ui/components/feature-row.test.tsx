@@ -13,6 +13,7 @@ async function setup(overrides: Partial<FeatureRowProps> = {}) {
     onAddChild: vi.fn(),
     onEdit: vi.fn(),
     onDelete: vi.fn(),
+    onChangeStatus: vi.fn(),
   }
   const feature = overrides.feature ?? makeFeature({ title: 'Auth' })
 
@@ -64,15 +65,24 @@ describe('row menu', () => {
 })
 
 describe('status', () => {
-  // Read-only on the row: changing it goes through Edit now, not a control here.
-  it('shows the configured label', async () => {
+  // The accessible name carries the current value, not just the control's identity, so
+  // screen readers hear which status the trigger shows.
+  it('shows the configured label in the trigger', async () => {
     await setup({ feature: makeFeature({ title: 'Auth', status: 'pre-release' }) })
-    expect(screen.getByText('Pre-release')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Status of Auth, Pre-release' })).toBeInTheDocument()
   })
 
   it('renders a status the config does not define, rather than blanking', async () => {
     await setup({ feature: makeFeature({ title: 'Auth', status: 'in-beta' }) })
-    expect(screen.getByText('In beta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Status of Auth, In beta' })).toBeInTheDocument()
+  })
+
+  it('runs onChangeStatus when a different status is picked', async () => {
+    const feature = makeFeature({ title: 'Auth', status: 'planned' })
+    const { user, onChangeStatus } = await setup({ feature })
+    await user.click(screen.getByRole('button', { name: 'Status of Auth, Planned' }))
+    await user.click(await screen.findByRole('menuitemradio', { name: 'Released' }))
+    expect(onChangeStatus).toHaveBeenCalledWith(feature.id, 'released')
   })
 })
 

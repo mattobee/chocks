@@ -39,6 +39,23 @@ export const STATUS_COLORS = {
 
 export type StatusColor = keyof typeof STATUS_COLORS
 
+/**
+ * Colour for the status dot shown next to a status in dropdowns. Matches the text colour
+ * in STATUS_COLORS, the vivid end of the pair, so the dot reads at a glance. A `fill-*`
+ * class rather than `fill-current`, so menu hover, which retints text, cannot touch it.
+ */
+export const STATUS_DOT_COLORS = {
+  slate: 'fill-slate-700 dark:fill-slate-200',
+  blue: 'fill-blue-800 dark:fill-blue-200',
+  amber: 'fill-amber-800 dark:fill-amber-200',
+  emerald: 'fill-emerald-800 dark:fill-emerald-200',
+  orange: 'fill-orange-800 dark:fill-orange-200',
+  rose: 'fill-rose-800 dark:fill-rose-200',
+  violet: 'fill-violet-800 dark:fill-violet-200',
+  muted: 'fill-muted-foreground',
+  unknown: 'fill-muted-foreground',
+} as const
+
 /** Text colour for the uncommitted-changes indicator (header, history, tree rows). */
 export const MODIFIED_COLOR = 'text-amber-700 dark:text-amber-400' as const
 

@@ -194,6 +194,7 @@ function TreePage() {
             }}
             onDelete={setPendingDelete}
             onMove={handleMove}
+            onChangeStatus={(id, status) => update.mutate({ id, status })}
           />
         )}
       </>

@@ -18,10 +18,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { FeatureRow, INDENT_WIDTH } from '@/ui/components/feature-row'
-import { StatusBadge } from '@/ui/components/status-badge'
+import { StatusDot } from '@/ui/components/status-dot'
 import { projectDrop, rowsExcludingSubtree, type DropProjection, type FlatRow } from '@/lib/tree'
 import type { Feature } from '@/lib/types'
-import type { StatusDefinition } from '@/lib/status'
+import { statusOrUnknown, type StatusDefinition } from '@/lib/status'
 
 export interface FeatureTreeProps {
   rows: FlatRow[]
@@ -34,6 +34,7 @@ export interface FeatureTreeProps {
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
   onMove: (featureId: string, projection: DropProjection) => void
+  onChangeStatus: (id: string, status: string) => void
 }
 
 export function FeatureTree({
@@ -47,6 +48,7 @@ export function FeatureTree({
   onEdit,
   onDelete,
   onMove,
+  onChangeStatus,
 }: FeatureTreeProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
@@ -136,6 +138,7 @@ export function FeatureTree({
               onAddChild={onAddChild}
               onEdit={onEdit}
               onDelete={onDelete}
+              onChangeStatus={onChangeStatus}
             />
           ))}
         </ul>
@@ -145,7 +148,14 @@ export function FeatureTree({
         {activeFeature && (
           <div className="bg-background flex items-center gap-2 rounded-md border px-2 py-1 text-sm shadow-lg">
             <span className="truncate">{activeFeature.title}</span>
-            <StatusBadge statuses={statuses} status={activeFeature.status} />
+            {/* Read-only: the overlay floats over the tree mid-drag, so nothing in it can
+                be interactive. StatusDot takes its size from context, and this span is
+                the one place using it outside a shadcn component that already sets that
+                convention, so it states it directly. */}
+            <span className="flex items-center gap-1.5 text-muted-foreground [&_svg:not([class*='size-'])]:size-4">
+              <StatusDot statuses={statuses} status={activeFeature.status} />
+              {statusOrUnknown(statuses, activeFeature.status).label}
+            </span>
           </div>
         )}
       </DragOverlay>
