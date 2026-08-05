@@ -38,7 +38,10 @@ export function StatusDropdown({
           <Button
             variant="outline"
             size={size}
-            aria-label={ariaLabel}
+            // The label belongs in the accessible name: a static aria-label would swallow
+            // the visible value, so screen readers would announce the control but not the
+            // status it shows, including an unknown one.
+            aria-label={`${ariaLabel}, ${current.label}`}
             className={cn('rounded-full', className)}
           />
         }

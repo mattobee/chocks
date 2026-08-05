@@ -65,20 +65,22 @@ describe('row menu', () => {
 })
 
 describe('status', () => {
+  // The accessible name carries the current value, not just the control's identity, so
+  // screen readers hear which status the trigger shows.
   it('shows the configured label in the trigger', async () => {
     await setup({ feature: makeFeature({ title: 'Auth', status: 'pre-release' }) })
-    expect(screen.getByRole('button', { name: 'Status of Auth' })).toHaveTextContent('Pre-release')
+    expect(screen.getByRole('button', { name: 'Status of Auth, Pre-release' })).toBeInTheDocument()
   })
 
   it('renders a status the config does not define, rather than blanking', async () => {
     await setup({ feature: makeFeature({ title: 'Auth', status: 'in-beta' }) })
-    expect(screen.getByRole('button', { name: 'Status of Auth' })).toHaveTextContent('In beta')
+    expect(screen.getByRole('button', { name: 'Status of Auth, In beta' })).toBeInTheDocument()
   })
 
   it('runs onChangeStatus when a different status is picked', async () => {
     const feature = makeFeature({ title: 'Auth', status: 'planned' })
     const { user, onChangeStatus } = await setup({ feature })
-    await user.click(screen.getByRole('button', { name: 'Status of Auth' }))
+    await user.click(screen.getByRole('button', { name: 'Status of Auth, Planned' }))
     await user.click(await screen.findByRole('menuitemradio', { name: 'Released' }))
     expect(onChangeStatus).toHaveBeenCalledWith(feature.id, 'released')
   })
