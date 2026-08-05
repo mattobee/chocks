@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Pencil, Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
-import { AppShell } from '@/ui/components/app-shell'
+
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusDropdown } from '@/ui/components/status-dropdown'
 import {
@@ -45,7 +45,7 @@ import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from '@/lib/types'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
 // keeps resolving after the feature is renamed or moved.
-export const Route = createFileRoute('/f/$featureKey')({
+export const Route = createFileRoute('/_layout/f/$featureKey')({
   component: FeaturePage,
 })
 
@@ -132,13 +132,13 @@ export function FeaturePage() {
 
   if (features.isPending) {
     return (
-      <AppShell>
+      <>
         <div className="grid gap-3">
           <Skeleton className="h-5 w-64" />
           <Skeleton className="h-9 w-96" />
           <Skeleton className="h-32 w-full" />
         </div>
-      </AppShell>
+      </>
     )
   }
 
@@ -147,7 +147,7 @@ export function FeaturePage() {
   // problem, and nothing refetches on its own to correct it.
   if (features.isError) {
     return (
-      <AppShell>
+      <>
         <Empty className="border">
           <EmptyHeader>
             {/* Same tint as the delete dialog's icon, so "this is destructive/wrong" reads
@@ -173,13 +173,13 @@ export function FeaturePage() {
             </div>
           </EmptyContent>
         </Empty>
-      </AppShell>
+      </>
     )
   }
 
   if (!feature) {
     return (
-      <AppShell>
+      <>
         <Empty className="border">
           <EmptyHeader>
             <EmptyTitle render={<h1 />}>
@@ -193,7 +193,7 @@ export function FeaturePage() {
             </Button>
           </EmptyContent>
         </Empty>
-      </AppShell>
+      </>
     )
   }
 
@@ -239,7 +239,7 @@ export function FeaturePage() {
   }
 
   return (
-    <AppShell>
+    <>
       <>
         <Breadcrumb className="mb-4">
           <BreadcrumbList>
@@ -498,6 +498,6 @@ export function FeaturePage() {
           })
         }}
       />
-    </AppShell>
+    </>
   )
 }
