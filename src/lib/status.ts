@@ -40,8 +40,8 @@ export const STATUS_COLORS = {
 export type StatusColor = keyof typeof STATUS_COLORS
 
 /**
- * Colour for the status dot shown next to a status in dropdowns. Matches the badge's text
- * color, which is the vivid end of the pair, so the dot reads at a glance. A `fill-*`
+ * Colour for the status dot shown next to a status in dropdowns. Matches the text colour
+ * in STATUS_COLORS, the vivid end of the pair, so the dot reads at a glance. A `fill-*`
  * class rather than `fill-current`, so menu hover, which retints text, cannot touch it.
  */
 export const STATUS_DOT_COLORS = {
