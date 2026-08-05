@@ -141,7 +141,7 @@ npx chocks context [options]
   context             Print the feature tree as JSON Lines
 
   -d, --dir <path>    Feature directory (default: .chocks next to the repo root)
-  -p, --port <port>   Port to listen on (default: 4321)
+  -p, --port <port>   Port to listen on (default: 2457)
       --host <host>   Address to bind (default: 127.0.0.1)
       --no-open       Do not open a browser
   -h, --help          Show this message
@@ -159,7 +159,7 @@ Tree view with expand/collapse, inline rename and status, drag to reorder and re
 
 ```sh
 pnpm install
-pnpm dev:server   # API on :4321, watching src/
+pnpm dev:server   # API on :2457, watching src/
 pnpm dev          # UI on :5173, proxying /api to it
 pnpm check        # oxlint, prettier, tsc, vitest
 pnpm test:e2e     # builds, then runs Playwright

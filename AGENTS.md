@@ -8,7 +8,7 @@ run it in a repo, get a feature-tree UI on localhost, backed by markdown files i
 
 ```sh
 pnpm install
-pnpm dev:server   # API on :4321, watching src/
+pnpm dev:server   # API on :2457, watching src/
 pnpm dev          # UI on :5173, proxying /api to it
 pnpm check        # lint, format check, typecheck, unit tests — run this before finishing
 pnpm test:e2e     # builds, then runs Playwright

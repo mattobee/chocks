@@ -23,7 +23,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:server": "node --experimental-strip-types --watch src/cli.ts --no-open --port 4321",
+    "dev:server": "node --experimental-strip-types --watch src/cli.ts --no-open --port 2457",
     "routes": "tsr generate",
     "build": "pnpm routes && pnpm build:ui && pnpm build:server",
     "build:ui": "vite build",

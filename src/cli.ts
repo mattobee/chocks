@@ -26,7 +26,7 @@ Commands
 
 Options
   -d, --dir <path>    Feature directory (default: .chocks next to the repo root)
-  -p, --port <port>   Port to listen on (default: 4321)
+  -p, --port <port>   Port to listen on (default: 2457)
       --host <host>   Address to bind (default: 127.0.0.1)
                       Use 0.0.0.0 to reach it from other machines. There is no
                       authentication, so only do this on a trusted network.
@@ -143,7 +143,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     return
   }
 
-  const port = Number(values.port ?? process.env.PORT ?? 4321)
+  const port = Number(values.port ?? process.env.PORT ?? 2457)
   const host = values.host ?? '127.0.0.1'
 
   if (Number.isNaN(port) || port < 0 || port > 65535) {
