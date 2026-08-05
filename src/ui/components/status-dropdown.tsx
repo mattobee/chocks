@@ -49,7 +49,7 @@ export function StatusDropdown({
         <StatusDot statuses={statuses} status={status} />
         {current.label}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent>
         <DropdownMenuRadioGroup value={status} onValueChange={(value) => onChange(String(value))}>
           {statuses.map((item) => (
             // closeOnClick defaults to false in Base UI, which would keep the menu open
