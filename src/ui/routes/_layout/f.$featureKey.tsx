@@ -5,6 +5,7 @@ import { Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
 
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusDropdown } from '@/ui/components/status-dropdown'
+import { TagEditor } from '@/ui/components/tag-editor'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,7 +17,6 @@ import {
 import { FeatureHistory } from '@/ui/components/feature-history'
 import { Markdown } from '@/ui/components/markdown'
 import { Button } from '@/ui/components/ui/button'
-import { Badge } from '@/ui/components/ui/badge'
 import {
   Empty,
   EmptyContent,
@@ -318,22 +318,21 @@ export function FeaturePage() {
           )}
         </div>
 
-        {feature.tags.length > 0 && (
-          <ul className="mb-3 flex flex-wrap items-center gap-2">
-            {feature.tags.map((tag) => (
-              <li key={tag}>
-                <Badge variant="outline">{tag}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <StatusDropdown
             statuses={statuses}
             status={feature.status}
             ariaLabel="Status"
             onChange={(status) => update.mutate({ id: featureId, status })}
+          />
+        </div>
+
+        <div className="mb-6 max-w-sm">
+          <TagEditor
+            tags={feature.tags}
+            availableTags={tags}
+            onChange={(next) => update.mutate({ id: featureId, tags: next })}
+            ariaLabel={`Tags for ${feature.title}`}
           />
         </div>
 
