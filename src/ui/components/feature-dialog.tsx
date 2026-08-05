@@ -36,6 +36,7 @@ import {
 } from '@/ui/components/ui/combobox'
 import { MAX_TAG_COUNT, MAX_TAG_LENGTH, MAX_TITLE_LENGTH, type Feature } from '@/lib/types'
 import { defaultStatusId, statusOrUnknown, type StatusDefinition } from '@/lib/status'
+import { StatusDot } from '@/ui/components/status-dot'
 
 export interface FeatureDraft {
   title: string
@@ -167,13 +168,19 @@ export function FeatureDialog({
                       text, so without this the trigger shows the id (pre-release) rather
                       than the label (Pre-release). */}
                   <SelectValue>
-                    {(value) => statusOrUnknown(statuses, String(value ?? '')).label}
+                    {(value) => (
+                      <>
+                        <StatusDot statuses={statuses} status={String(value ?? '')} />
+                        {statusOrUnknown(statuses, String(value ?? '')).label}
+                      </>
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     {statuses.map((status) => (
                       <SelectItem key={status.id} value={status.id}>
+                        <StatusDot statuses={statuses} status={status.id} />
                         {status.label}
                       </SelectItem>
                     ))}

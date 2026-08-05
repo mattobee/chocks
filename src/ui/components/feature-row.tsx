@@ -19,12 +19,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/ui/components/ui/dropdown-menu'
-import { StatusBadge } from '@/ui/components/status-badge'
+import { StatusDropdown } from '@/ui/components/status-dropdown'
 import { cn } from '@/lib/utils'
 import { featureKey } from '@/lib/ids'
 import type { Feature } from '@/lib/types'
-import type { StatusDefinition } from '@/lib/status'
-import { MODIFIED_COLOR } from '@/lib/status'
+import { MODIFIED_COLOR, type StatusDefinition } from '@/lib/status'
 
 export const INDENT_WIDTH = 24
 
@@ -44,6 +43,7 @@ export interface FeatureRowProps {
   onAddChild: (parentId: string) => void
   onEdit: (feature: Feature) => void
   onDelete: (feature: Feature) => void
+  onChangeStatus: (id: string, status: string) => void
 }
 
 export function FeatureRow({
@@ -59,6 +59,7 @@ export function FeatureRow({
   onAddChild,
   onEdit,
   onDelete,
+  onChangeStatus,
 }: FeatureRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: feature.id,
@@ -133,9 +134,14 @@ export function FeatureRow({
         </Badge>
       ))}
 
-      {/* Read-only here: changing it is a bigger action than a row wants to invite, and
-          stays reachable through Edit. */}
-      <StatusBadge statuses={statuses} status={feature.status} className="shrink-0" />
+      <StatusDropdown
+        statuses={statuses}
+        status={feature.status}
+        ariaLabel={`Status of ${feature.title}`}
+        size="xs"
+        className="shrink-0"
+        onChange={(status) => onChangeStatus(feature.id, status)}
+      />
 
       <DropdownMenu>
         <DropdownMenuTrigger
