@@ -30,8 +30,9 @@ export function FeatureLinks({ links }: { links: FeatureLink[] }) {
           const Icon = LINK_ICONS.get(type ?? '') ?? LinkIcon
           const external = EXTERNAL_URL.test(url)
           const path = !HAS_SCHEME.test(url)
-          const className =
+          const linkClassName =
             'inline-flex items-center gap-1.5 rounded-md text-sm text-primary underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none'
+          const textClassName = 'inline-flex items-center gap-1.5 text-sm'
           const content = (
             <>
               <Icon aria-hidden="true" className="size-4" />
@@ -42,7 +43,7 @@ export function FeatureLinks({ links }: { links: FeatureLink[] }) {
             <li key={`${url}:${index}`}>
               {external || path ? (
                 <a
-                  className={className}
+                  className={linkClassName}
                   {...(external
                     ? { href: url, target: '_blank', rel: 'noreferrer' }
                     : { href: url })}
@@ -50,7 +51,7 @@ export function FeatureLinks({ links }: { links: FeatureLink[] }) {
                   {content}
                 </a>
               ) : (
-                <span className={className}>{content}</span>
+                <span className={textClassName}>{content}</span>
               )}
             </li>
           )
