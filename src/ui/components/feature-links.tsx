@@ -23,7 +23,7 @@ export function FeatureLinks({ links }: { links: FeatureLink[] }) {
   if (links.length === 0) return null
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-2">
+    <ul className="mb-6 flex list-none flex-col items-start gap-2 p-0">
       {links.map(({ url, label, type }, index) => {
         const Icon = LINK_ICONS.get(type ?? '') ?? LinkIcon
         const external = EXTERNAL_URL.test(url)
@@ -36,20 +36,21 @@ export function FeatureLinks({ links }: { links: FeatureLink[] }) {
             {label ?? url}
           </>
         )
-        return external || path ? (
-          <a
-            key={`${url}:${index}`}
-            className={className}
-            {...(external ? { href: url, target: '_blank', rel: 'noreferrer' } : { href: url })}
-          >
-            {content}
-          </a>
-        ) : (
-          <span key={`${url}:${index}`} className={className}>
-            {content}
-          </span>
+        return (
+          <li key={`${url}:${index}`}>
+            {external || path ? (
+              <a
+                className={className}
+                {...(external ? { href: url, target: '_blank', rel: 'noreferrer' } : { href: url })}
+              >
+                {content}
+              </a>
+            ) : (
+              <span className={className}>{content}</span>
+            )}
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }
