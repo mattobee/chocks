@@ -256,6 +256,14 @@ export async function scanWithIgnored(
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
         }
         if (!hasIndex) {
+          // An empty directory has nothing to be a feature; treat it as noise rather
+          // than failing the whole scan (e.g. a leftover checkout or store scratch dir).
+          try {
+            if ((await readdir(entryPath)).every((name) => name.startsWith('.'))) continue
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+            continue
+          }
           throw new StoreError(
             `Invalid feature directory ${entryPath}: add index.chocks.md or remove the directory`,
             400,
