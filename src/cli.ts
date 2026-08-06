@@ -218,7 +218,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     }
     if (featureProblems.length > 0) {
       console.log(
-        `\n  Skipped ${featureProblems.length} invalid feature(s):` +
+        `\n  Skipped ${featureProblems.length} invalid feature path(s):` +
           `\n    ${featureProblems.join('\n    ')}`,
       )
     }
