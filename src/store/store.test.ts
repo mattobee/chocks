@@ -134,7 +134,15 @@ describe('scan', () => {
     expect((await scan(root)).map((f) => f.id)).toEqual(['real'])
   })
 
-  it('ignores an empty directory without an index file', async () => {
+  it('ignores a directory without an index file when it has only dotfiles', async () => {
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
+    await mkdir(path.join(root, 'empty'))
+    await writeFile(path.join(root, 'empty', '.DS_Store'), '', 'utf8')
+
+    expect((await scan(root)).map((f) => f.id)).toEqual(['auth'])
+  })
+
+  it('ignores a truly empty directory without an index file', async () => {
     await given('auth.chocks.md', 'title: Auth\nsort: a0')
     await mkdir(path.join(root, 'empty'))
 

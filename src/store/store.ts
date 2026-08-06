@@ -259,7 +259,7 @@ export async function scanWithIgnored(
           // An empty directory has nothing to be a feature; treat it as noise rather
           // than failing the whole scan (e.g. a leftover checkout or store scratch dir).
           try {
-            if ((await readdir(entryPath)).length === 0) continue
+            if ((await readdir(entryPath)).every((name) => name.startsWith('.'))) continue
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
             continue
