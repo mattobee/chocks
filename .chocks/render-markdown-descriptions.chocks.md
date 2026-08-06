@@ -4,7 +4,9 @@ status: released
 tags:
   - ux
 links:
-  docs: https://commonmark.org/help/
+  - label: CommonMark help
+    url: https://commonmark.org/help/
+    type: docs
 sort: a4
 uid: a9b12e4a09
 ---

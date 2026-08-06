@@ -74,8 +74,11 @@ status: pre-release
 tags:
   - notifications
 links:
-  docs: https://docs.example.com/daily-digest
-  spec: docs/notifications.md
+  - label: Daily digest user docs
+    url: https://docs.example.com/daily-digest
+    type: docs
+  - label: Original proposal
+    url: docs/notifications.md
 ---
 
 Sends once a day with everything you missed. Still behind a flag while the send time is settled.
@@ -83,7 +86,7 @@ Sends once a day with everything you missed. Still behind a flag while the send 
 
 The markdown body is the description, and everything is editable by hand: the running UI picks up changes immediately. Features saved through chocks allow titles up to 300 characters, 100 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id is its path, so there's no `parent` field that can disagree with the filesystem, and moving or retitling a feature is just a rename. Links keep working after a move, because they resolve on a `uid` generated once per feature rather than on the path.
 
-`links` maps a free-form key to a URL or a repo-relative path; chocks tells the two apart by scheme. The UI knows four keys and gives them an icon and a fixed order: `docs`, `issue`, `design` and `spec`. Anything else still renders, with its key humanised, the same way an unknown status survives. Links are read-only in the UI for now, so editing one is a hand edit.
+`links` is an ordered list of up to 20 objects. Each needs a `url`, which can be a URL or a repo-relative path. An optional `label` replaces the URL as the link text. An optional `type` adds an icon for `docs`, `issue`, `pr`, `design` or `spec`; anything else gets the generic link icon without being corrected or dropped. A hand-written file with more than 20 entries opens with the first 20, while an API write over the limit is rejected. Links are read-only in the UI for now, so editing one is a hand edit.
 
 ## Seeding a tree
 
@@ -96,7 +99,7 @@ A feature is a capability someone outside the team would recognise, not a file, 
 
 A leaf feature is <slug>.chocks.md. A feature with children is a <slug>/ directory with its own content in <slug>/index.chocks.md and its children alongside that index. Never create both <slug>.chocks.md and <slug>/ for one feature, and never create a feature directory without index.chocks.md.
 
-For each feature, write a title, a status, tags for cross-cutting concerns such as "api" or "billing", and a couple of sentences describing it in the markdown body. The status must be one of planned, pre-release, released, deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case use those ids exactly. Use released for something that looks fully built, and pre-release for something still missing pieces. Add a `links` map when the feature has a URL you can point to, but only then: a made-up or guessed URL is worse than none.
+For each feature, write a title, a status, tags for cross-cutting concerns such as "api" or "billing", and a couple of sentences describing it in the markdown body. The status must be one of planned, pre-release, released, deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case use those ids exactly. Use released for something that looks fully built, and pre-release for something still missing pieces. Add a `links` list when the feature has a URL you can point to, but only then: a made-up or guessed URL is worse than none.
 
 Only add features you can see in the code. Leave out anything referenced but not built, like a TODO or an empty route. You can't tell from the code whether it's planned or abandoned, and a wrong guess is harder to notice later than a gap.
 

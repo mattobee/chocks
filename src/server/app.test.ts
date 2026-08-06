@@ -5,7 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from './app'
-import type { Feature, Workspace } from '../lib/types'
+import { MAX_LINK_COUNT, type Feature, type Workspace } from '../lib/types'
 
 const run = promisify(execFile)
 
@@ -191,13 +191,45 @@ describe('features API', () => {
 
   it('updates fields', async () => {
     const feature = await createFeature('', 'Auth')
+    const links = [{ label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' }]
     const response = await app.request(`/api/features/${feature.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'released', description: 'Shipped.', tags: ['api'] }),
+      body: JSON.stringify({
+        status: 'released',
+        description: 'Shipped.',
+        tags: ['api'],
+        links,
+      }),
     })
     const updated = (await response.json()) as Feature
-    expect(updated).toMatchObject({ status: 'released', description: 'Shipped.', tags: ['api'] })
+    expect(updated).toMatchObject({
+      status: 'released',
+      description: 'Shipped.',
+      tags: ['api'],
+      links,
+    })
+  })
+
+  it('rejects API writes over the link limit', async () => {
+    const links = Array.from({ length: MAX_LINK_COUNT + 1 }, (_, index) => ({
+      url: `https://example.com/${index}`,
+    }))
+    const createResponse = await app.request(
+      '/api/features',
+      json({ parent: '', title: 'Auth', links }),
+    )
+    expect(createResponse.status).toBe(400)
+    expect(await createResponse.json()).toEqual({
+      message: `Links exceed maximum count of ${MAX_LINK_COUNT}`,
+    })
+
+    const feature = await createFeature('', 'Auth')
+    const updateResponse = await app.request(`/api/features/${feature.id}`, {
+      ...json({ links }),
+      method: 'PATCH',
+    })
+    expect(updateResponse.status).toBe(400)
   })
 
   it('moves a feature and rewrites descendant ids', async () => {

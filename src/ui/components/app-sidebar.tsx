@@ -76,7 +76,7 @@ const ROOT_FEATURE: Feature = {
   description: '',
   status: '',
   tags: [],
-  links: {},
+  links: [],
   sort: '',
 }
 

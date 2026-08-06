@@ -2,8 +2,11 @@
 title: Links to issues and PRs
 status: planned
 links:
-  issue: https://github.com/mattobee/chocks/issues/48
-  docs-internal: README.md
+  - label: Link features to issues and PRs
+    url: https://github.com/mattobee/chocks/issues/48
+    type: issue
+  - label: README
+    url: README.md
 sort: a5
 uid: ce4641ca91
 ---

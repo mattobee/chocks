@@ -51,7 +51,7 @@ export function makeFeature(overrides: Partial<Feature> = {}): Feature {
     description: '',
     status: 'planned',
     tags: [],
-    links: {},
+    links: [],
     sort: 'a0',
     ...overrides,
   }

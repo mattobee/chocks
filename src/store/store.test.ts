@@ -32,6 +32,7 @@ import { buildTree, findByKey, isValidSortKey } from '../lib/tree'
 import { featureKey } from '../lib/ids'
 import {
   MAX_DESCRIPTION_LENGTH,
+  MAX_LINK_COUNT,
   MAX_TAG_COUNT,
   MAX_TAG_LENGTH,
   MAX_TITLE_LENGTH,
@@ -126,13 +127,13 @@ describe('scan', () => {
   it('reads links through to the feature', async () => {
     await given(
       'auth.chocks.md',
-      'title: Auth\nstatus: planned\nlinks:\n  docs: https://docs.example.com/auth\n  spec: docs/auth.md\nsort: a0',
+      'title: Auth\nstatus: planned\nlinks:\n  - label: Auth docs\n    url: https://docs.example.com/auth\n    type: docs\n  - url: docs/auth.md\nsort: a0',
     )
     const [feature] = await scan(root)
-    expect(feature?.links).toEqual({
-      docs: 'https://docs.example.com/auth',
-      spec: 'docs/auth.md',
-    })
+    expect(feature?.links).toEqual([
+      { label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' },
+      { url: 'docs/auth.md' },
+    ])
   })
 
   it('ignores dotfiles and non-markdown files', async () => {
@@ -595,6 +596,18 @@ describe('create', () => {
         parent: '',
         title: 'Valid',
         tags: Array.from({ length: MAX_TAG_COUNT + 1 }, (_, index) => String(index)),
+      }),
+    ).rejects.toThrow(StoreError)
+  })
+
+  it('rejects too many links', async () => {
+    await expect(
+      create(root, {
+        parent: '',
+        title: 'Valid',
+        links: Array.from({ length: MAX_LINK_COUNT + 1 }, (_, index) => ({
+          url: `https://example.com/${index}`,
+        })),
       }),
     ).rejects.toThrow(StoreError)
   })

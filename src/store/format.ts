@@ -1,7 +1,8 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { isValidUid } from '../lib/ids'
+import { normaliseLinks } from '../lib/links'
 import { isValidStatusId } from '../lib/status'
-import type { Feature } from '../lib/types'
+import type { Feature, FeatureLink } from '../lib/types'
 
 /**
  * Pure conversions between a feature and the text of its markdown file.
@@ -17,7 +18,7 @@ export interface ParsedFile {
   title: string
   status: string
   tags: string[]
-  links: Record<string, string>
+  links: FeatureLink[]
   sort: string
   description: string
 }
@@ -70,22 +71,6 @@ function normaliseTags(value: unknown): string[] {
 }
 
 /**
- * Lenient like `normaliseTags`: a non-mapping `links` is noise rather than an error, and
- * entries that are not strings or would be blank after trimming are dropped rather than
- * trusted. Only the value is validated — a key is free-form, so any string key survives.
- */
-function normaliseLinks(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  const links: Record<string, string> = {}
-  for (const [key, link] of Object.entries(value)) {
-    const trimmedKey = key.trim()
-    const trimmedValue = typeof link === 'string' ? link.trim() : ''
-    if (trimmedKey !== '' && trimmedValue !== '') links[trimmedKey] = trimmedValue
-  }
-  return links
-}
-
-/**
  * Writes one feature file.
  *
  * Key order is fixed rather than alphabetical so that editing a feature produces a minimal
@@ -102,7 +87,13 @@ export function serializeFeatureFile(
   // Omit empty tags entirely; `tags: []` is noise in a diff.
   if (feature.tags.length > 0) frontmatter.tags = feature.tags
   // Same for links, and kept after tags so the header reads title, status, tags, links.
-  if (Object.keys(feature.links).length > 0) frontmatter.links = feature.links
+  if (feature.links.length > 0) {
+    frontmatter.links = feature.links.map(({ label, url, type }) => ({
+      ...(label ? { label } : {}),
+      url,
+      ...(type ? { type } : {}),
+    }))
+  }
   frontmatter.sort = feature.sort
   if (feature.uid !== '') frontmatter.uid = feature.uid
 

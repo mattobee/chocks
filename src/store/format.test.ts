@@ -12,7 +12,7 @@ describe('parseFeatureFile', () => {
       title: 'OAuth',
       status: 'pre-release',
       tags: ['api', 'auth'],
-      links: {},
+      links: [],
       sort: 'a1',
       description: 'Supports GitHub and Google.',
     })
@@ -64,30 +64,46 @@ describe('parseFeatureFile', () => {
     expect(parseFeatureFile('---\ntags: [api, 3, null]\n---\n', 'x').tags).toEqual(['api'])
   })
 
-  it('reads links in author order', () => {
+  it('reads links in author order and preserves an unknown type', () => {
     const parsed = parseFeatureFile(
-      '---\nlinks:\n  docs: https://docs.example.com/notifications\n  issue: https://github.com/mattobee/chocks/issues/48\n---\n',
+      '---\nlinks:\n  - label: Original proposal\n    url: docs/rfcs/notifications.md\n  - label: Notification settings\n    url: https://docs.example.com/notifications\n    type: custom\n---\n',
       'x',
     )
-    expect(parsed.links).toEqual({
-      docs: 'https://docs.example.com/notifications',
-      issue: 'https://github.com/mattobee/chocks/issues/48',
-    })
+    expect(parsed.links).toEqual([
+      { label: 'Original proposal', url: 'docs/rfcs/notifications.md' },
+      {
+        label: 'Notification settings',
+        url: 'https://docs.example.com/notifications',
+        type: 'custom',
+      },
+    ])
   })
 
-  it('treats a malformed or non-mapping links as empty', () => {
-    expect(parseFeatureFile('---\nlinks: [docs]\n---\n', 'x').links).toEqual({})
-    expect(parseFeatureFile('---\nlinks: not-a-map\n---\n', 'x').links).toEqual({})
-    expect(parseFeatureFile('---\nlinks: 3\n---\n', 'x').links).toEqual({})
+  it('treats a non-list links value as empty', () => {
+    expect(parseFeatureFile('---\nlinks: { docs: https://example.com }\n---\n', 'x').links).toEqual(
+      [],
+    )
+    expect(parseFeatureFile('---\nlinks: not-a-list\n---\n', 'x').links).toEqual([])
+    expect(parseFeatureFile('---\nlinks: 3\n---\n', 'x').links).toEqual([])
   })
 
-  it('drops non-string, blank and untrimmed links', () => {
+  it('skips malformed entries and trims usable fields', () => {
     expect(
       parseFeatureFile(
-        '---\nlinks:\n  docs:  https://docs.example.com \n  issue: 3\n  "": x\n  blank: "  "\n---\n',
+        '---\nlinks:\n  - not-a-map\n  - label: " Docs "\n    url: " https://docs.example.com "\n    type: " custom "\n  - label: Missing URL\n  - url: 3\n  - url: "  "\n---\n',
         'x',
       ).links,
-    ).toEqual({ docs: 'https://docs.example.com' })
+    ).toEqual([{ label: 'Docs', url: 'https://docs.example.com', type: 'custom' }])
+  })
+
+  it('takes the first 20 entries from a longer file', () => {
+    const entries = Array.from(
+      { length: 21 },
+      (_, index) => `  - url: https://example.com/${index}`,
+    ).join('\n')
+    const parsed = parseFeatureFile(`---\nlinks:\n${entries}\n---\n`, 'x')
+    expect(parsed.links).toHaveLength(20)
+    expect(parsed.links.at(-1)?.url).toBe('https://example.com/19')
   })
 
   it('handles CRLF line endings', () => {
@@ -108,7 +124,10 @@ describe('serializeFeatureFile', () => {
       status: 'pre-release' as const,
       uid: 'a1b2c3d4e5',
       tags: ['api'],
-      links: { docs: 'https://docs.example.com/oauth', issue: 'https://github.com/x/1' },
+      links: [
+        { label: 'OAuth docs', url: 'https://docs.example.com/oauth', type: 'docs' },
+        { url: 'https://github.com/x/1', type: 'issue' },
+      ],
       sort: 'a1',
       description: 'Some **markdown**.',
     }
@@ -121,7 +140,7 @@ describe('serializeFeatureFile', () => {
       status: 'planned',
       uid: '',
       tags: [],
-      links: {},
+      links: [],
       sort: 'a0',
       description: '',
     })
@@ -134,7 +153,7 @@ describe('serializeFeatureFile', () => {
       status: 'planned',
       uid: '',
       tags: [],
-      links: {},
+      links: [],
       sort: 'a0',
       description: '',
     })
@@ -147,7 +166,7 @@ describe('serializeFeatureFile', () => {
       status: 'planned',
       uid: '',
       tags: ['a'],
-      links: { docs: 'https://docs.example.com' },
+      links: [{ label: 'Docs', url: 'https://docs.example.com', type: 'docs' }],
       sort: 'a0',
       description: '',
     })
@@ -162,7 +181,7 @@ describe('serializeFeatureFile', () => {
         status: 'planned',
         uid: '',
         tags: [],
-        links: {},
+        links: [],
         sort: 'a0',
         description: '',
       }),
@@ -175,7 +194,7 @@ describe('serializeFeatureFile', () => {
       status: 'done',
       uid: '',
       tags: ['b', 'a'],
-      links: {},
+      links: [],
       sort: 'a0',
       description: 'x',
     })
@@ -193,7 +212,7 @@ describe('serializeFeatureFile', () => {
       status: 'planned' as const,
       uid: 'a1b2c3d4e5',
       tags: [],
-      links: {},
+      links: [],
       sort: 'a0',
       description: 'Before\n\n---\n\nAfter',
     }
@@ -210,7 +229,7 @@ describe('uid round trip', () => {
       status: 'planned',
       uid: 'a1b2c3d4e5',
       tags: [],
-      links: {},
+      links: [],
       sort: 'a0',
       description: '',
     })
@@ -224,7 +243,7 @@ describe('uid round trip', () => {
       status: 'planned',
       uid: '',
       tags: [],
-      links: {},
+      links: [],
       sort: 'a0',
       description: '',
     })

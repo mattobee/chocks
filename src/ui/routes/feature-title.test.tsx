@@ -29,7 +29,7 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
     },
     status: 'idea',
     tags: [],
-    links: {},
+    links: [],
     sort: 'a0',
   }
   return {

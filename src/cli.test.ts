@@ -78,7 +78,7 @@ describe('chocks context', () => {
           title: 'Authentication',
           status: 'released',
           tags: ['security'],
-          links: {},
+          links: [],
           summary: 'Sign in and out.',
         },
         {
@@ -86,7 +86,7 @@ describe('chocks context', () => {
           title: 'OAuth',
           status: 'pre-release',
           tags: ['api'],
-          links: {},
+          links: [],
           summary: 'Connect providers.',
         },
         {
@@ -94,7 +94,7 @@ describe('chocks context', () => {
           title: 'Passwords',
           status: 'planned',
           tags: ['security', 'accounts'],
-          links: {},
+          links: [],
           summary: 'Reset passwords.',
         },
       ]
@@ -123,7 +123,7 @@ describe('chocks context', () => {
         title: 'Search',
         status: 'shipped',
         tags: ['discovery'],
-        links: {},
+        links: [],
         summary: 'Find features.',
       })}\n`,
     )
@@ -132,7 +132,7 @@ describe('chocks context', () => {
   it('includes links', async () => {
     await feature(
       'search.chocks.md',
-      'title: Search\nstatus: shipped\ntags: [discovery]\nlinks:\n  docs: https://docs.example.com/search\n  issue: https://github.com/mattobee/chocks/issues/48\nsort: a0',
+      'title: Search\nstatus: shipped\ntags: [discovery]\nlinks:\n  - label: Search docs\n    url: https://docs.example.com/search\n    type: docs\n  - url: https://github.com/mattobee/chocks/issues/48\n    type: issue\nsort: a0',
       'Find features.',
     )
 
@@ -142,10 +142,10 @@ describe('chocks context', () => {
         title: 'Search',
         status: 'shipped',
         tags: ['discovery'],
-        links: {
-          docs: 'https://docs.example.com/search',
-          issue: 'https://github.com/mattobee/chocks/issues/48',
-        },
+        links: [
+          { label: 'Search docs', url: 'https://docs.example.com/search', type: 'docs' },
+          { url: 'https://github.com/mattobee/chocks/issues/48', type: 'issue' },
+        ],
         summary: 'Find features.',
       })}\n`,
     )

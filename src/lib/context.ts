@@ -1,12 +1,12 @@
 import { buildTree, type TreeNode } from './tree'
-import type { Feature } from './types'
+import type { Feature, FeatureLink } from './types'
 
 export interface ContextEntry {
   path: string
   title: string
   status: string
   tags: string[]
-  links: Record<string, string>
+  links: FeatureLink[]
   summary: string
 }
 

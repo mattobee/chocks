@@ -19,10 +19,12 @@ import { describeError } from '../lib/errors'
 import { defaultStatusId, DEFAULT_STATUSES, type StatusDefinition } from '../lib/status'
 import {
   MAX_DESCRIPTION_LENGTH,
+  MAX_LINK_COUNT,
   MAX_TAG_COUNT,
   MAX_TAG_LENGTH,
   MAX_TITLE_LENGTH,
   type Feature,
+  type FeatureLink,
 } from '../lib/types'
 
 /**
@@ -59,7 +61,12 @@ export class StoreError extends Error {
 
 const mutationQueues = new Map<string, Promise<void>>()
 
-function validateInput(title?: string, tags?: string[], description?: string): void {
+function validateInput(
+  title?: string,
+  tags?: string[],
+  description?: string,
+  links?: FeatureLink[],
+): void {
   if (title !== undefined) {
     if (title.length > MAX_TITLE_LENGTH) {
       throw new StoreError(`Title exceeds maximum length of ${MAX_TITLE_LENGTH} characters`, 400)
@@ -82,6 +89,9 @@ function validateInput(title?: string, tags?: string[], description?: string): v
         400,
       )
     }
+  }
+  if (links !== undefined && links.length > MAX_LINK_COUNT) {
+    throw new StoreError(`Links exceed maximum count of ${MAX_LINK_COUNT}`, 400)
   }
 }
 
@@ -334,6 +344,7 @@ export interface CreateInput {
   title: string
   status?: string
   tags?: string[]
+  links?: FeatureLink[]
   description?: string
   /** Used only to pick the default status for a new feature. */
   statuses?: StatusDefinition[]
@@ -358,7 +369,7 @@ export function create(root: string, input: CreateInput): Promise<Feature> {
 async function createUnlocked(root: string, input: CreateInput): Promise<Feature> {
   const title = input.title.trim()
   if (title === '') throw new StoreError('Title is required', 400)
-  validateInput(title, input.tags, input.description)
+  validateInput(title, input.tags, input.description, input.links)
   if (input.sort !== undefined && !isValidSortKey(input.sort)) {
     throw new StoreError('Invalid sort key', 400)
   }
@@ -396,7 +407,7 @@ async function createUnlocked(root: string, input: CreateInput): Promise<Feature
     description: input.description ?? '',
     status: input.status ?? defaultStatusId(input.statuses ?? DEFAULT_STATUSES),
     tags: input.tags ?? [],
-    links: {},
+    links: input.links ?? [],
     sort: input.sort ?? sortKeyForIndex(siblings, siblings.length),
   }
 
@@ -414,6 +425,7 @@ export interface UpdateInput {
   title?: string
   status?: string
   tags?: string[]
+  links?: FeatureLink[]
   description?: string
   sort?: string
 }
@@ -431,7 +443,7 @@ export function update(root: string, id: string, patch: UpdateInput): Promise<Fe
 }
 
 async function updateUnlocked(root: string, id: string, patch: UpdateInput): Promise<Feature> {
-  validateInput(patch.title, patch.tags, patch.description)
+  validateInput(patch.title, patch.tags, patch.description, patch.links)
   if (patch.sort !== undefined && !isValidSortKey(patch.sort)) {
     throw new StoreError('Invalid sort key', 400)
   }
@@ -446,6 +458,7 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
       : {}),
     ...(patch.status !== undefined ? { status: patch.status } : {}),
     ...(patch.tags !== undefined ? { tags: patch.tags } : {}),
+    ...(patch.links !== undefined ? { links: patch.links } : {}),
     ...(patch.description !== undefined ? { description: patch.description } : {}),
     ...(patch.sort !== undefined ? { sort: patch.sort } : {}),
   }
