@@ -134,8 +134,16 @@ describe('scan', () => {
     expect((await scan(root)).map((f) => f.id)).toEqual(['real'])
   })
 
-  it('rejects a directory without an index file with repair instructions', async () => {
+  it('ignores an empty directory without an index file', async () => {
+    await given('auth.chocks.md', 'title: Auth\nsort: a0')
+    await mkdir(path.join(root, 'empty'))
+
+    expect((await scan(root)).map((f) => f.id)).toEqual(['auth'])
+  })
+
+  it('rejects a directory without an index file but with content', async () => {
     await mkdir(path.join(root, 'orphan'))
+    await writeFile(path.join(root, 'orphan', 'notes.md'), 'notes', 'utf8')
 
     await expect(scan(root)).rejects.toThrow(
       /orphan.*add index\.chocks\.md or remove the directory/,
