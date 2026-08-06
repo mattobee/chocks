@@ -198,9 +198,17 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     })
   })
 
+  // /api/features is polled on every reload and file change; without this a persistent
+  // conflict (e.g. two clashing forms of a feature) would print its warning on every one
+  // of those instead of once until the problem actually changes.
+  let lastWarnedProblems = new Set<string>()
+
   app.get('/api/features', async (c) => {
     const { features, problems } = await scanWithProblems(root)
-    for (const problem of problems) console.warn(`chocks: ${problem}`)
+    for (const problem of problems) {
+      if (!lastWarnedProblems.has(problem)) console.warn(`chocks: ${problem}`)
+    }
+    lastWarnedProblems = new Set(problems)
     return c.json(features)
   })
 

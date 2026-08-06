@@ -173,6 +173,20 @@ describe('features API', () => {
     warning.mockRestore()
   })
 
+  it('warns about a persistent conflict once, not on every poll', async () => {
+    await writeFile(path.join(root, 'auth.chocks.md'), 'title: Leaf', 'utf8')
+    await mkdir(path.join(root, 'auth'))
+    await writeFile(path.join(root, 'auth', 'index.chocks.md'), 'title: Directory', 'utf8')
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await app.request('/api/features')
+    await app.request('/api/features')
+    await app.request('/api/features')
+
+    expect(warning).toHaveBeenCalledTimes(1)
+    warning.mockRestore()
+  })
+
   it('creates, reads back and nests', async () => {
     const parent = await createFeature('', 'Authentication')
     const child = await createFeature(parent.id, 'OAuth')
