@@ -8,7 +8,7 @@ describe('FeatureLinks', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('shows the five known keys in fixed order with unknowns after', () => {
+  it('shows the four known keys in fixed order with unknowns after', () => {
     render(
       <FeatureLinks
         links={{
@@ -22,14 +22,14 @@ describe('FeatureLinks', () => {
       />,
     )
     const links = screen.getAllByRole('link')
-    // Known keys are pinned to a fixed order; the unknown one follows them as-is.
+    // Known keys are pinned to a fixed order; unknowns follow them as-is.
     expect(links.map((link) => link.textContent)).toEqual([
       'Docs',
       'Issue',
-      'Pull request',
       'Design',
       'Spec',
       'Docs internal',
+      'Pr',
     ])
   })
 

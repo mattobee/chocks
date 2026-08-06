@@ -1,15 +1,15 @@
-import { BookOpen, CircleDot, FileText, GitPullRequest, Palette } from 'lucide-react'
+import { BookOpen, CircleDot, FileText, Palette } from 'lucide-react'
 import { humanise } from '@/lib/ids'
 
 /**
  * Read-only row of a feature's named links.
  *
- * Keys are free-form, but the five known ones carry an icon and a fixed display order, and
+ * Keys are free-form, but the four known ones carry an icon and a fixed display order, and
  * anything else renders with its key humanised, the same way an unknown status survives.
  * A value with an http(s) scheme is a URL opened in a new tab; one without a scheme is a
  * repo-relative path linked in place. Both render without checking the value exists.
  */
-const KNOWN_LINK_KEYS = ['docs', 'issue', 'pr', 'design', 'spec'] as const
+const KNOWN_LINK_KEYS = ['docs', 'issue', 'design', 'spec'] as const
 const KNOWN_LINK_KEY_SET = new Set<string>(KNOWN_LINK_KEYS)
 
 const LINK_META: Record<
@@ -18,7 +18,6 @@ const LINK_META: Record<
 > = {
   docs: { label: 'Docs', Icon: BookOpen },
   issue: { label: 'Issue', Icon: CircleDot },
-  pr: { label: 'Pull request', Icon: GitPullRequest },
   design: { label: 'Design', Icon: Palette },
   spec: { label: 'Spec', Icon: FileText },
 }

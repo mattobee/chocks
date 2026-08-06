@@ -83,7 +83,7 @@ Sends once a day with everything you missed. Still behind a flag while the send 
 
 The markdown body is the description, and everything is editable by hand: the running UI picks up changes immediately. Features saved through chocks allow titles up to 300 characters, 100 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id is its path, so there's no `parent` field that can disagree with the filesystem, and moving or retitling a feature is just a rename. Links keep working after a move, because they resolve on a `uid` generated once per feature rather than on the path.
 
-`links` maps a free-form key to a URL or a repo-relative path; chocks tells the two apart by scheme. The UI knows five keys and gives them an icon and a fixed order: `docs`, `issue`, `pr`, `design` and `spec`. Anything else still renders, with its key humanised, the same way an unknown status survives. Links are read-only in the UI for now, so editing one is a hand edit.
+`links` maps a free-form key to a URL or a repo-relative path; chocks tells the two apart by scheme. The UI knows four keys and gives them an icon and a fixed order: `docs`, `issue`, `design` and `spec`. Anything else still renders, with its key humanised, the same way an unknown status survives. Links are read-only in the UI for now, so editing one is a hand edit.
 
 ## Seeding a tree
 
