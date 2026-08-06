@@ -40,10 +40,8 @@ interface TreeProps extends React.HTMLAttributes<HTMLDivElement> {
 function Tree({ indent = 20, tree, className, style, toggleIconType = "chevron", ...props }: TreeProps) {
   const containerProps =
     tree && typeof tree.getContainerProps === "function" ? tree.getContainerProps() : {}
-  // Headless Tree's own container props carry a `style` too (position: relative, for the
-  // drag line's absolute positioning) — spreading the two prop objects in either order
-  // would drop one `style` entirely rather than merging them, since a shallow spread
-  // replaces the whole key.
+  // Headless Tree's own container props carry a style too (position: relative, for the
+  // drag line's absolute positioning); a shallow spread would drop one wholesale.
   const { style: containerStyle, ...otherContainerProps } = containerProps as {
     style?: React.CSSProperties
   }
@@ -101,9 +99,8 @@ function TreeItem<T = any>({ item, className, render, children, ...props }: Tree
       typeof item.isDragTarget === "function" ? item.isDragTarget() || false : undefined,
     "data-search-match":
       typeof item.isMatchingSearch === "function" ? item.isMatchingSearch() || false : undefined,
-    // Deliberately not set here: Headless Tree's own getProps() provides it, conditional on
-    // the item being a folder, and that value wins in the merge below. An unconditional
-    // version here would only override it with aria-expanded on leaf rows.
+    // Not set here: Headless Tree's own getProps() provides it, conditional on the item
+    // being a folder, and that value wins in the merge below.
   }
 
   return (

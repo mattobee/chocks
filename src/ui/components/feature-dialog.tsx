@@ -79,10 +79,9 @@ export function FeatureDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         {/*
-          The submit button is deliberately never disabled. A disabled control gives no
-          reason for being unavailable, and pairing it with `required` meant the browser's
-          own validation could never fire either, so an empty title failed silently.
-          Submitting reports the problem and moves focus to the field instead.
+          The submit button is deliberately never disabled: with `required` set, a disabled
+          button would stop the browser's own validation from firing, so an empty title
+          failed silently. Submitting reports the problem and focuses the field instead.
         */}
         <form
           noValidate

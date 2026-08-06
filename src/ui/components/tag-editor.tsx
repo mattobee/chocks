@@ -14,9 +14,8 @@ import { MAX_TAG_COUNT, MAX_TAG_LENGTH } from '@/lib/types'
 
 /**
  * Tags are free-form strings in frontmatter: type to filter the ones already in use, or
- * keep typing to offer creating a new one. Shared between the create/edit dialog and the
- * feature page's own inline editor, which is the same picker but commits on every change
- * instead of waiting for a form submit.
+ * keep typing to offer creating a new one. Shared by the create/edit dialog and the
+ * feature page, which commits on every change rather than on a form submit.
  */
 export function TagEditor({
   tags,
@@ -43,10 +42,8 @@ export function TagEditor({
 }) {
   const [tagQuery, setTagQuery] = useState('')
 
-  // A tag just created by typing isn't in `availableTags` (that only reflects tags already
-  // saved elsewhere), so it has to stay in `items` via the current selection instead, or it
-  // vanishes from the combobox's collection the moment the query moves on — which left the
-  // list unable to show anything at all for the next tag typed after it.
+  // A tag just created by typing isn't in `availableTags`, so it has to stay in `items`
+  // via the current selection, or it vanishes the moment the query moves on.
   const knownTags = [...new Set([...availableTags, ...tags])]
 
   // Offer to create a new tag once the query doesn't match one already on offer or chosen.
@@ -54,9 +51,8 @@ export function TagEditor({
   const tagAlreadyChosen = knownTags.some(
     (tag) => tag.toLowerCase() === trimmedTagQuery.toLowerCase(),
   )
-  // Filtered by hand and passed as `filteredItems`: the combobox's own default filter
-  // stopped matching a freshly typed tag against itself once a previous tag had already
-  // been picked, leaving the list stuck showing only the earlier pick.
+  // Filtered by hand: the combobox's own filter stopped matching a freshly typed tag
+  // against itself once a previous tag had been picked.
   const matchingTags = knownTags.filter((tag) =>
     tag.toLowerCase().includes(trimmedTagQuery.toLowerCase()),
   )

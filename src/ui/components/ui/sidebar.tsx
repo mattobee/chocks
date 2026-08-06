@@ -282,16 +282,13 @@ interface RailDrag {
 }
 
 /**
- * Doubles as the click-to-toggle handle and the drag-to-resize handle.
+ * Click to toggle, drag to resize.
  *
- * Width updates happen by mutating the `--sidebar-width` custom property directly on the
- * provider's wrapper element during the drag, bypassing React state so the panel tracks the
- * pointer at 1:1 rather than lagging behind a state update each frame. `setWidth` only runs
- * once, on release, to commit the final value (and persist it to the cookie) — the DOM
- * already shows that value, so there is nothing to reconcile.
+ * During a drag the `--sidebar-width` custom property is mutated directly on the provider's
+ * wrapper, bypassing React state so the panel tracks the pointer at 1:1. `setWidth` runs
+ * once on release to commit (and persist) the value; the DOM already shows it.
  *
- * A plain click — pointerdown and pointerup with negligible movement — still toggles the
- * sidebar, which is what made this element worth clicking before it could be dragged.
+ * A click with negligible movement still toggles the sidebar.
  */
 function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
   const { toggleSidebar, state, width, setWidth } = useSidebar()
@@ -542,9 +539,8 @@ function SidebarMenuButton({
     className,
   )
 
-  // No Slot primitive available here, so `asChild` clones the single child
-  // directly rather than rendering a styleless wrapper (React.Fragment cannot
-  // carry className/data-* props — it silently drops them).
+  // No Slot primitive here, so `asChild` clones the single child rather than rendering a
+  // styleless wrapper (a React.Fragment silently drops className/data-* props).
   if (asChild && React.isValidElement(children)) {
     const child = children as React.ReactElement<Record<string, unknown>>
     return React.cloneElement(child, {

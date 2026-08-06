@@ -15,9 +15,8 @@ import type { StatusDefinition } from '@/lib/status'
 import type { TreeFilters } from '@/lib/tree'
 
 /**
- * One "Filter" button with the status and tag pickers nested inside it as submenus, rather
- * than a separate dropdown per category — narrow as the sidebar is, there isn't room to lay
- * them out side by side the way the old full-page tree could.
+ * One "Filter" button with the status and tag pickers nested inside it as submenus — the
+ * sidebar is too narrow for a dropdown per category.
  */
 export function FeatureFilterMenu({
   statuses,
