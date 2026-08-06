@@ -12,7 +12,7 @@ import {
   type ItemInstance,
 } from '@headless-tree/core'
 import { AssistiveTreeDescription, useTree } from '@headless-tree/react'
-import { ChevronRight, FolderGit2, Plus, Search, SquareDot, X } from 'lucide-react'
+import { ChevronRight, Plus, Search, SquareDot, X } from 'lucide-react'
 
 import {
   Sidebar,
@@ -23,7 +23,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from '@/ui/components/ui/sidebar'
@@ -257,21 +256,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              {/* Explicit name, or the two spans inside concatenate into it — "chocks
-                  <workspace name>" instead of the clean, workspace-independent "chocks"
-                  a link back home ought to have. The workspace name stays visible for
-                  sighted users; it just isn't part of what this control is called. */}
-              <Link to="/" className="gap-2" aria-label="chocks">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <FolderGit2 className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">chocks</span>
-                  <span className="truncate text-xs">{workspace.data?.name ?? '…'}</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
+            {/* Explicit name, or the images inside would contribute nothing and the span
+                below would leak the workspace name into it. "chocks" on its own is what a
+                link back home ought to be called. */}
+            <Link
+              to="/"
+              aria-label="chocks"
+              className="flex flex-col items-start gap-1.5 px-3 pt-4 pb-2"
+            >
+              {/* Two lockups: one ink-on-white for the light sidebar, one white-on-ink for
+                  the dark one. Only one is displayed, chosen by the theme. */}
+              <img src="/chocks_lockup_onlight.svg" alt="" className="h-8 w-auto dark:hidden" />
+              <img
+                src="/chocks_lockup_ondark.svg"
+                alt=""
+                className="hidden h-8 w-auto dark:block"
+              />
+              <span className="text-sidebar-foreground/60 max-w-full truncate text-xs">
+                {workspace.data?.name ?? '…'}
+              </span>
+            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
 
