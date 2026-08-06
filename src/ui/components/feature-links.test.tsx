@@ -19,6 +19,7 @@ describe('FeatureLinks', () => {
         ]}
       />,
     )
+    expect(screen.getByRole('heading', { level: 2, name: 'Links' })).toBeInTheDocument()
     expect(screen.getByRole('list')).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(4)
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
