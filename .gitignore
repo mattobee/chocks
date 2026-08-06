@@ -19,3 +19,4 @@ src/ui/routeTree.gen.ts
 /blob-report
 /playwright/.cache
 /coverage
+/.playwright-mcp

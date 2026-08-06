@@ -94,15 +94,15 @@ test.describe('axe in dark mode', () => {
 })
 
 test.describe('accessible names', () => {
-  test('names every icon-only control on a row', async ({ page, workspace }) => {
+  test('names the icon-only control on a tree row', async ({ page, workspace }) => {
     await page.goto(workspace.url)
-    const row = page.getByRole('listitem').first()
-    await row.hover()
 
-    // These have no visible text, so a regression is invisible without this.
-    await expect(row.getByRole('button').nth(0)).toHaveAccessibleName('Expand')
-    await expect(row.getByRole('button', { name: 'Drag to reorder' })).toBeVisible()
-    await expect(row.getByRole('button', { name: 'Actions for Authentication' })).toBeVisible()
+    // Authentication has children (OAuth providers), so its row carries the one
+    // icon-only control the tree still has: the expand/collapse chevron. A leaf row has
+    // none, and there is no separate drag handle or row menu any more — the whole row is
+    // both the drag source and the primary-action target.
+    const row = page.getByRole('treeitem', { name: 'Authentication' })
+    await expect(row.getByRole('button')).toHaveAccessibleName('Expand')
   })
 
   test('names the colour mode control and its options', async ({ page, workspace }) => {
@@ -137,7 +137,8 @@ test.describe('keyboard', () => {
     await expect(page.getByRole('link', { name: 'Authentication' })).toBeVisible()
 
     await page.keyboard.press('Tab')
-    // Exact, because the footer links "chocks <version> release notes" from the same page.
+    // Exact: the link's own accessible name is set explicitly, so it does not pick up
+    // the workspace name sitting next to it in the same control.
     await expect(page.getByRole('link', { name: 'chocks', exact: true })).toBeFocused()
 
     // Arrow keys move within the radio group, which is why it is a radio group.
@@ -145,26 +146,14 @@ test.describe('keyboard', () => {
     await page.keyboard.press('ArrowRight')
     await expect(page.getByRole('radio', { name: 'Light' })).toBeFocused()
   })
-
-  test('opens and operates the row menu from the keyboard', async ({ page, workspace }) => {
-    await page.goto(workspace.url)
-    const trigger = page.getByRole('button', { name: 'Actions for Authentication' })
-    await trigger.focus()
-    await page.keyboard.press('Enter')
-
-    await expect(page.getByRole('menuitem', { name: 'Edit…' })).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(page.getByRole('menuitem', { name: 'Edit…' })).toBeHidden()
-  })
 })
 
 test.describe('search results', () => {
   test('announces the match count as the query changes', async ({ page, workspace }) => {
     await page.goto(workspace.url)
 
-    // Named because dnd-kit injects its own assertive status region for drag
-    // announcements, so the tree has two. The region also has to exist before it
-    // populates, or the first result is never announced.
+    // The region has to exist before it populates, or the first result is never
+    // announced, so it is checked for attachment before anything is typed.
     const status = page.getByRole('status', { name: 'Search results' })
     await expect(status).toBeAttached()
 

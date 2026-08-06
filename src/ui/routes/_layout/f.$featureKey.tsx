@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { Pencil, Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
-import { AppShell } from '@/ui/components/app-shell'
+import { Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
+
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusDropdown } from '@/ui/components/status-dropdown'
+import { TagEditor } from '@/ui/components/tag-editor'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,7 +17,6 @@ import {
 import { FeatureHistory } from '@/ui/components/feature-history'
 import { Markdown } from '@/ui/components/markdown'
 import { Button } from '@/ui/components/ui/button'
-import { Badge } from '@/ui/components/ui/badge'
 import {
   Empty,
   EmptyContent,
@@ -35,7 +35,7 @@ import {
 } from '@/ui/components/ui/input-group'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { DeleteFeatureDialog } from '@/ui/components/delete-feature-dialog'
-import { useFeatureMutations, useWatchFiles } from '@/ui/hooks/use-features'
+import { useFeatureMutations } from '@/ui/hooks/use-features'
 import { allTags, ancestorsOf, childrenOf, findByKey } from '@/lib/tree'
 import { featuresQuery, uncommittedQuery, workspaceQuery } from '@/ui/lib/queries'
 import { DEFAULT_STATUSES, MODIFIED_COLOR } from '@/lib/status'
@@ -45,7 +45,7 @@ import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from '@/lib/types'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
 // keeps resolving after the feature is renamed or moved.
-export const Route = createFileRoute('/f/$featureKey')({
+export const Route = createFileRoute('/_layout/f/$featureKey')({
   component: FeaturePage,
 })
 
@@ -58,7 +58,6 @@ export function FeaturePage() {
   const workspace = useQuery(workspaceQuery())
   const uncommitted = useQuery(uncommittedQuery())
   const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
-  useWatchFiles()
 
   const featureList = features.data ?? []
   const uncommittedIds = useMemo(
@@ -132,13 +131,13 @@ export function FeaturePage() {
 
   if (features.isPending) {
     return (
-      <AppShell>
+      <>
         <div className="grid gap-3">
           <Skeleton className="h-5 w-64" />
           <Skeleton className="h-9 w-96" />
           <Skeleton className="h-32 w-full" />
         </div>
-      </AppShell>
+      </>
     )
   }
 
@@ -147,7 +146,7 @@ export function FeaturePage() {
   // problem, and nothing refetches on its own to correct it.
   if (features.isError) {
     return (
-      <AppShell>
+      <>
         <Empty className="border">
           <EmptyHeader>
             {/* Same tint as the delete dialog's icon, so "this is destructive/wrong" reads
@@ -173,13 +172,13 @@ export function FeaturePage() {
             </div>
           </EmptyContent>
         </Empty>
-      </AppShell>
+      </>
     )
   }
 
   if (!feature) {
     return (
-      <AppShell>
+      <>
         <Empty className="border">
           <EmptyHeader>
             <EmptyTitle render={<h1 />}>
@@ -193,7 +192,7 @@ export function FeaturePage() {
             </Button>
           </EmptyContent>
         </Empty>
-      </AppShell>
+      </>
     )
   }
 
@@ -239,7 +238,7 @@ export function FeaturePage() {
   }
 
   return (
-    <AppShell>
+    <>
       <>
         <Breadcrumb className="mb-4">
           <BreadcrumbList>
@@ -303,32 +302,22 @@ export function FeaturePage() {
               {/* The page's heading, which it did not have before: the title was an input
                   dressed as one, so there was nothing for a screen reader to navigate to. */}
               <h1 className="flex-1 text-3xl font-semibold tracking-tight">{feature.title}</h1>
-              {/* Same as the description's Edit: short visible label, longer accessible one
-                  so it still says what it renames when read out of context. */}
+              {/* Short visible label; the longer accessible name says what it renames when
+                  read out of context, where "Rename" alone doesn't. */}
               <Button
                 ref={renameButtonRef}
                 variant="secondary"
+                size="sm"
                 aria-label="Rename feature"
                 onClick={() => setRenaming(true)}
               >
-                <Pencil data-icon="inline-start" />
                 Rename
               </Button>
             </>
           )}
         </div>
 
-        {feature.tags.length > 0 && (
-          <ul className="mb-3 flex flex-wrap items-center gap-2">
-            {feature.tags.map((tag) => (
-              <li key={tag}>
-                <Badge variant="outline">{tag}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <StatusDropdown
             statuses={statuses}
             status={feature.status}
@@ -337,21 +326,26 @@ export function FeaturePage() {
           />
         </div>
 
+        <div className="mb-6 max-w-sm">
+          <TagEditor
+            tags={feature.tags}
+            availableTags={tags}
+            onChange={(next) => update.mutate({ id: featureId, tags: next })}
+            ariaLabel={`Tags for ${feature.title}`}
+          />
+        </div>
+
         <div className="mb-8">
           <div className="mb-3 flex items-center gap-3">
             <h2 className="flex-1 text-lg font-semibold">Description</h2>
-            {/* Visible text is Edit, to match Add above it. The longer accessible name is
-                for anyone listing the page's buttons, where Edit on its own says nothing
-                about what it edits. It contains the visible label, so the two agree. */}
             {!describing && (
               <Button
                 ref={describeButtonRef}
                 variant="secondary"
-                aria-label="Edit description"
+                size="sm"
                 onClick={() => setDescribing(true)}
               >
-                <Pencil data-icon="inline-start" />
-                Edit
+                Edit description
               </Button>
             )}
           </div>
@@ -401,7 +395,7 @@ export function FeaturePage() {
           <h2 className="flex-1 text-lg font-semibold">
             Sub-features{children.length > 0 && ` (${children.length})`}
           </h2>
-          <Button variant="secondary" onClick={() => setChildDialogOpen(true)}>
+          <Button variant="secondary" size="sm" onClick={() => setChildDialogOpen(true)}>
             <Plus data-icon="inline-start" />
             Add sub-feature
           </Button>
@@ -498,6 +492,6 @@ export function FeaturePage() {
           })
         }}
       />
-    </AppShell>
+    </>
   )
 }

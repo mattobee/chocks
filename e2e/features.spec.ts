@@ -20,7 +20,9 @@ test.describe('creating', () => {
 
     await page.getByRole('button', { name: 'Create', exact: true }).click()
 
-    await expect(page.getByRole('link', { name: 'Password reset' })).toBeVisible()
+    // Scoped to the tree: creating navigates straight to the new feature, and its
+    // breadcrumb's current-page entry carries the same accessible name and role.
+    await expect(page.getByRole('tree').getByRole('link', { name: 'Password reset' })).toBeVisible()
 
     const file = await workspace.read('password-reset')
     expect(file).toContain('title: Password reset')
@@ -48,21 +50,14 @@ test.describe('reordering', () => {
   test('rewrites one file and leaves the neighbours alone', async ({ page, workspace }) => {
     await page.goto(workspace.url)
     // Authentication and Billing are both top level, so this is a pure sibling reorder.
-    await expect(page.getByRole('link', { name: 'Billing' })).toBeVisible()
+    const billing = page.getByRole('link', { name: 'Billing' })
+    const authentication = page.getByRole('link', { name: 'Authentication' })
+    await expect(billing).toBeVisible()
 
-    const handle = page.getByRole('button', { name: 'Drag to reorder' }).nth(1)
-    const box = await handle.boundingBox()
-    const target = await page.getByRole('link', { name: 'Authentication' }).boundingBox()
-    if (!box || !target) throw new Error('rows not laid out')
-
-    const x = box.x + box.width / 2
-    await page.mouse.move(x, box.y + box.height / 2)
-    await page.mouse.down()
-    // Horizontal position must not change, or the drop projects as a reparent rather than
-    // a reorder. dnd-kit also needs more than 4px of travel to treat this as a drag.
-    await page.mouse.move(x, box.y + box.height / 2 - 10, { steps: 5 })
-    await page.mouse.move(x, target.y - 4, { steps: 10 })
-    await page.mouse.up()
+    // Dropped near the top edge of Authentication's row, inside the band the tree treats
+    // as "reorder before this item" rather than the middle band, which instead reparents
+    // the dragged row as Authentication's child.
+    await billing.dragTo(authentication, { targetPosition: { x: 10, y: 2 } })
 
     // The whole point of fractional index keys: one file rewritten, neighbours untouched.
     await expect.poll(async () => await workspace.changed(), { timeout: 5000 }).toHaveLength(1)
@@ -71,15 +66,12 @@ test.describe('reordering', () => {
 })
 
 test.describe('status', () => {
-  test('changes a feature status from the row and writes it to the file', async ({
-    page,
-    workspace,
-  }) => {
-    await page.goto(workspace.url)
+  test('changes a feature status and writes it to the file', async ({ page, workspace }) => {
+    await page.goto(`${workspace.url}/f/billing~aaa0000005`)
 
-    const billing = page.getByRole('button', { name: 'Status of Billing' })
-    await expect(billing).toHaveText(/Planned/)
-    await billing.click()
+    const status = page.getByRole('button', { name: 'Status' })
+    await expect(status).toHaveText(/Planned/)
+    await status.click()
     await page.getByRole('menuitemradio', { name: 'Released' }).click()
 
     await expect
@@ -198,20 +190,20 @@ test.describe('undo', () => {
   })
 
   test('restores a deleted subtree with its uids intact', async ({ page, workspace }) => {
-    await page.goto(workspace.url)
-    await page.getByRole('button', { name: 'Expand' }).first().click()
+    await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
 
-    await page.getByRole('button', { name: 'Actions for OAuth providers' }).click()
-    await page.getByRole('menuitem', { name: 'Delete…' }).click()
+    await page.getByRole('button', { name: 'Delete feature' }).click()
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
-    await expect(page.getByRole('link', { name: 'OAuth providers' })).toBeHidden()
+    await expect(page.getByRole('tree').getByRole('link', { name: 'OAuth providers' })).toBeHidden()
     await expect.poll(() => undoStackSize(page), { timeout: 10_000 }).toBe(1)
 
     // Straight after confirming, which is when you actually reach for undo. The dialog is
     // still in the DOM at this point, closed but mounted.
     await page.keyboard.press('ControlOrMeta+z')
 
-    await expect(page.getByRole('link', { name: 'OAuth providers' })).toBeVisible()
+    await expect(
+      page.getByRole('tree').getByRole('link', { name: 'OAuth providers' }),
+    ).toBeVisible()
 
     // Poll rather than read once. Restoring is one create per feature, so the parent's row
     // is back on screen while its children are still being written.

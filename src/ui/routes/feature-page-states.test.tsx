@@ -46,7 +46,7 @@ afterEach(() => listFeatures.mockReset())
  * test is the order of its branches, so it has to be the real component.
  */
 async function setup() {
-  const { FeaturePage } = await import('./f.$featureKey')
+  const { FeaturePage } = await import('./_layout/f.$featureKey')
   const rootRoute = createRootRoute({ component: Outlet })
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
