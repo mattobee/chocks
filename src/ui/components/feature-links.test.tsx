@@ -59,6 +59,14 @@ describe('FeatureLinks', () => {
     expect(link).toHaveAttribute('rel', 'noreferrer')
   })
 
+  it('treats a protocol-relative URL as external', () => {
+    render(<FeatureLinks links={[{ label: 'Docs', url: '//docs.example.com/x' }]} />)
+    const link = screen.getByRole('link', { name: 'Docs' })
+    expect(link).toHaveAttribute('href', '//docs.example.com/x')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
+  })
+
   it('links a repo-relative path without a target', () => {
     render(<FeatureLinks links={[{ label: 'Spec', url: 'docs/x-spec.md' }]} />)
     const link = screen.getByRole('link', { name: 'Spec' })

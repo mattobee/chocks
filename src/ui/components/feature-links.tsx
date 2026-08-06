@@ -16,7 +16,7 @@ const LINK_ICONS = new Map<string, typeof BookOpen>([
   ['spec', FileText],
 ])
 
-const EXTERNAL_URL = /^https?:\/\//i
+const EXTERNAL_URL = /^(?:https?:)?\/\//i
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 
 export function FeatureLinks({ links }: { links: FeatureLink[] }) {
