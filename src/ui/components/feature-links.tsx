@@ -29,7 +29,7 @@ export function FeatureLinks({ links }: { links: FeatureLink[] }) {
         const external = EXTERNAL_URL.test(url)
         const path = !HAS_SCHEME.test(url)
         const className =
-          'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-primary underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none'
+          'inline-flex items-center gap-1.5 rounded-md text-sm text-primary underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none'
         const content = (
           <>
             <Icon aria-hidden="true" className="size-4" />
