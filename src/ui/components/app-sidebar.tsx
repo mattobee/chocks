@@ -28,6 +28,7 @@ import {
 } from '@/ui/components/ui/sidebar'
 import { Tree, TreeDragLine, TreeItem } from '@/ui/components/ui/tree'
 import { Button } from '@/ui/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/components/ui/tooltip'
 import {
   InputGroup,
   InputGroupAddon,
@@ -308,14 +309,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             filters={filters}
             onChange={setFilters}
           />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="New feature"
-            onClick={() => setDialogOpen(true)}
-          >
-            <Plus />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="New feature"
+                  onClick={() => setDialogOpen(true)}
+                />
+              }
+            >
+              <Plus />
+            </TooltipTrigger>
+            {/* Same wording as the button's accessible name, so the two agree. */}
+            <TooltipContent side="bottom">New feature</TooltipContent>
+          </Tooltip>
         </div>
 
         {/*
