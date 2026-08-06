@@ -188,14 +188,18 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
           side={side === "right" ? "right" : "left"}
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className={cn(
+            "w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
+            className,
+          )}
           style={{ "--sidebar-width": SIDEBAR_WIDTH_MOBILE } as React.CSSProperties}
+          {...props}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>
@@ -604,6 +608,8 @@ function SidebarMenuBadge({ className, ...props }: React.ComponentProps<"div">) 
 }
 
 function SidebarMenuSkeleton({ className, showIcon = false, ...props }: React.ComponentProps<"div"> & { showIcon?: boolean }) {
+  // Randomised per-row so a list of skeleton rows doesn't read as one obviously repeated
+  // bar; range (50-90%) keeps them plausible as text without ever touching full width.
   const [width] = React.useState(() => `${Math.floor(Math.random() * 40) + 50}%`)
 
   return (

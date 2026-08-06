@@ -75,8 +75,7 @@ function TreeItem<T = any>({ item, className, render, children, ...props }: Tree
   const parentContext = useTreeContext<T>()
   const { indent } = parentContext
 
-  const itemProps = typeof item.getProps === "function" ? item.getProps() : {}
-  const mergedProps = { ...props, children, ...itemProps }
+  const mergedProps = { ...props, children, ...item.getProps() }
 
   const { style: propStyle, ...otherProps } = mergedProps
 
@@ -92,13 +91,14 @@ function TreeItem<T = any>({ item, className, render, children, ...props }: Tree
       "z-10 ps-(--tree-padding) outline-hidden select-none not-last:pb-0.5 focus:z-20 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     ),
-    "data-focus": typeof item.isFocused === "function" ? item.isFocused() || false : undefined,
-    "data-folder": typeof item.isFolder === "function" ? item.isFolder() || false : undefined,
-    "data-selected": typeof item.isSelected === "function" ? item.isSelected() || false : undefined,
-    "data-drag-target":
-      typeof item.isDragTarget === "function" ? item.isDragTarget() || false : undefined,
+    "data-focus": item.isFocused(),
+    "data-folder": item.isFolder(),
+    "data-selected": item.isSelected(),
+    "data-drag-target": item.isDragTarget(),
+    // Only present when the tree enables Headless Tree's search feature; this component
+    // is also used for trees that don't.
     "data-search-match":
-      typeof item.isMatchingSearch === "function" ? item.isMatchingSearch() || false : undefined,
+      typeof item.isMatchingSearch === "function" ? item.isMatchingSearch() : undefined,
     // Not set here: Headless Tree's own getProps() provides it, conditional on the item
     // being a folder, and that value wins in the merge below.
   }
@@ -123,7 +123,6 @@ function TreeItemLabel<T = any>({ item: propItem, children, className, ...props 
   const item = propItem || currentItem
 
   if (!item) {
-    console.warn("TreeItemLabel: No item provided via props or context")
     return null
   }
 
@@ -146,7 +145,7 @@ function TreeItemLabel<T = any>({ item: propItem, children, className, ...props 
         ) : (
           <ChevronDownIcon className="text-muted-foreground size-4 in-aria-[expanded=false]:-rotate-90" />
         ))}
-      {children || (typeof item.getItemName === "function" ? item.getItemName() : null)}
+      {children || item.getItemName()}
     </span>
   )
 }
