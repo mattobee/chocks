@@ -1,5 +1,25 @@
+import { writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
+
+test.describe('loading', () => {
+  test('shows valid features when another feature has conflicting forms', async ({
+    page,
+    workspace,
+  }) => {
+    await writeFile(
+      path.join(workspace.chocks, 'auth.chocks.md'),
+      '---\ntitle: Conflicting authentication\n---\n',
+      'utf8',
+    )
+
+    await page.goto(workspace.url)
+
+    await expect(page.getByRole('tree').getByRole('link', { name: 'Billing' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Authentication' })).toHaveCount(0)
+  })
+})
 
 test.describe('creating', () => {
   test('writes a feature file with the right frontmatter', async ({ page, workspace }) => {

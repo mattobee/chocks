@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -153,6 +153,24 @@ describe('features API', () => {
     const response = await app.request('/api/features')
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual([])
+  })
+
+  it('returns valid features when another feature has conflicting forms', async () => {
+    await createFeature('', 'Billing')
+    await writeFile(path.join(root, 'auth.chocks.md'), 'title: Leaf', 'utf8')
+    await mkdir(path.join(root, 'auth'))
+    await writeFile(path.join(root, 'auth', 'index.chocks.md'), 'title: Directory', 'utf8')
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const response = await app.request('/api/features')
+    const features = (await response.json()) as Feature[]
+
+    expect(response.status).toBe(200)
+    expect(features.map((feature) => feature.id)).toEqual(['billing'])
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringMatching(/remove either auth\.chocks\.md or the auth\/ directory/),
+    )
+    warning.mockRestore()
   })
 
   it('creates, reads back and nests', async () => {

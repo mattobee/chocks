@@ -10,7 +10,7 @@ import {
   move,
   read,
   remove,
-  scan,
+  scanWithProblems,
   StoreError,
   update,
 } from '../store/store'
@@ -198,7 +198,11 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     })
   })
 
-  app.get('/api/features', async (c) => c.json(await scan(root)))
+  app.get('/api/features', async (c) => {
+    const { features, problems } = await scanWithProblems(root)
+    for (const problem of problems) console.warn(`chocks: ${problem}`)
+    return c.json(features)
+  })
 
   /** Ids of features with changes not yet committed, for the header badge and tree rows. */
   app.get('/api/uncommitted', async (c) => {
