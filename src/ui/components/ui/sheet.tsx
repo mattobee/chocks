@@ -51,7 +51,14 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem]",
+          // Side sheets span the full height and slide in; without `inset-y-0` the dialog
+          // popup vertically centres itself, hanging below the viewport with no scroll.
+          "fixed z-50 bg-background shadow-lg",
+          side === "left" && "inset-y-0 left-0 h-full border-r data-ending-style:translate-x-[-2.5rem] data-starting-style:translate-x-[-2.5rem]",
+          side === "right" && "inset-y-0 right-0 h-full border-l data-ending-style:translate-x-[2.5rem] data-starting-style:translate-x-[2.5rem]",
+          side === "top" && "inset-x-0 top-0 h-auto w-full border-b data-ending-style:translate-y-[-2.5rem] data-starting-style:translate-y-[-2.5rem]",
+          side === "bottom" && "inset-x-0 bottom-0 h-auto w-full border-t data-ending-style:translate-y-[2.5rem] data-starting-style:translate-y-[2.5rem]",
+          "data-ending-style:opacity-0 data-starting-style:opacity-0",
           className,
         )}
         {...props}

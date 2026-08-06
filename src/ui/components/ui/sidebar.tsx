@@ -291,8 +291,12 @@ interface RailDrag {
  * A click with negligible movement still toggles the sidebar.
  */
 function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
-  const { toggleSidebar, state, width, setWidth } = useSidebar()
+  const { toggleSidebar, state, width, setWidth, isMobile } = useSidebar()
   const dragRef = React.useRef<RailDrag | null>(null)
+
+  // The rail is a desktop resize handle; in the mobile drawer there is nothing to resize,
+  // and its absolute positioning lands on top of the sheet's content.
+  if (isMobile) return null
 
   function handlePointerDown(event: React.PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0 || state !== "expanded") return
