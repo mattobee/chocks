@@ -266,16 +266,10 @@ async function scanStore(
       )
     }
 
+    const fileNames = new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name))
     const duplicateLeaves = new Set(
       entries
-        .filter(
-          (entry) =>
-            entry.isDirectory() &&
-            entries.some(
-              (candidate) =>
-                candidate.isFile() && candidate.name === `${entry.name}${FEATURE_SUFFIX}`,
-            ),
-        )
+        .filter((entry) => entry.isDirectory() && fileNames.has(`${entry.name}${FEATURE_SUFFIX}`))
         .map((entry) => `${entry.name}${FEATURE_SUFFIX}`),
     )
 
