@@ -256,26 +256,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            {/* Explicit name, or the images inside would contribute nothing and the span
-                below would leak the workspace name into it. "chocks" on its own is what a
-                link back home ought to be called. */}
-            <Link
-              to="/"
-              aria-label="chocks"
-              className="flex flex-col items-start gap-1.5 px-3 pt-4 pb-2"
-            >
-              {/* Two lockups: one ink-on-white for the light sidebar, one white-on-ink for
-                  the dark one. Only one is displayed, chosen by the theme. */}
-              <img src="/chocks_lockup_onlight.svg" alt="" className="h-8 w-auto dark:hidden" />
-              <img
-                src="/chocks_lockup_ondark.svg"
-                alt=""
-                className="hidden h-8 w-auto dark:block"
-              />
+            {/* Only the lockup links home; the workspace name below it is information,
+                not navigation, and shouldn't read as part of the link. The images carry no
+                alt text, so the link keeps its explicit "chocks" accessible name. */}
+            <div className="flex flex-col items-start gap-1.5 px-3 pt-4 pb-2">
+              <Link to="/" aria-label="chocks">
+                {/* Two lockups: one ink-on-white for the light sidebar, one white-on-ink
+                    for the dark one. Only one is displayed, chosen by the theme. */}
+                <img src="/chocks_lockup_onlight.svg" alt="" className="h-8 w-auto dark:hidden" />
+                <img
+                  src="/chocks_lockup_ondark.svg"
+                  alt=""
+                  className="hidden h-8 w-auto dark:block"
+                />
+              </Link>
               <span className="text-sidebar-foreground/60 max-w-full truncate text-xs">
                 {workspace.data?.name ?? '…'}
               </span>
-            </Link>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
 
