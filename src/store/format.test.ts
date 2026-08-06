@@ -12,6 +12,7 @@ describe('parseFeatureFile', () => {
       title: 'OAuth',
       status: 'pre-release',
       tags: ['api', 'auth'],
+      links: {},
       sort: 'a1',
       description: 'Supports GitHub and Google.',
     })
@@ -63,6 +64,32 @@ describe('parseFeatureFile', () => {
     expect(parseFeatureFile('---\ntags: [api, 3, null]\n---\n', 'x').tags).toEqual(['api'])
   })
 
+  it('reads links in author order', () => {
+    const parsed = parseFeatureFile(
+      '---\nlinks:\n  docs: https://docs.example.com/notifications\n  issue: https://github.com/mattobee/chocks/issues/48\n---\n',
+      'x',
+    )
+    expect(parsed.links).toEqual({
+      docs: 'https://docs.example.com/notifications',
+      issue: 'https://github.com/mattobee/chocks/issues/48',
+    })
+  })
+
+  it('treats a malformed or non-mapping links as empty', () => {
+    expect(parseFeatureFile('---\nlinks: [docs]\n---\n', 'x').links).toEqual({})
+    expect(parseFeatureFile('---\nlinks: not-a-map\n---\n', 'x').links).toEqual({})
+    expect(parseFeatureFile('---\nlinks: 3\n---\n', 'x').links).toEqual({})
+  })
+
+  it('drops non-string, blank and untrimmed links', () => {
+    expect(
+      parseFeatureFile(
+        '---\nlinks:\n  docs:  https://docs.example.com \n  issue: 3\n  "": x\n  blank: "  "\n---\n',
+        'x',
+      ).links,
+    ).toEqual({ docs: 'https://docs.example.com' })
+  })
+
   it('handles CRLF line endings', () => {
     const parsed = parseFeatureFile('---\r\ntitle: Win\r\nstatus: done\r\n---\r\n\r\nBody\r\n', 'x')
     expect(parsed.title).toBe('Win')
@@ -81,6 +108,7 @@ describe('serializeFeatureFile', () => {
       status: 'pre-release' as const,
       uid: 'a1b2c3d4e5',
       tags: ['api'],
+      links: { docs: 'https://docs.example.com/oauth', issue: 'https://github.com/x/1' },
       sort: 'a1',
       description: 'Some **markdown**.',
     }
@@ -93,10 +121,38 @@ describe('serializeFeatureFile', () => {
       status: 'planned',
       uid: '',
       tags: [],
+      links: {},
       sort: 'a0',
       description: '',
     })
     expect(output).not.toContain('tags')
+  })
+
+  it('omits empty links to keep diffs clean', () => {
+    const output = serializeFeatureFile({
+      title: 'X',
+      status: 'planned',
+      uid: '',
+      tags: [],
+      links: {},
+      sort: 'a0',
+      description: '',
+    })
+    expect(output).not.toContain('links')
+  })
+
+  it('writes links after tags and before sort', () => {
+    const output = serializeFeatureFile({
+      title: 'X',
+      status: 'planned',
+      uid: '',
+      tags: ['a'],
+      links: { docs: 'https://docs.example.com' },
+      sort: 'a0',
+      description: '',
+    })
+    expect(output.indexOf('tags')).toBeLessThan(output.indexOf('links'))
+    expect(output.indexOf('links')).toBeLessThan(output.indexOf('sort'))
   })
 
   it('writes a body-less feature without trailing blank lines', () => {
@@ -106,6 +162,7 @@ describe('serializeFeatureFile', () => {
         status: 'planned',
         uid: '',
         tags: [],
+        links: {},
         sort: 'a0',
         description: '',
       }),
@@ -118,6 +175,7 @@ describe('serializeFeatureFile', () => {
       status: 'done',
       uid: '',
       tags: ['b', 'a'],
+      links: {},
       sort: 'a0',
       description: 'x',
     })
@@ -135,6 +193,7 @@ describe('serializeFeatureFile', () => {
       status: 'planned' as const,
       uid: 'a1b2c3d4e5',
       tags: [],
+      links: {},
       sort: 'a0',
       description: 'Before\n\n---\n\nAfter',
     }
@@ -151,6 +210,7 @@ describe('uid round trip', () => {
       status: 'planned',
       uid: 'a1b2c3d4e5',
       tags: [],
+      links: {},
       sort: 'a0',
       description: '',
     })
@@ -164,6 +224,7 @@ describe('uid round trip', () => {
       status: 'planned',
       uid: '',
       tags: [],
+      links: {},
       sort: 'a0',
       description: '',
     })

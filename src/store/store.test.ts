@@ -123,6 +123,18 @@ describe('scan', () => {
     expect(feature?.title).toBe('Password reset')
   })
 
+  it('reads links through to the feature', async () => {
+    await given(
+      'auth.chocks.md',
+      'title: Auth\nstatus: planned\nlinks:\n  docs: https://docs.example.com/auth\n  spec: docs/auth.md\nsort: a0',
+    )
+    const [feature] = await scan(root)
+    expect(feature?.links).toEqual({
+      docs: 'https://docs.example.com/auth',
+      spec: 'docs/auth.md',
+    })
+  })
+
   it('ignores dotfiles and non-markdown files', async () => {
     await given('real.chocks.md', 'title: Real\nsort: a0')
     await writeFile(path.join(root, 'README.txt'), 'not a feature', 'utf8')

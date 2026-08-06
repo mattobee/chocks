@@ -6,6 +6,7 @@ import { Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusDropdown } from '@/ui/components/status-dropdown'
 import { TagEditor } from '@/ui/components/tag-editor'
+import { FeatureLinks } from '@/ui/components/feature-links'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -334,6 +335,8 @@ export function FeaturePage() {
             ariaLabel={`Tags for ${feature.title}`}
           />
         </div>
+
+        <FeatureLinks links={feature.links} />
 
         <div className="mb-8">
           <div className="mb-3 flex items-center gap-3">

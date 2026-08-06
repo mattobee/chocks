@@ -17,6 +17,7 @@ export interface ParsedFile {
   title: string
   status: string
   tags: string[]
+  links: Record<string, string>
   sort: string
   description: string
 }
@@ -52,6 +53,7 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
     // different config, or a hand-typed one, must survive being read and written back.
     status: isValidStatusId(data.status) ? data.status : '',
     tags: normaliseTags(data.tags),
+    links: normaliseLinks(data.links),
     sort: typeof data.sort === 'string' && data.sort !== '' ? data.sort : '',
     description: body.replace(/^\r?\n/, '').trimEnd(),
   }
@@ -68,6 +70,22 @@ function normaliseTags(value: unknown): string[] {
 }
 
 /**
+ * Lenient like `normaliseTags`: a non-mapping `links` is noise rather than an error, and
+ * entries that are not strings or would be blank after trimming are dropped rather than
+ * trusted. Only the value is validated — a key is free-form, so any string key survives.
+ */
+function normaliseLinks(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const links: Record<string, string> = {}
+  for (const [key, link] of Object.entries(value)) {
+    const trimmedKey = key.trim()
+    const trimmedValue = typeof link === 'string' ? link.trim() : ''
+    if (trimmedKey !== '' && trimmedValue !== '') links[trimmedKey] = trimmedValue
+  }
+  return links
+}
+
+/**
  * Writes one feature file.
  *
  * Key order is fixed rather than alphabetical so that editing a feature produces a minimal
@@ -75,7 +93,7 @@ function normaliseTags(value: unknown): string[] {
  * it stays out of the way of the fields people actually read.
  */
 export function serializeFeatureFile(
-  feature: Pick<Feature, 'title' | 'status' | 'tags' | 'sort' | 'description' | 'uid'>,
+  feature: Pick<Feature, 'title' | 'status' | 'tags' | 'links' | 'sort' | 'description' | 'uid'>,
 ): string {
   const frontmatter: Record<string, unknown> = {
     title: feature.title,
@@ -83,6 +101,8 @@ export function serializeFeatureFile(
   }
   // Omit empty tags entirely; `tags: []` is noise in a diff.
   if (feature.tags.length > 0) frontmatter.tags = feature.tags
+  // Same for links, and kept after tags so the header reads title, status, tags, links.
+  if (Object.keys(feature.links).length > 0) frontmatter.links = feature.links
   frontmatter.sort = feature.sort
   if (feature.uid !== '') frontmatter.uid = feature.uid
 

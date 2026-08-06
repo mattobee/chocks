@@ -213,6 +213,7 @@ export async function scanWithIgnored(
       description: parsed.description,
       status: parsed.status,
       tags: parsed.tags,
+      links: parsed.links,
       sort: parsed.sort || `~${slug}`,
     })
   }
@@ -395,6 +396,7 @@ async function createUnlocked(root: string, input: CreateInput): Promise<Feature
     description: input.description ?? '',
     status: input.status ?? defaultStatusId(input.statuses ?? DEFAULT_STATUSES),
     tags: input.tags ?? [],
+    links: {},
     sort: input.sort ?? sortKeyForIndex(siblings, siblings.length),
   }
 
@@ -651,6 +653,7 @@ async function readSnapshot(
       description: parsed.description,
       status: parsed.status,
       tags: parsed.tags,
+      links: parsed.links,
       sort: parsed.sort || `~${slug}`,
     },
   }

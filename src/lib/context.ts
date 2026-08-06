@@ -6,6 +6,7 @@ export interface ContextEntry {
   title: string
   status: string
   tags: string[]
+  links: Record<string, string>
   summary: string
 }
 
@@ -17,6 +18,7 @@ export function formatContext(features: Feature[]): string {
         title: feature.title,
         status: feature.status,
         tags: feature.tags,
+        links: feature.links,
         summary: feature.description.split(/\r?\n\s*\r?\n/, 1)[0] ?? '',
       } satisfies ContextEntry),
       ...lines(children),

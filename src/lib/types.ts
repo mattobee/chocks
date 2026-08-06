@@ -33,6 +33,11 @@ export interface Feature {
   status: string
   /** Free-form labels from frontmatter — no separate tag records to keep in sync. */
   tags: string[]
+  /**
+   * Named links from frontmatter: a value is a URL or a repo-relative path, told apart by
+   * scheme. Key order is the author's. Read-only in the UI.
+   */
+  links: Record<string, string>
   /** Fractional index key ordering this feature among its siblings. */
   sort: string
 }
