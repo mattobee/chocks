@@ -1,7 +1,8 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { isValidUid } from '../lib/ids'
+import { normaliseLinks } from '../lib/links'
 import { isValidStatusId } from '../lib/status'
-import type { Feature } from '../lib/types'
+import type { Feature, FeatureLink } from '../lib/types'
 
 /**
  * Pure conversions between a feature and the text of its markdown file.
@@ -17,6 +18,7 @@ export interface ParsedFile {
   title: string
   status: string
   tags: string[]
+  links: FeatureLink[]
   sort: string
   description: string
 }
@@ -52,6 +54,7 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
     // different config, or a hand-typed one, must survive being read and written back.
     status: isValidStatusId(data.status) ? data.status : '',
     tags: normaliseTags(data.tags),
+    links: normaliseLinks(data.links),
     sort: typeof data.sort === 'string' && data.sort !== '' ? data.sort : '',
     description: body.replace(/^\r?\n/, '').trimEnd(),
   }
@@ -75,7 +78,7 @@ function normaliseTags(value: unknown): string[] {
  * it stays out of the way of the fields people actually read.
  */
 export function serializeFeatureFile(
-  feature: Pick<Feature, 'title' | 'status' | 'tags' | 'sort' | 'description' | 'uid'>,
+  feature: Pick<Feature, 'title' | 'status' | 'tags' | 'links' | 'sort' | 'description' | 'uid'>,
 ): string {
   const frontmatter: Record<string, unknown> = {
     title: feature.title,
@@ -83,6 +86,14 @@ export function serializeFeatureFile(
   }
   // Omit empty tags entirely; `tags: []` is noise in a diff.
   if (feature.tags.length > 0) frontmatter.tags = feature.tags
+  // Same for links, and kept after tags so the header reads title, status, tags, links.
+  if (feature.links.length > 0) {
+    frontmatter.links = feature.links.map(({ label, url, type }) => ({
+      ...(label ? { label } : {}),
+      url,
+      ...(type ? { type } : {}),
+    }))
+  }
   frontmatter.sort = feature.sort
   if (feature.uid !== '') frontmatter.uid = feature.uid
 

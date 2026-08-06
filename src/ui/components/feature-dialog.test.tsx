@@ -14,6 +14,7 @@ function feature(overrides: Partial<Feature> = {}): Feature {
     description: '',
     status: 'planned',
     tags: [],
+    links: [],
     sort: 'a0',
     ...overrides,
   }

@@ -1,4 +1,10 @@
-import type { Feature, FeatureHistory, UncommittedFeatures, Workspace } from '../../lib/types'
+import type {
+  Feature,
+  FeatureHistory,
+  FeatureLink,
+  UncommittedFeatures,
+  Workspace,
+} from '../../lib/types'
 
 /**
  * Client for the local chocks server.
@@ -55,6 +61,7 @@ export const api = {
     title: string
     status?: string
     tags?: string[]
+    links?: FeatureLink[]
     description?: string
     uid?: string
     sort?: string
@@ -67,6 +74,7 @@ export const api = {
       title?: string
       status?: string
       tags?: string[]
+      links?: FeatureLink[]
       description?: string
       sort?: string
     },

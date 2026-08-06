@@ -91,6 +91,7 @@ describe('undoing an edit', () => {
       title: 'OAuth',
       status: before.status,
       tags: before.tags,
+      links: before.links,
       description: 'Providers.',
     })
   })
@@ -158,7 +159,14 @@ describe('undoing a move', () => {
 
 describe('undoing a delete', () => {
   it('puts the subtree back parents first, each with its original uid', async () => {
-    const features = tree()
+    const features = tree().map((feature) =>
+      feature.id === 'auth'
+        ? {
+            ...feature,
+            links: [{ label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' }],
+          }
+        : feature,
+    )
     const captured = subtreeSnapshot(features, find(features, 'auth'))
     const remaining = features.filter((f) => !f.id.startsWith('auth'))
 
@@ -181,6 +189,9 @@ describe('undoing a delete', () => {
     expect(titles).toEqual(['Auth', 'OAuth', 'GitHub'])
     const uids = createFeature.mock.calls.map((call) => call[0].uid)
     expect(uids).toEqual(['aaaaaaaaa1', 'aaaaaaaaa2', 'aaaaaaaaa3'])
+    expect(createFeature.mock.calls[0]?.[0].links).toEqual([
+      { label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' },
+    ])
     // Each child lands under the parent restored a moment earlier.
     expect(createFeature.mock.calls[1]?.[0].parent).toBe('auth')
     expect(createFeature.mock.calls[2]?.[0].parent).toBe('auth/oauth')

@@ -78,6 +78,7 @@ describe('chocks context', () => {
           title: 'Authentication',
           status: 'released',
           tags: ['security'],
+          links: [],
           summary: 'Sign in and out.',
         },
         {
@@ -85,6 +86,7 @@ describe('chocks context', () => {
           title: 'OAuth',
           status: 'pre-release',
           tags: ['api'],
+          links: [],
           summary: 'Connect providers.',
         },
         {
@@ -92,6 +94,7 @@ describe('chocks context', () => {
           title: 'Passwords',
           status: 'planned',
           tags: ['security', 'accounts'],
+          links: [],
           summary: 'Reset passwords.',
         },
       ]
@@ -120,6 +123,29 @@ describe('chocks context', () => {
         title: 'Search',
         status: 'shipped',
         tags: ['discovery'],
+        links: [],
+        summary: 'Find features.',
+      })}\n`,
+    )
+  })
+
+  it('includes links', async () => {
+    await feature(
+      'search.chocks.md',
+      'title: Search\nstatus: shipped\ntags: [discovery]\nlinks:\n  - label: Search docs\n    url: https://docs.example.com/search\n    type: docs\n  - url: https://github.com/mattobee/chocks/issues/48\n    type: issue\nsort: a0',
+      'Find features.',
+    )
+
+    expect(await runContext()).toBe(
+      `${JSON.stringify({
+        path: 'search',
+        title: 'Search',
+        status: 'shipped',
+        tags: ['discovery'],
+        links: [
+          { label: 'Search docs', url: 'https://docs.example.com/search', type: 'docs' },
+          { url: 'https://github.com/mattobee/chocks/issues/48', type: 'issue' },
+        ],
         summary: 'Find features.',
       })}\n`,
     )

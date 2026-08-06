@@ -31,6 +31,7 @@ function feature(
     description: '',
     status: 'planned',
     tags: [],
+    links: [],
     sort,
     ...overrides,
   }

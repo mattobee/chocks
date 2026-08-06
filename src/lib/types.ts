@@ -3,7 +3,14 @@ import type { StatusDefinition } from './status'
 export const MAX_TITLE_LENGTH = 300
 export const MAX_TAG_LENGTH = 50
 export const MAX_TAG_COUNT = 100
+export const MAX_LINK_COUNT = 20
 export const MAX_DESCRIPTION_LENGTH = 10_000
+
+export interface FeatureLink {
+  url: string
+  label?: string
+  type?: string
+}
 
 /**
  * A single feature — one markdown file on disk.
@@ -33,6 +40,8 @@ export interface Feature {
   status: string
   /** Free-form labels from frontmatter — no separate tag records to keep in sync. */
   tags: string[]
+  /** Ordered links from frontmatter. Read-only in the UI. */
+  links: FeatureLink[]
   /** Fractional index key ordering this feature among its siblings. */
   sort: string
 }

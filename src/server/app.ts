@@ -20,6 +20,8 @@ import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
 import { featureHistory, uncommittedFeatureIds } from './git'
 import { isValidId, isValidUid } from '../lib/ids'
+import { normaliseLinks } from '../lib/links'
+import { MAX_LINK_COUNT } from '../lib/types'
 import { describeError } from '../lib/errors'
 
 export interface ServerOptions {
@@ -56,6 +58,14 @@ function releaseUrlFor(repository: string | undefined, version: string): string 
 function asStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined
   return value.filter((item): item is string => typeof item === 'string')
+}
+
+function asLinks(value: unknown) {
+  return Array.isArray(value) ? normaliseLinks(value, Number.POSITIVE_INFINITY) : undefined
+}
+
+function linksOverLimit(value: unknown): boolean {
+  return Array.isArray(value) && value.length > MAX_LINK_COUNT
 }
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
@@ -216,6 +226,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   app.post('/api/features', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    if (linksOverLimit(body.links)) {
+      return c.json({ message: `Links exceed maximum count of ${MAX_LINK_COUNT}` }, 400)
+    }
     if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
       return c.json({ message: 'Invalid sort key' }, 400)
     }
@@ -225,6 +238,7 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
       statuses: (await loadConfig(root)).config.statuses,
       status: isValidStatusId(body.status) ? body.status : undefined,
       tags: asStringArray(body.tags),
+      links: asLinks(body.links),
       description: typeof body.description === 'string' ? body.description : undefined,
       // Only honoured when they are the real thing, so a restore puts back an identity
       // rather than inventing one. Anything else falls through to a fresh uid and a place
@@ -238,6 +252,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   app.patch('/api/features/:id{.+}', async (c) => {
     const body = await c.req.json<Record<string, unknown>>()
+    if (linksOverLimit(body.links)) {
+      return c.json({ message: `Links exceed maximum count of ${MAX_LINK_COUNT}` }, 400)
+    }
     if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
       return c.json({ message: 'Invalid sort key' }, 400)
     }
@@ -245,6 +262,7 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
       title: typeof body.title === 'string' ? body.title : undefined,
       status: isValidStatusId(body.status) ? body.status : undefined,
       tags: asStringArray(body.tags),
+      links: asLinks(body.links),
       description: typeof body.description === 'string' ? body.description : undefined,
       sort: typeof body.sort === 'string' ? body.sort : undefined,
     })
