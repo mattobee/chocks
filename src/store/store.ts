@@ -59,6 +59,10 @@ export class StoreError extends Error {
   }
 }
 
+function malformedFrontmatter(id: string): StoreError {
+  return new StoreError(`Feature ${id} has malformed frontmatter; fix the file by hand`, 409)
+}
+
 const mutationQueues = new Map<string, Promise<void>>()
 
 function validateInput(
@@ -494,9 +498,7 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
   try {
     serialized = serializeFeatureFile(next, content)
   } catch (error) {
-    if (error instanceof FrontmatterError) {
-      throw new StoreError(`Feature ${id} has malformed frontmatter; fix the file by hand`, 409)
-    }
+    if (error instanceof FrontmatterError) throw malformedFrontmatter(id)
     throw error
   }
 
@@ -625,7 +627,11 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
       if (uid !== feature.uid) counts.uids++
       if (sort !== feature.sort) counts.sortKeys++
     } catch (error) {
-      counts.failures.push(`${scanned.id}: ${describeError(error)}`)
+      counts.failures.push(
+        error instanceof FrontmatterError
+          ? malformedFrontmatter(scanned.id).message
+          : `${scanned.id}: ${describeError(error)}`,
+      )
     }
   }
   return counts

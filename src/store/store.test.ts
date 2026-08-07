@@ -1006,6 +1006,29 @@ describe('backfill', () => {
     expect(byId.get('d')).toBe('a5')
   })
 
+  it('reports malformed frontmatter with hand-fix guidance', async () => {
+    const file = path.join(root, 'conflicted.chocks.md')
+    const content = [
+      '---',
+      'title: Conflicted',
+      '<' + '<<<<<< HEAD',
+      'owner: platform',
+      '=' + '======',
+      'owner: payments',
+      '>' + '>>>>>> branch',
+      '---',
+      '',
+    ].join('\n')
+    await writeFile(file, content, 'utf8')
+
+    const result = await backfill(root)
+
+    expect(result.failures).toEqual([
+      'Feature conflicted has malformed frontmatter; fix the file by hand',
+    ])
+    expect(await readFile(file, 'utf8')).toBe(content)
+  })
+
   it('reports an unwritable file and carries on with the rest', async () => {
     // Backfilling is a convenience. One read-only file must not cost the other hundred,
     // and must not stop chocks starting.
