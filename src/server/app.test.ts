@@ -505,6 +505,59 @@ describe('history route', () => {
   })
 })
 
+describe('code route', () => {
+  it('is not shadowed by the feature read route', async () => {
+    await createFeature('', 'Auth')
+    const response = await app.request('/api/code/auth')
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { matches: unknown[] }
+    expect(Array.isArray(body.matches)).toBe(true)
+  })
+
+  it('resolves matches for a nested feature', async () => {
+    await createFeature('', 'Auth')
+    await createFeature('auth', 'OAuth')
+    const response = await app.request('/api/code/auth/oauth')
+    expect(response.status).toBe(200)
+    expect(Array.isArray(((await response.json()) as { matches: unknown[] }).matches)).toBe(true)
+  })
+
+  it('refuses a traversing id', async () => {
+    const response = await app.request('/api/code/..%2F..%2Fetc%2Fpasswd')
+    expect(response.status).toBe(400)
+  })
+
+  it('counts a literal path against the repo root, not the chocks directory', async () => {
+    // No repoRoot passed to createApp in this suite, so it defaults to root: writing the
+    // file straight into root is what makes it "repo-relative" here.
+    await writeFile(path.join(root, 'auth.ts'), '', 'utf8')
+    const feature = await createFeature('', 'Auth')
+    await app.request(`/api/features/${feature.id}`, {
+      ...json({ code: [{ path: 'auth.ts' }, { path: 'missing.ts' }] }),
+      method: 'PATCH',
+    })
+
+    const response = await app.request('/api/code/auth')
+    const body = (await response.json()) as { matches: { path: string; count: number | null }[] }
+    expect(body.matches).toEqual([
+      { path: 'auth.ts', count: 1 },
+      { path: 'missing.ts', count: 0 },
+    ])
+  })
+
+  it('skips a flag entry rather than reporting it as zero', async () => {
+    const feature = await createFeature('', 'Auth')
+    await app.request(`/api/features/${feature.id}`, {
+      ...json({ code: [{ path: 'new-onboarding', kind: 'flag' }] }),
+      method: 'PATCH',
+    })
+
+    const response = await app.request('/api/code/auth')
+    const body = (await response.json()) as { matches: { count: number | null }[] }
+    expect(body.matches).toEqual([{ path: 'new-onboarding', count: null }])
+  })
+})
+
 describe('GET /api/uncommitted', () => {
   async function git(...args: string[]): Promise<void> {
     await run('git', ['-C', root, ...args])

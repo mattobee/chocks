@@ -395,7 +395,7 @@ export function FeaturePage() {
           )}
         </div>
 
-        <FeatureCode code={feature.code} />
+        <FeatureCode featureId={featureId} code={feature.code} />
 
         <div className="mt-8 mb-3 flex items-center gap-3">
           <h2 className="flex-1 text-lg font-semibold">

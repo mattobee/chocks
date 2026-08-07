@@ -19,6 +19,7 @@ import { isValidSortKey } from '../lib/tree'
 import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
 import { featureHistory, uncommittedFeatureIds } from './git'
+import { matchCodeRefs } from './code'
 import { isValidId, isValidUid } from '../lib/ids'
 import { normaliseCode } from '../lib/code'
 import { normaliseLinks } from '../lib/links'
@@ -241,6 +242,21 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     if (!isValidId(id)) return c.json({ message: `Invalid feature id: ${id}` }, 400)
     const file = await featureFileFor(root, id)
     return c.json(await featureHistory(options.repoRoot ?? root, file))
+  })
+
+  /**
+   * How many files each of a feature's `code` entries currently matches.
+   *
+   * On its own prefix for the same reason as `/api/history`, and separate from the feature
+   * itself: walking the repo for a glob is not what the tree scan should pay for on every
+   * poll, only what a feature page with `code` entries open pays for.
+   */
+  app.get('/api/code/:id{.+}', async (c) => {
+    const id = c.req.param('id')
+    if (!isValidId(id)) return c.json({ message: `Invalid feature id: ${id}` }, 400)
+    const feature = await read(root, id)
+    const matches = await matchCodeRefs(options.repoRoot ?? root, feature.code)
+    return c.json({ matches })
   })
 
   app.get('/api/features/:id{.+}', async (c) => c.json(await read(root, c.req.param('id'))))

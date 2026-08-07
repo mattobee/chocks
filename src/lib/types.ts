@@ -19,14 +19,26 @@ export type CodeKind = 'code' | 'test' | 'flag'
 /**
  * A claim about where a feature lives in the repo, distinct from `links`.
  *
- * A link is somewhere to click; this is what `chocks audit` (once it exists) checks —
- * a glob that should match something, and whether it changed since last confirmed.
+ * A link is somewhere to click; this is what a future `chocks audit` would check: a glob
+ * that should match something, and whether it changed since last confirmed.
  */
 export interface FeatureCodeRef {
   /** Repo-relative glob. */
   path: string
   /** Defaults to `code` when absent. */
   kind?: CodeKind
+}
+
+/** How many files a `code` entry's glob matched, read fresh from disk. */
+export interface CodeMatch {
+  path: string
+  /** Null for a `flag` entry: there's no path to check it against. */
+  count: number | null
+}
+
+/** What `/api/code/:id` returns. */
+export interface FeatureCodeMatches {
+  matches: CodeMatch[]
 }
 
 /**
@@ -60,8 +72,8 @@ export interface Feature {
   /** Ordered links from frontmatter. Read-only in the UI. */
   links: FeatureLink[]
   /**
-   * Ordered code/test/flag claims from frontmatter. Read-only in the UI; nothing verifies
-   * these paths exist or match anything yet.
+   * Ordered code/test/flag claims from frontmatter. Read-only in the UI. Whether a `path`
+   * currently matches anything is checked separately, by `/api/code/:id`, rather than here.
    */
   code: FeatureCodeRef[]
   /** Fractional index key ordering this feature among its siblings. */
