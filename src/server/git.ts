@@ -51,6 +51,11 @@ function gitWithPathsOnStdin(repoRoot: string, args: string[], paths: string[]):
         else resolve(stdout)
       },
     )
+    // If git exits early — "not a git repository" doesn't wait to read stdin — the pipe
+    // closes while writes are still queued, and the next write throws EPIPE. The callback
+    // above already turns that exit into the rejection; without this handler, Node treats
+    // the write's EPIPE as a second, unhandled error and crashes the process over it.
+    child.stdin?.on('error', () => {})
     // `--` first marks everything after it as paths rather than revisions; see `--stdin`
     // in git-log(1).
     child.stdin?.write('--\n')
