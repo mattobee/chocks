@@ -205,6 +205,105 @@ describe('serializeFeatureFile', () => {
     expect(output.indexOf('- b')).toBeLessThan(output.indexOf('- a'))
   })
 
+  it('preserves unknown frontmatter and comments when rewriting a file', () => {
+    const original = `---
+# Feature owner
+title: Old title # shown in the tree
+status: planned
+# Used by another tool
+owner:
+  name: Platform # keep this
+sort: a0
+---
+
+Old body.
+`
+    const output = serializeFeatureFile(
+      {
+        title: 'New title',
+        status: 'done',
+        uid: 'a1b2c3d4e5',
+        tags: [],
+        links: [],
+        sort: 'a0',
+        description: 'New body.',
+      },
+      original,
+    )
+
+    expect(output).toContain('# Feature owner\ntitle: New title # shown in the tree')
+    expect(output).toContain('# Used by another tool\nowner:\n  name: Platform # keep this')
+    expect(output).toContain('\nuid: a1b2c3d4e5\n')
+    expect(output).toContain('\nNew body.\n')
+  })
+
+  it('refuses to rewrite malformed frontmatter', () => {
+    const malformed = [
+      '---',
+      'title: X',
+      '<' + '<<<<<< HEAD',
+      'owner: platform',
+      '=' + '======',
+      'owner: payments',
+      '>' + '>>>>>> branch',
+      '---',
+      '',
+    ].join('\n')
+
+    expect(() =>
+      serializeFeatureFile(
+        {
+          title: 'X',
+          status: 'done',
+          uid: '',
+          tags: [],
+          links: [],
+          sort: 'a0',
+          description: '',
+        },
+        malformed,
+      ),
+    ).toThrow()
+  })
+
+  it('inserts missing known keys in canonical order', () => {
+    const output = serializeFeatureFile(
+      {
+        title: 'X',
+        status: 'planned',
+        uid: 'a1b2c3d4e5',
+        tags: ['api'],
+        links: [{ url: 'docs/api.md' }],
+        sort: 'a0',
+        description: '',
+      },
+      '---\ntitle: X\nstatus: planned\nsort: a0\nuid: a1b2c3d4e5\n---\n',
+    )
+
+    expect(output.indexOf('status')).toBeLessThan(output.indexOf('tags'))
+    expect(output.indexOf('tags')).toBeLessThan(output.indexOf('links'))
+    expect(output.indexOf('links')).toBeLessThan(output.indexOf('sort'))
+    expect(output.indexOf('sort')).toBeLessThan(output.indexOf('uid'))
+  })
+
+  it('removes a deleted key and its attached comment', () => {
+    const output = serializeFeatureFile(
+      {
+        title: 'X',
+        status: 'planned',
+        uid: '',
+        tags: [],
+        links: [],
+        sort: 'a0',
+        description: '',
+      },
+      '---\ntitle: X\nstatus: planned\n# these tags matter\ntags: [api]\nsort: a0\n---\n',
+    )
+
+    expect(output).not.toContain('tags')
+    expect(output).not.toContain('# these tags matter')
+  })
+
   it('preserves markdown containing a horizontal rule', () => {
     // A `---` inside the body must not be mistaken for frontmatter on the way back in.
     const original = {

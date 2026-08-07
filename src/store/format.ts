@@ -1,4 +1,10 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import {
+  isMap,
+  isScalar,
+  parse as parseYaml,
+  parseDocument,
+  stringify as stringifyYaml,
+} from 'yaml'
 import { isValidUid } from '../lib/ids'
 import { normaliseLinks } from '../lib/links'
 import { isValidStatusId } from '../lib/status'
@@ -12,6 +18,14 @@ import type { Feature, FeatureLink } from '../lib/types'
  */
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
+const FRONTMATTER_KEYS = ['title', 'status', 'tags', 'links', 'sort', 'uid'] as const
+
+export class FrontmatterError extends Error {
+  constructor() {
+    super('Frontmatter is malformed')
+    this.name = 'FrontmatterError'
+  }
+}
 
 export interface ParsedFile {
   uid: string
@@ -79,6 +93,7 @@ function normaliseTags(value: unknown): string[] {
  */
 export function serializeFeatureFile(
   feature: Pick<Feature, 'title' | 'status' | 'tags' | 'links' | 'sort' | 'description' | 'uid'>,
+  originalContent?: string,
 ): string {
   const frontmatter: Record<string, unknown> = {
     title: feature.title,
@@ -97,7 +112,41 @@ export function serializeFeatureFile(
   frontmatter.sort = feature.sort
   if (feature.uid !== '') frontmatter.uid = feature.uid
 
-  const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
+  const originalFrontmatter = originalContent ? FRONTMATTER.exec(originalContent)?.[1] : undefined
+  let yaml: string
+  if (originalFrontmatter !== undefined) {
+    const document = parseDocument(originalFrontmatter)
+    if (document.errors.length > 0) throw new FrontmatterError()
+    if (!isMap(document.contents)) {
+      throw new FrontmatterError()
+    }
+
+    for (const [key, value] of Object.entries(frontmatter)) {
+      if (document.has(key)) {
+        document.set(key, value)
+        continue
+      }
+
+      const keyOrder = FRONTMATTER_KEYS.indexOf(key as (typeof FRONTMATTER_KEYS)[number])
+      const index = document.contents.items.findIndex((pair) => {
+        if (!isScalar(pair.key) || typeof pair.key.value !== 'string') return false
+        return (
+          FRONTMATTER_KEYS.indexOf(pair.key.value as (typeof FRONTMATTER_KEYS)[number]) > keyOrder
+        )
+      })
+      document.set(key, value)
+      if (index !== -1) {
+        const pair = document.contents.items.pop()!
+        document.contents.items.splice(index, 0, pair)
+      }
+    }
+    for (const key of ['tags', 'links', 'uid']) {
+      if (!(key in frontmatter)) document.delete(key)
+    }
+    yaml = document.toString({ lineWidth: 0 }).trimEnd()
+  } else {
+    yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
+  }
   const body = feature.description.trim()
 
   return body === '' ? `---\n${yaml}\n---\n` : `---\n${yaml}\n---\n\n${body}\n`

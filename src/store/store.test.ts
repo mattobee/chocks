@@ -696,6 +696,45 @@ describe('update', () => {
     expect(await readFile(path.join(root, 'auth.chocks.md'), 'utf8')).toContain('Some **notes**.')
   })
 
+  it('preserves unknown frontmatter and comments', async () => {
+    await given(
+      'owned.chocks.md',
+      '# Managed elsewhere\ntitle: Owned\nstatus: planned\nowner: platform # keep\nsort: a0',
+    )
+
+    await update(root, 'owned', { status: 'released' })
+
+    const text = await readFile(path.join(root, 'owned.chocks.md'), 'utf8')
+    expect(text).toContain('# Managed elsewhere')
+    expect(text).toContain('owner: platform # keep')
+    expect(text).toContain('status: released')
+  })
+
+  it('does not rename or overwrite malformed frontmatter', async () => {
+    const file = path.join(root, 'conflicted.chocks.md')
+    const content = [
+      '---',
+      'title: Conflicted',
+      '<' + '<<<<<< HEAD',
+      'owner: platform',
+      '=' + '======',
+      'owner: payments',
+      '>' + '>>>>>> branch',
+      '---',
+      '',
+      'Keep me.',
+      '',
+    ].join('\n')
+    await writeFile(file, content, 'utf8')
+
+    await expect(update(root, 'conflicted', { title: 'Resolved' })).rejects.toMatchObject({
+      message: 'Feature conflicted has malformed frontmatter; fix the file by hand',
+      status: 409,
+    })
+    expect(await readFile(file, 'utf8')).toBe(content)
+    expect(existsSync(path.join(root, 'resolved.chocks.md'))).toBe(false)
+  })
+
   it('ignores a blank title instead of writing one', async () => {
     const created = await create(root, { parent: '', title: 'Auth' })
     expect((await update(root, created.id, { title: '  ' })).title).toBe('Auth')
@@ -965,6 +1004,29 @@ describe('backfill', () => {
     const byId = new Map(after.map((feature) => [feature.id, feature.sort]))
     expect(byId.get('a')).toBe('a0')
     expect(byId.get('d')).toBe('a5')
+  })
+
+  it('reports malformed frontmatter with hand-fix guidance', async () => {
+    const file = path.join(root, 'conflicted.chocks.md')
+    const content = [
+      '---',
+      'title: Conflicted',
+      '<' + '<<<<<< HEAD',
+      'owner: platform',
+      '=' + '======',
+      'owner: payments',
+      '>' + '>>>>>> branch',
+      '---',
+      '',
+    ].join('\n')
+    await writeFile(file, content, 'utf8')
+
+    const result = await backfill(root)
+
+    expect(result.failures).toEqual([
+      'Feature conflicted has malformed frontmatter; fix the file by hand',
+    ])
+    expect(await readFile(file, 'utf8')).toBe(content)
   })
 
   it('reports an unwritable file and carries on with the rest', async () => {

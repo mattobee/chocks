@@ -11,7 +11,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
-import { parseFeatureFile, serializeFeatureFile } from './format'
+import { FrontmatterError, parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
 import { generateNKeysBetween } from 'fractional-indexing'
 import { childrenOf, isValidSortKey, sortKeyForIndex } from '../lib/tree'
@@ -57,6 +57,10 @@ export class StoreError extends Error {
     this.name = 'StoreError'
     this.status = status
   }
+}
+
+function malformedFrontmatter(id: string): StoreError {
+  return new StoreError(`Feature ${id} has malformed frontmatter; fix the file by hand`, 409)
 }
 
 const mutationQueues = new Map<string, Promise<void>>()
@@ -490,6 +494,14 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
     ...(patch.sort !== undefined ? { sort: patch.sort } : {}),
   }
 
+  let serialized: string
+  try {
+    serialized = serializeFeatureFile(next, content)
+  } catch (error) {
+    if (error instanceof FrontmatterError) throw malformedFrontmatter(id)
+    throw error
+  }
+
   if (next.title !== current.title) {
     const desired = slugify(next.title)
     if (desired !== slugOf(id)) {
@@ -504,7 +516,7 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
     }
   }
 
-  await writeAtomic(await featureFileFor(root, next.id), serializeFeatureFile(next), content)
+  await writeAtomic(await featureFileFor(root, next.id), serialized, content)
   return next
 }
 
@@ -609,13 +621,17 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
 
       await writeAtomic(
         await featureFileFor(root, feature.id),
-        serializeFeatureFile({ ...feature, uid, sort }),
+        serializeFeatureFile({ ...feature, uid, sort }, content),
         content,
       )
       if (uid !== feature.uid) counts.uids++
       if (sort !== feature.sort) counts.sortKeys++
     } catch (error) {
-      counts.failures.push(`${scanned.id}: ${describeError(error)}`)
+      counts.failures.push(
+        error instanceof FrontmatterError
+          ? malformedFrontmatter(scanned.id).message
+          : `${scanned.id}: ${describeError(error)}`,
+      )
     }
   }
   return counts

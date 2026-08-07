@@ -155,6 +155,37 @@ test.describe('live reload', () => {
   })
 })
 
+test.describe('editing', () => {
+  test('preserves unknown frontmatter and comments', async ({ page, workspace }) => {
+    await workspace.write(
+      'auth/oauth',
+      `---
+# Read by another tool
+title: OAuth providers
+status: pre-release
+owner: platform # keep
+sort: a0
+uid: aaa0000002
+---
+
+Existing description.
+`,
+    )
+    await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
+
+    await page.getByRole('button', { name: 'Edit description' }).click()
+    await page.getByRole('textbox', { name: 'Description' }).fill('Updated in Chocks.')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    await expect
+      .poll(async () => (await workspace.read('auth/oauth')).includes('Updated in Chocks.'))
+      .toBe(true)
+    const file = await workspace.read('auth/oauth')
+    expect(file).toContain('# Read by another tool')
+    expect(file).toContain('owner: platform # keep')
+  })
+})
+
 test.describe('uncommitted indicator', () => {
   test('announces the change without a reload', async ({ page, workspace }) => {
     await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
