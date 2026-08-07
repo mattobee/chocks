@@ -710,7 +710,7 @@ describe('update', () => {
     expect(text).toContain('status: released')
   })
 
-  it('does not overwrite malformed frontmatter', async () => {
+  it('does not rename or overwrite malformed frontmatter', async () => {
     const file = path.join(root, 'conflicted.chocks.md')
     const content = [
       '---',
@@ -727,8 +727,12 @@ describe('update', () => {
     ].join('\n')
     await writeFile(file, content, 'utf8')
 
-    await expect(update(root, 'conflicted', { status: 'released' })).rejects.toThrow()
+    await expect(update(root, 'conflicted', { title: 'Resolved' })).rejects.toMatchObject({
+      message: 'Feature conflicted has malformed frontmatter; fix the file by hand',
+      status: 409,
+    })
     expect(await readFile(file, 'utf8')).toBe(content)
+    expect(existsSync(path.join(root, 'resolved.chocks.md'))).toBe(false)
   })
 
   it('ignores a blank title instead of writing one', async () => {

@@ -11,7 +11,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
-import { parseFeatureFile, serializeFeatureFile } from './format'
+import { FrontmatterError, parseFeatureFile, serializeFeatureFile } from './format'
 import { FEATURE_SUFFIX, humanise, isValidId, joinId, parentOf, slugify, slugOf } from '../lib/ids'
 import { generateNKeysBetween } from 'fractional-indexing'
 import { childrenOf, isValidSortKey, sortKeyForIndex } from '../lib/tree'
@@ -490,6 +490,16 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
     ...(patch.sort !== undefined ? { sort: patch.sort } : {}),
   }
 
+  let serialized: string
+  try {
+    serialized = serializeFeatureFile(next, content)
+  } catch (error) {
+    if (error instanceof FrontmatterError) {
+      throw new StoreError(`Feature ${id} has malformed frontmatter; fix the file by hand`, 409)
+    }
+    throw error
+  }
+
   if (next.title !== current.title) {
     const desired = slugify(next.title)
     if (desired !== slugOf(id)) {
@@ -504,11 +514,7 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
     }
   }
 
-  await writeAtomic(
-    await featureFileFor(root, next.id),
-    serializeFeatureFile(next, content),
-    content,
-  )
+  await writeAtomic(await featureFileFor(root, next.id), serialized, content)
   return next
 }
 

@@ -302,6 +302,31 @@ describe('features API', () => {
     expect((await app.request('/api/features', json({ parent: '', title: '' }))).status).toBe(400)
   })
 
+  it('409s an edit to malformed frontmatter with an actionable message', async () => {
+    const content = [
+      '---',
+      'title: Conflicted',
+      '<' + '<<<<<< HEAD',
+      'owner: platform',
+      '=' + '======',
+      'owner: payments',
+      '>' + '>>>>>> branch',
+      '---',
+      '',
+    ].join('\n')
+    await writeFile(path.join(root, 'conflicted.chocks.md'), content, 'utf8')
+
+    const response = await app.request('/api/features/conflicted', {
+      ...json({ title: 'Resolved' }),
+      method: 'PATCH',
+    })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      message: 'Feature conflicted has malformed frontmatter; fix the file by hand',
+    })
+  })
+
   it('400s malformed and non-object JSON', async () => {
     for (const body of ['{', 'null', '[]']) {
       const response = await app.request('/api/features', {

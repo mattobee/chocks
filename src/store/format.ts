@@ -20,6 +20,13 @@ import type { Feature, FeatureLink } from '../lib/types'
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 const FRONTMATTER_KEYS = ['title', 'status', 'tags', 'links', 'sort', 'uid'] as const
 
+export class FrontmatterError extends Error {
+  constructor() {
+    super('Frontmatter is malformed')
+    this.name = 'FrontmatterError'
+  }
+}
+
 export interface ParsedFile {
   uid: string
   title: string
@@ -109,9 +116,9 @@ export function serializeFeatureFile(
   let yaml: string
   if (originalFrontmatter !== undefined) {
     const document = parseDocument(originalFrontmatter)
-    if (document.errors.length > 0) throw document.errors[0]
+    if (document.errors.length > 0) throw new FrontmatterError()
     if (!isMap(document.contents)) {
-      throw new Error('Cannot rewrite feature: frontmatter must be a mapping')
+      throw new FrontmatterError()
     }
 
     for (const [key, value] of Object.entries(frontmatter)) {
