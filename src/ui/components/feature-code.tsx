@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/ui/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/components/ui/tooltip'
 import { codeMatchesQuery } from '@/ui/lib/queries'
 import { relativeDate } from '@/ui/lib/dates'
 import { cn } from '@/lib/utils'
@@ -53,6 +52,7 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
         <TableHeader>
           <TableRow>
             <TableHead>Path</TableHead>
+            <TableHead>Kind</TableHead>
             <TableHead>Matches</TableHead>
             <TableHead>Changed</TableHead>
           </TableRow>
@@ -67,28 +67,11 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
               <TableRow key={`${path}:${index}`}>
                 <TableCell className="font-mono text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
-                    <Tooltip>
-                      {/* Base UI doesn't make a render-prop trigger focusable on its own,
-                          and the icon is the only text alternative for `kind` there is, so
-                          both a tabIndex and an aria-label are load-bearing here rather
-                          than decoration. */}
-                      <TooltipTrigger
-                        render={
-                          <span
-                            tabIndex={0}
-                            role="img"
-                            aria-label={kindLabel}
-                            className="inline-flex shrink-0"
-                          />
-                        }
-                      >
-                        <Icon aria-hidden="true" className="size-4" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top">{kindLabel}</TooltipContent>
-                    </Tooltip>
+                    <Icon aria-hidden="true" className="size-4 shrink-0" />
                     {path}
                   </span>
                 </TableCell>
+                <TableCell className="text-muted-foreground">{kindLabel}</TableCell>
                 <TableCell>
                   {/* A `flag` entry's count is null: there's no path to check it against,
                       and claiming zero would read as a broken flag rather than a skipped

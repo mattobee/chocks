@@ -52,6 +52,7 @@ describe('FeatureCode', () => {
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
       'Path',
+      'Kind',
       'Matches',
       'Changed',
     ])
@@ -77,8 +78,8 @@ describe('FeatureCode', () => {
     expect(container.querySelector('.lucide-flag')).toBeInTheDocument()
   })
 
-  it('gives each kind icon a text alternative, since the icon is the only place kind appears', () => {
-    setup({
+  it('names the kind as visible text, with the icon purely decorative beside it', () => {
+    const { container } = setup({
       featureId: 'auth',
       code: [
         { path: 'src/store/format.ts' },
@@ -86,14 +87,13 @@ describe('FeatureCode', () => {
         { path: 'new-onboarding', kind: 'flag' },
       ],
     })
-    expect(screen.getByRole('img', { name: 'Code' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Test' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Feature flag' })).toBeInTheDocument()
-  })
-
-  it('makes the kind icon reachable by keyboard, so its tooltip is not mouse-only', () => {
-    setup({ featureId: 'auth', code: [{ path: 'src/store/format.ts', kind: 'test' }] })
-    expect(screen.getByRole('img', { name: 'Test' })).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('cell', { name: 'Code' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Test' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Feature flag' })).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    for (const icon of container.querySelectorAll('svg')) {
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    }
   })
 
   it('shows how many files a glob matched', async () => {
@@ -151,7 +151,7 @@ describe('last-changed dates', () => {
     )
     const row = await screen.findByText('src/auth.ts')
     const cells = row.closest('tr')?.querySelectorAll('td') ?? []
-    expect(cells[2]).toHaveTextContent('')
+    expect(cells[3]).toHaveTextContent('')
   })
 
   it('shows when a matched file itself last changed, so it can be read against the feature date above', async () => {
