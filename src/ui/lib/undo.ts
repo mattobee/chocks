@@ -2,7 +2,7 @@ import { toast } from 'sonner'
 import { api } from './api'
 import { childrenOf, indexAfter } from '@/lib/tree'
 import { joinId, slugOf } from '@/lib/ids'
-import type { Feature, FeatureLink } from '@/lib/types'
+import type { Feature, FeatureCodeRef, FeatureLink } from '@/lib/types'
 
 /**
  * Reversing what the UI just did.
@@ -31,6 +31,7 @@ export interface Snapshot {
   status: string
   tags: string[]
   links: FeatureLink[]
+  code: FeatureCodeRef[]
   sort: string
   slug: string
   /** Null for a feature at the root. */
@@ -96,6 +97,7 @@ export function snapshot(features: Feature[], feature: Feature): Snapshot {
     status: feature.status,
     tags: feature.tags,
     links: feature.links,
+    code: feature.code,
     sort: feature.sort,
     slug: slugOf(feature.id),
     parentUid: parent?.uid ?? null,
@@ -166,6 +168,7 @@ export async function applyEntry(entry: UndoEntry, features: Feature[]): Promise
         status: entry.before.status,
         tags: entry.before.tags,
         links: entry.before.links,
+        code: entry.before.code,
         description: entry.before.description,
       })
       return { ...redo, label: entry.label }
@@ -229,6 +232,7 @@ async function restoreSubtree(subtree: Snapshot[], features: Feature[]): Promise
         status: item.status,
         tags: item.tags,
         links: item.links,
+        code: item.code,
         description: item.description,
         // The uid is why `create` accepts an identity at all: without it, every link to a
         // restored feature would point at nothing.

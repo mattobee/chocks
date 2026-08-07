@@ -20,8 +20,9 @@ import { loadConfig } from '../store/config'
 import { watchFeatures, watchGit } from './watch'
 import { featureHistory, uncommittedFeatureIds } from './git'
 import { isValidId, isValidUid } from '../lib/ids'
+import { normaliseCode } from '../lib/code'
 import { normaliseLinks } from '../lib/links'
-import { MAX_LINK_COUNT } from '../lib/types'
+import { MAX_CODE_COUNT, MAX_LINK_COUNT } from '../lib/types'
 import { describeError } from '../lib/errors'
 
 export interface ServerOptions {
@@ -66,6 +67,14 @@ function asLinks(value: unknown) {
 
 function linksOverLimit(value: unknown): boolean {
   return Array.isArray(value) && value.length > MAX_LINK_COUNT
+}
+
+function asCode(value: unknown) {
+  return Array.isArray(value) ? normaliseCode(value, Number.POSITIVE_INFINITY) : undefined
+}
+
+function codeOverLimit(value: unknown): boolean {
+  return Array.isArray(value) && value.length > MAX_CODE_COUNT
 }
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
@@ -241,6 +250,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     if (linksOverLimit(body.links)) {
       return c.json({ message: `Links exceed maximum count of ${MAX_LINK_COUNT}` }, 400)
     }
+    if (codeOverLimit(body.code)) {
+      return c.json({ message: `Code exceeds maximum count of ${MAX_CODE_COUNT}` }, 400)
+    }
     if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
       return c.json({ message: 'Invalid sort key' }, 400)
     }
@@ -251,6 +263,7 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
       status: isValidStatusId(body.status) ? body.status : undefined,
       tags: asStringArray(body.tags),
       links: asLinks(body.links),
+      code: asCode(body.code),
       description: typeof body.description === 'string' ? body.description : undefined,
       // Only honoured when they are the real thing, so a restore puts back an identity
       // rather than inventing one. Anything else falls through to a fresh uid and a place
@@ -267,6 +280,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     if (linksOverLimit(body.links)) {
       return c.json({ message: `Links exceed maximum count of ${MAX_LINK_COUNT}` }, 400)
     }
+    if (codeOverLimit(body.code)) {
+      return c.json({ message: `Code exceeds maximum count of ${MAX_CODE_COUNT}` }, 400)
+    }
     if (body.sort !== undefined && (typeof body.sort !== 'string' || !isValidSortKey(body.sort))) {
       return c.json({ message: 'Invalid sort key' }, 400)
     }
@@ -275,6 +291,7 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
       status: isValidStatusId(body.status) ? body.status : undefined,
       tags: asStringArray(body.tags),
       links: asLinks(body.links),
+      code: asCode(body.code),
       description: typeof body.description === 'string' ? body.description : undefined,
       sort: typeof body.sort === 'string' ? body.sort : undefined,
     })

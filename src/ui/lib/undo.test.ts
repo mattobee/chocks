@@ -92,6 +92,7 @@ describe('undoing an edit', () => {
       status: before.status,
       tags: before.tags,
       links: before.links,
+      code: before.code,
       description: 'Providers.',
     })
   })
@@ -164,6 +165,7 @@ describe('undoing a delete', () => {
         ? {
             ...feature,
             links: [{ label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' }],
+            code: [{ path: 'src/auth' }],
           }
         : feature,
     )
@@ -192,6 +194,7 @@ describe('undoing a delete', () => {
     expect(createFeature.mock.calls[0]?.[0].links).toEqual([
       { label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' },
     ])
+    expect(createFeature.mock.calls[0]?.[0].code).toEqual([{ path: 'src/auth' }])
     // Each child lands under the parent restored a moment earlier.
     expect(createFeature.mock.calls[1]?.[0].parent).toBe('auth')
     expect(createFeature.mock.calls[2]?.[0].parent).toBe('auth/oauth')

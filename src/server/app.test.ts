@@ -5,7 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from './app'
-import { MAX_LINK_COUNT, type Feature, type Workspace } from '../lib/types'
+import { MAX_CODE_COUNT, MAX_LINK_COUNT, type Feature, type Workspace } from '../lib/types'
 
 const run = promisify(execFile)
 
@@ -224,6 +224,7 @@ describe('features API', () => {
   it('updates fields', async () => {
     const feature = await createFeature('', 'Auth')
     const links = [{ label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' }]
+    const code = [{ path: 'src/auth' }, { path: 'src/auth/*.test.ts', kind: 'test' }]
     const response = await app.request(`/api/features/${feature.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -232,6 +233,7 @@ describe('features API', () => {
         description: 'Shipped.',
         tags: ['api'],
         links,
+        code,
       }),
     })
     const updated = (await response.json()) as Feature
@@ -240,6 +242,7 @@ describe('features API', () => {
       description: 'Shipped.',
       tags: ['api'],
       links,
+      code,
     })
   })
 
@@ -259,6 +262,27 @@ describe('features API', () => {
     const feature = await createFeature('', 'Auth')
     const updateResponse = await app.request(`/api/features/${feature.id}`, {
       ...json({ links }),
+      method: 'PATCH',
+    })
+    expect(updateResponse.status).toBe(400)
+  })
+
+  it('rejects API writes over the code limit', async () => {
+    const code = Array.from({ length: MAX_CODE_COUNT + 1 }, (_, index) => ({
+      path: `src/file-${index}.ts`,
+    }))
+    const createResponse = await app.request(
+      '/api/features',
+      json({ parent: '', title: 'Auth', code }),
+    )
+    expect(createResponse.status).toBe(400)
+    expect(await createResponse.json()).toEqual({
+      message: `Code exceeds maximum count of ${MAX_CODE_COUNT}`,
+    })
+
+    const feature = await createFeature('', 'Auth')
+    const updateResponse = await app.request(`/api/features/${feature.id}`, {
+      ...json({ code }),
       method: 'PATCH',
     })
     expect(updateResponse.status).toBe(400)

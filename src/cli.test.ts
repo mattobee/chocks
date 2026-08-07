@@ -79,6 +79,7 @@ describe('chocks context', () => {
           status: 'released',
           tags: ['security'],
           links: [],
+          code: [],
           summary: 'Sign in and out.',
         },
         {
@@ -87,6 +88,7 @@ describe('chocks context', () => {
           status: 'pre-release',
           tags: ['api'],
           links: [],
+          code: [],
           summary: 'Connect providers.',
         },
         {
@@ -95,6 +97,7 @@ describe('chocks context', () => {
           status: 'planned',
           tags: ['security', 'accounts'],
           links: [],
+          code: [],
           summary: 'Reset passwords.',
         },
       ]
@@ -124,6 +127,7 @@ describe('chocks context', () => {
         status: 'shipped',
         tags: ['discovery'],
         links: [],
+        code: [],
         summary: 'Find features.',
       })}\n`,
     )
@@ -146,6 +150,27 @@ describe('chocks context', () => {
           { label: 'Search docs', url: 'https://docs.example.com/search', type: 'docs' },
           { url: 'https://github.com/mattobee/chocks/issues/48', type: 'issue' },
         ],
+        code: [],
+        summary: 'Find features.',
+      })}\n`,
+    )
+  })
+
+  it('includes code', async () => {
+    await feature(
+      'search.chocks.md',
+      'title: Search\nstatus: shipped\ntags: [discovery]\ncode:\n  - path: src/search.ts\n  - path: src/search.test.ts\n    kind: test\nsort: a0',
+      'Find features.',
+    )
+
+    expect(await runContext()).toBe(
+      `${JSON.stringify({
+        path: 'search',
+        title: 'Search',
+        status: 'shipped',
+        tags: ['discovery'],
+        links: [],
+        code: [{ path: 'src/search.ts' }, { path: 'src/search.test.ts', kind: 'test' }],
         summary: 'Find features.',
       })}\n`,
     )

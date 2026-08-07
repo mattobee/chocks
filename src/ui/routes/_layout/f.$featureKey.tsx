@@ -7,6 +7,7 @@ import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog
 import { StatusDropdown } from '@/ui/components/status-dropdown'
 import { TagEditor } from '@/ui/components/tag-editor'
 import { FeatureLinks } from '@/ui/components/feature-links'
+import { FeatureCode } from '@/ui/components/feature-code'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -337,6 +338,8 @@ export function FeaturePage() {
         </div>
 
         <FeatureLinks links={feature.links} />
+
+        <FeatureCode code={feature.code} />
 
         <div className="mb-8">
           <div className="mb-3 flex items-center gap-3">

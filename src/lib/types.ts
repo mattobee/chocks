@@ -4,12 +4,29 @@ export const MAX_TITLE_LENGTH = 300
 export const MAX_TAG_LENGTH = 50
 export const MAX_TAG_COUNT = 100
 export const MAX_LINK_COUNT = 20
+export const MAX_CODE_COUNT = 20
 export const MAX_DESCRIPTION_LENGTH = 10_000
 
 export interface FeatureLink {
   url: string
   label?: string
   type?: string
+}
+
+/** What a `code` entry claims about a path: implementation, a test for it, or a flag key. */
+export type CodeKind = 'code' | 'test' | 'flag'
+
+/**
+ * A claim about where a feature lives in the repo, distinct from `links`.
+ *
+ * A link is somewhere to click; this is what `chocks audit` (once it exists) checks —
+ * a glob that should match something, and whether it changed since last confirmed.
+ */
+export interface FeatureCodeRef {
+  /** Repo-relative glob. */
+  path: string
+  /** Defaults to `code` when absent. */
+  kind?: CodeKind
 }
 
 /**
@@ -42,6 +59,11 @@ export interface Feature {
   tags: string[]
   /** Ordered links from frontmatter. Read-only in the UI. */
   links: FeatureLink[]
+  /**
+   * Ordered code/test/flag claims from frontmatter. Read-only in the UI; nothing verifies
+   * these paths exist or match anything yet.
+   */
+  code: FeatureCodeRef[]
   /** Fractional index key ordering this feature among its siblings. */
   sort: string
 }

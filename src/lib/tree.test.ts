@@ -32,6 +32,7 @@ function feature(
     status: 'planned',
     tags: [],
     links: [],
+    code: [],
     sort,
     ...overrides,
   }

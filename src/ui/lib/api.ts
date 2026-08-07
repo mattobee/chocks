@@ -1,5 +1,6 @@
 import type {
   Feature,
+  FeatureCodeRef,
   FeatureHistory,
   FeatureLink,
   UncommittedFeatures,
@@ -62,6 +63,7 @@ export const api = {
     status?: string
     tags?: string[]
     links?: FeatureLink[]
+    code?: FeatureCodeRef[]
     description?: string
     uid?: string
     sort?: string
@@ -75,6 +77,7 @@ export const api = {
       status?: string
       tags?: string[]
       links?: FeatureLink[]
+      code?: FeatureCodeRef[]
       description?: string
       sort?: string
     },
