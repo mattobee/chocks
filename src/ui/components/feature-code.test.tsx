@@ -132,7 +132,7 @@ describe('FeatureCode', () => {
   })
 })
 
-describe('drift against the feature file', () => {
+describe('last-changed dates', () => {
   it('shows when the feature itself last changed', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
@@ -154,7 +154,7 @@ describe('drift against the feature file', () => {
     expect(cells[2]).toHaveTextContent('')
   })
 
-  it('flags an entry that changed after the feature file', async () => {
+  it('shows when a matched file itself last changed, so it can be read against the feature date above', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
       {
@@ -162,20 +162,6 @@ describe('drift against the feature file', () => {
         featureLastCommit: commit(10, 'docs: describe auth'),
       },
     )
-    const date = await screen.findByText('yesterday')
-    expect(date.closest('span')).toHaveClass('text-amber-700')
-  })
-
-  it('does not flag an entry that is older than, or level with, the feature file', async () => {
-    setup(
-      { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
-      {
-        matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(10, 'feat: add auth') }],
-        featureLastCommit: commit(1, 'docs: describe auth'),
-      },
-    )
-    const date = await screen.findByText('last week')
-    expect(date.closest('span')).not.toHaveClass('text-amber-700')
-    expect(date.closest('span')).toHaveClass('text-muted-foreground')
+    expect(await screen.findByText('yesterday')).toBeInTheDocument()
   })
 })

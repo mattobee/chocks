@@ -11,7 +11,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/components/ui/tooltip'
 import { codeMatchesQuery } from '@/ui/lib/queries'
 import { relativeDate } from '@/ui/lib/dates'
-import { MODIFIED_COLOR } from '@/lib/status'
 import { cn } from '@/lib/utils'
 import type { CodeKind, FeatureCodeRef } from '@/lib/types'
 
@@ -35,13 +34,12 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
   // cell content yet for the entries past it, rather than a wrong one.
   const entries = matches.data?.matches
   const featureLastCommit = matches.data?.featureLastCommit ?? null
-  const featureChanged = featureLastCommit ? new Date(featureLastCommit.date).getTime() : null
 
   return (
     <section className="mb-6">
       <h2 className="mb-1 text-lg font-semibold">Code</h2>
       {featureLastCommit && (
-        <p className="text-muted-foreground mb-3 text-xs">
+        <p className="text-muted-foreground mb-3 text-sm">
           Feature last changed{' '}
           <time
             dateTime={featureLastCommit.date}
@@ -64,12 +62,6 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
             const { icon: Icon, label: kindLabel } = CODE_KIND_INFO[kind ?? 'code']
             const count = entries?.[index]?.count
             const lastCommit = entries?.[index]?.lastCommit ?? null
-            // The drift this is meant to surface: the code moved on and the plan didn't,
-            // not the ordinary case of the plan being edited alongside or after its code.
-            const drifted =
-              lastCommit &&
-              featureChanged !== null &&
-              new Date(lastCommit.date).getTime() > featureChanged
 
             return (
               <TableRow key={`${path}:${index}`}>
@@ -115,12 +107,7 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
                 </TableCell>
                 <TableCell>
                   {lastCommit && (
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 text-xs',
-                        drifted ? MODIFIED_COLOR : 'text-muted-foreground',
-                      )}
-                    >
+                    <span className="text-muted-foreground inline-flex items-center gap-1">
                       <time
                         dateTime={lastCommit.date}
                         title={new Date(lastCommit.date).toLocaleString()}
