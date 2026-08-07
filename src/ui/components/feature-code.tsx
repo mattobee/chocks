@@ -121,7 +121,27 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
                         drifted ? MODIFIED_COLOR : 'text-muted-foreground',
                       )}
                     >
-                      {drifted && <Clock aria-hidden="true" className="size-3" />}
+                      {drifted && (
+                        <Tooltip>
+                          {/* Colour alone doesn't say why this one's flagged, and two
+                              relative dates at different scales ("5 hours ago" against
+                              "Feature last changed 5 days ago") aren't obviously a
+                              comparison at a glance either, so this states it outright. */}
+                          <TooltipTrigger
+                            render={
+                              <span
+                                tabIndex={0}
+                                role="img"
+                                aria-label="Changed after the feature file"
+                                className="inline-flex shrink-0"
+                              />
+                            }
+                          >
+                            <Clock aria-hidden="true" className="size-3" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top">Changed after the feature file</TooltipContent>
+                        </Tooltip>
+                      )}
                       <time
                         dateTime={lastCommit.date}
                         title={new Date(lastCommit.date).toLocaleString()}

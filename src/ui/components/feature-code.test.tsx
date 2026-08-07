@@ -166,6 +166,19 @@ describe('drift against the feature file', () => {
     expect(container.querySelector('.lucide-clock')).toBeInTheDocument()
   })
 
+  it('says why the entry is flagged, rather than leaving colour to imply it', async () => {
+    setup(
+      { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
+      {
+        matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(1, 'feat: rework auth') }],
+        featureLastCommit: commit(10, 'docs: describe auth'),
+      },
+    )
+    expect(
+      await screen.findByRole('img', { name: 'Changed after the feature file' }),
+    ).toBeInTheDocument()
+  })
+
   it('does not flag an entry that is older than, or level with, the feature file', async () => {
     const { container } = setup(
       { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
@@ -176,5 +189,8 @@ describe('drift against the feature file', () => {
     )
     expect(await screen.findByText('last week')).toBeInTheDocument()
     expect(container.querySelector('.lucide-clock')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('img', { name: 'Changed after the feature file' }),
+    ).not.toBeInTheDocument()
   })
 })
