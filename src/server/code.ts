@@ -24,11 +24,13 @@ export async function matchCodeRefs(
     code.map(async (ref) => {
       if (ref.kind === 'flag') return { path: ref.path, count: null, lastCommit: null }
 
-      const matchedFiles = isGlob(ref.path)
-        ? entries!.filter((entry) => globToRegExp(ref.path).test(entry))
-        : (await exists(repoRoot, ref.path))
-          ? [ref.path]
-          : []
+      let matchedFiles: string[]
+      if (isGlob(ref.path)) {
+        const regex = globToRegExp(ref.path)
+        matchedFiles = entries!.filter((entry) => regex.test(entry))
+      } else {
+        matchedFiles = (await exists(repoRoot, ref.path)) ? [ref.path] : []
+      }
 
       const lastCommit =
         matchedFiles.length > 0 ? await lastCommitTouching(repoRoot, matchedFiles) : null
