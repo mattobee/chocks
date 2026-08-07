@@ -17,7 +17,6 @@ const LINK_ICONS = new Map<string, typeof BookOpen>([
 ])
 
 const EXTERNAL_URL = /^(?:https?:)?\/\//i
-const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 
 export function FeatureLinks({ links }: { links: FeatureLink[] }) {
   if (links.length === 0) return null
@@ -29,29 +28,28 @@ export function FeatureLinks({ links }: { links: FeatureLink[] }) {
         {links.map(({ url, label, type }, index) => {
           const Icon = LINK_ICONS.get(type ?? '') ?? LinkIcon
           const external = EXTERNAL_URL.test(url)
-          const path = !HAS_SCHEME.test(url)
           const linkClassName =
             'inline-flex items-center gap-1.5 rounded-md text-sm text-primary underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none'
           const textClassName = 'inline-flex items-center gap-1.5 text-sm'
-          const content = (
+          const icon = <Icon aria-hidden="true" className="size-4" />
+          const linkContent = (
             <>
-              <Icon aria-hidden="true" className="size-4" />
+              {icon}
               {label ?? url}
             </>
           )
           return (
             <li key={`${url}:${index}`}>
-              {external || path ? (
-                <a
-                  className={linkClassName}
-                  {...(external
-                    ? { href: url, target: '_blank', rel: 'noreferrer' }
-                    : { href: url })}
-                >
-                  {content}
+              {external ? (
+                <a className={linkClassName} href={url} target="_blank" rel="noreferrer">
+                  {linkContent}
                 </a>
               ) : (
-                <span className={textClassName}>{content}</span>
+                <span className={textClassName}>
+                  {icon}
+                  {label && <span>{label}</span>}
+                  <span className="font-mono text-muted-foreground">{url}</span>
+                </span>
               )}
             </li>
           )
