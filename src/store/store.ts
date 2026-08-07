@@ -504,7 +504,11 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
     }
   }
 
-  await writeAtomic(await featureFileFor(root, next.id), serializeFeatureFile(next), content)
+  await writeAtomic(
+    await featureFileFor(root, next.id),
+    serializeFeatureFile(next, content),
+    content,
+  )
   return next
 }
 
@@ -609,7 +613,7 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
 
       await writeAtomic(
         await featureFileFor(root, feature.id),
-        serializeFeatureFile({ ...feature, uid, sort }),
+        serializeFeatureFile({ ...feature, uid, sort }, content),
         content,
       )
       if (uid !== feature.uid) counts.uids++

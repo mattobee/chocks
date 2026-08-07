@@ -1,4 +1,4 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import { isMap, parse as parseYaml, parseDocument, stringify as stringifyYaml } from 'yaml'
 import { isValidUid } from '../lib/ids'
 import { normaliseLinks } from '../lib/links'
 import { isValidStatusId } from '../lib/status'
@@ -79,6 +79,7 @@ function normaliseTags(value: unknown): string[] {
  */
 export function serializeFeatureFile(
   feature: Pick<Feature, 'title' | 'status' | 'tags' | 'links' | 'sort' | 'description' | 'uid'>,
+  originalContent?: string,
 ): string {
   const frontmatter: Record<string, unknown> = {
     title: feature.title,
@@ -97,7 +98,22 @@ export function serializeFeatureFile(
   frontmatter.sort = feature.sort
   if (feature.uid !== '') frontmatter.uid = feature.uid
 
-  const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
+  const originalFrontmatter = originalContent ? FRONTMATTER.exec(originalContent)?.[1] : undefined
+  let yaml: string
+  if (originalFrontmatter !== undefined) {
+    const document = parseDocument(originalFrontmatter)
+    if (document.errors.length === 0 && isMap(document.contents)) {
+      for (const [key, value] of Object.entries(frontmatter)) document.set(key, value)
+      for (const key of ['tags', 'links', 'uid']) {
+        if (!(key in frontmatter)) document.delete(key)
+      }
+      yaml = document.toString({ lineWidth: 0 }).trimEnd()
+    } else {
+      yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
+    }
+  } else {
+    yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
+  }
   const body = feature.description.trim()
 
   return body === '' ? `---\n${yaml}\n---\n` : `---\n${yaml}\n---\n\n${body}\n`

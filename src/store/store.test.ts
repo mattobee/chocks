@@ -696,6 +696,20 @@ describe('update', () => {
     expect(await readFile(path.join(root, 'auth.chocks.md'), 'utf8')).toContain('Some **notes**.')
   })
 
+  it('preserves unknown frontmatter and comments', async () => {
+    await given(
+      'owned.chocks.md',
+      '# Managed elsewhere\ntitle: Owned\nstatus: planned\nowner: platform # keep\nsort: a0',
+    )
+
+    await update(root, 'owned', { status: 'released' })
+
+    const text = await readFile(path.join(root, 'owned.chocks.md'), 'utf8')
+    expect(text).toContain('# Managed elsewhere')
+    expect(text).toContain('owner: platform # keep')
+    expect(text).toContain('status: released')
+  })
+
   it('ignores a blank title instead of writing one', async () => {
     const created = await create(root, { parent: '', title: 'Auth' })
     expect((await update(root, created.id, { title: '  ' })).title).toBe('Auth')

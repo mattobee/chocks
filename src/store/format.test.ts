@@ -205,6 +205,38 @@ describe('serializeFeatureFile', () => {
     expect(output.indexOf('- b')).toBeLessThan(output.indexOf('- a'))
   })
 
+  it('preserves unknown frontmatter and comments when rewriting a file', () => {
+    const original = `---
+# Feature owner
+title: Old title # shown in the tree
+status: planned
+# Used by another tool
+owner:
+  name: Platform # keep this
+sort: a0
+---
+
+Old body.
+`
+    const output = serializeFeatureFile(
+      {
+        title: 'New title',
+        status: 'done',
+        uid: 'a1b2c3d4e5',
+        tags: [],
+        links: [],
+        sort: 'a0',
+        description: 'New body.',
+      },
+      original,
+    )
+
+    expect(output).toContain('# Feature owner\ntitle: New title # shown in the tree')
+    expect(output).toContain('# Used by another tool\nowner:\n  name: Platform # keep this')
+    expect(output).toContain('\nuid: a1b2c3d4e5\n')
+    expect(output).toContain('\nNew body.\n')
+  })
+
   it('preserves markdown containing a horizontal rule', () => {
     // A `---` inside the body must not be mistaken for frontmatter on the way back in.
     const original = {
