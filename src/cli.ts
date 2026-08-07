@@ -10,7 +10,7 @@ import { serve } from '@hono/node-server'
 import { createApp } from './server/app'
 import { formatContext } from './lib/context'
 import { FEATURE_SUFFIX } from './lib/ids'
-import { backfill, scanWithIgnored } from './store/store'
+import { backfill, scanWithIgnored, scanWithProblems } from './store/store'
 import { migrateLayout } from './store/migrate'
 import { CONFIG_FILENAME, loadConfig } from './store/config'
 
@@ -166,11 +166,11 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
 
   // A file named `auth.md` instead of `auth.chocks.md` would otherwise just not appear,
   // with nothing to explain why.
-  const { ignored } = await scanWithIgnored(root)
+  const { ignored, problems: featureProblems } = await scanWithProblems(root)
 
   // Bad config falls back to the defaults rather than refusing to start, so without this
   // a misspelled colour is indistinguishable from a colour that does nothing.
-  const { problems } = await loadConfig(root)
+  const { problems: configProblems } = await loadConfig(root)
 
   // In the published package the UI sits next to the compiled server.
   const here = path.dirname(fileURLToPath(import.meta.url))
@@ -216,10 +216,16 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
           `\n    ${backfilled.failures.join('\n    ')}`,
       )
     }
-    if (problems.length > 0) {
+    if (featureProblems.length > 0) {
       console.log(
-        `\n  ${CONFIG_FILENAME} has ${problems.length} problem(s), using the defaults for those:` +
-          `\n    ${problems.join('\n    ')}`,
+        `\n  Skipped ${featureProblems.length} invalid feature path(s):` +
+          `\n    ${featureProblems.join('\n    ')}`,
+      )
+    }
+    if (configProblems.length > 0) {
+      console.log(
+        `\n  ${CONFIG_FILENAME} has ${configProblems.length} problem(s), using the defaults for those:` +
+          `\n    ${configProblems.join('\n    ')}`,
       )
     }
 

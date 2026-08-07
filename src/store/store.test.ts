@@ -25,6 +25,7 @@ import {
   runStoreMutation,
   scan,
   scanWithIgnored,
+  scanWithProblems,
   StoreError,
   update,
 } from './store'
@@ -189,6 +190,25 @@ describe('scan', () => {
     await expect(scan(root)).rejects.toThrow(
       /remove either auth\.chocks\.md or the auth\/ directory/,
     )
+  })
+
+  it('can skip a duplicate feature and continue scanning', async () => {
+    await given('billing.chocks.md', 'title: Billing\nsort: a0')
+    await given('auth.chocks.md', 'title: Leaf\nsort: a0')
+    await mkdir(path.join(root, 'auth'))
+    await writeFile(
+      path.join(root, 'auth', 'index.chocks.md'),
+      '---\ntitle: Directory\nsort: a0\n---\n',
+      'utf8',
+    )
+    await writeFile(path.join(root, 'auth', 'oauth.chocks.md'), 'title: OAuth', 'utf8')
+
+    const result = await scanWithProblems(root)
+
+    expect(result.features.map((feature) => feature.id)).toEqual(['billing'])
+    expect(result.problems).toEqual([
+      expect.stringMatching(/remove either auth\.chocks\.md or the auth\/ directory/),
+    ])
   })
 
   it('gives sort-less files a stable alphabetical order', async () => {
