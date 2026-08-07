@@ -28,6 +28,8 @@ describe('FeatureLinks', () => {
     ])
     expect(screen.getByText('Specification')).not.toHaveClass('text-primary', 'hover:underline')
     expect(screen.getByText('Proposal')).not.toHaveClass('text-primary', 'hover:underline')
+    expect(screen.getByText('docs/x-spec.md')).toHaveClass('font-mono', 'text-muted-foreground')
+    expect(screen.getByText('docs/proposal.md')).toHaveClass('font-mono', 'text-muted-foreground')
   })
 
   it('uses the URL as text when the label is missing', () => {
@@ -71,6 +73,12 @@ describe('FeatureLinks', () => {
     render(<FeatureLinks links={[{ label: 'Spec', url: 'docs/x-spec.md' }]} />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.getByText('Spec')).not.toHaveClass('text-primary', 'hover:underline')
+    expect(screen.getByText('docs/x-spec.md')).toHaveClass('font-mono', 'text-muted-foreground')
+  })
+
+  it('shows an unlabelled repo-relative path as muted monospace text', () => {
+    render(<FeatureLinks links={[{ url: 'docs/x-spec.md' }]} />)
+    expect(screen.getByText('docs/x-spec.md')).toHaveClass('font-mono', 'text-muted-foreground')
   })
 
   it.each(['javascript:alert(1)', 'mailto:docs@example.com', 'vscode://file/repo/docs.md'])(
@@ -79,6 +87,7 @@ describe('FeatureLinks', () => {
       render(<FeatureLinks links={[{ label: 'Docs', url }]} />)
       expect(screen.queryByRole('link')).not.toBeInTheDocument()
       expect(screen.getByText('Docs')).not.toHaveClass('text-primary', 'hover:underline')
+      expect(screen.getByText(url)).toHaveClass('font-mono', 'text-muted-foreground')
     },
   )
 })
