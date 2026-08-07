@@ -339,8 +339,6 @@ export function FeaturePage() {
 
         <FeatureLinks links={feature.links} />
 
-        <FeatureCode code={feature.code} />
-
         <div className="mb-8">
           <div className="mb-3 flex items-center gap-3">
             <h2 className="flex-1 text-lg font-semibold">Description</h2>
@@ -396,6 +394,8 @@ export function FeaturePage() {
             <p className="text-muted-foreground">No description yet.</p>
           )}
         </div>
+
+        <FeatureCode code={feature.code} />
 
         <div className="mt-8 mb-3 flex items-center gap-3">
           <h2 className="flex-1 text-lg font-semibold">
