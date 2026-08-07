@@ -74,9 +74,9 @@ describe('FeatureLinks', () => {
     expect(link).not.toHaveAttribute('target')
   })
 
-  it('leaves a value with an odd scheme as text rather than a link', () => {
+  it('leaves a value with an odd scheme as plain text rather than a link', () => {
     render(<FeatureLinks links={[{ label: 'Docs', url: 'javascript:alert(1)' }]} />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
-    expect(screen.getByText('Docs')).toBeInTheDocument()
+    expect(screen.getByText('Docs')).not.toHaveClass('text-primary', 'hover:underline')
   })
 })
