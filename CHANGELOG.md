@@ -21,8 +21,7 @@ Releases before 0.1.3 predate this file.
 
 ### Changed
 
-- A feature's status can be changed directly from the sidebar, feature page, or sub-feature
-  list instead of opening an edit dialog.
+- A feature's status can be changed directly from its feature page or sub-feature list.
 - Editing a feature preserves frontmatter fields and comments Chocks does not recognise, so
   metadata owned by other tools or added by hand is not removed.
 
