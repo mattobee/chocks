@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { FEATURE_SUFFIX } from '../lib/ids'
-import type { FeatureHistory, HistoryUnavailable } from '../lib/types'
+import type { Commit, FeatureHistory, HistoryUnavailable } from '../lib/types'
 
 const run = promisify(execFile)
 
@@ -84,6 +84,38 @@ function isMissingHistory(error: unknown): boolean {
     /does not have any commits yet/i.test(message) ||
     /ambiguous argument/i.test(message)
   )
+}
+
+/**
+ * The most recent commit touching any of `paths`.
+ *
+ * A `code` glob can match several files at once, so this takes a pathspec list rather than
+ * one file, and skips `--follow`: it only tracks a single path's renames, and which of
+ * several matched files it would even apply to isn't well-defined. Callers degrade the
+ * same way `featureHistory` does — this returns null rather than throwing, whatever the
+ * reason git couldn't answer.
+ */
+export async function lastCommitTouching(
+  repoRoot: string,
+  paths: string[],
+): Promise<Commit | null> {
+  if (paths.length === 0) return null
+
+  try {
+    const stdout = await git(repoRoot, [
+      'log',
+      '-1',
+      `--format=%H${FIELD}%h${FIELD}%an${FIELD}%aI${FIELD}%s`,
+      '--',
+      ...paths,
+    ])
+    const record = stdout.trim()
+    if (record === '') return null
+    const [sha = '', shortSha = '', author = '', date = '', subject = ''] = record.split(FIELD)
+    return { sha, shortSha, author, date, subject }
+  } catch {
+    return null
+  }
 }
 
 /**

@@ -538,10 +538,12 @@ describe('code route', () => {
     })
 
     const response = await app.request('/api/code/auth')
-    const body = (await response.json()) as { matches: { path: string; count: number | null }[] }
+    const body = (await response.json()) as {
+      matches: { path: string; count: number | null; lastCommit: unknown }[]
+    }
     expect(body.matches).toEqual([
-      { path: 'auth.ts', count: 1 },
-      { path: 'missing.ts', count: 0 },
+      { path: 'auth.ts', count: 1, lastCommit: null },
+      { path: 'missing.ts', count: 0, lastCommit: null },
     ])
   })
 
@@ -554,7 +556,54 @@ describe('code route', () => {
 
     const response = await app.request('/api/code/auth')
     const body = (await response.json()) as { matches: { count: number | null }[] }
-    expect(body.matches).toEqual([{ path: 'new-onboarding', count: null }])
+    expect(body.matches).toEqual([{ path: 'new-onboarding', count: null, lastCommit: null }])
+  })
+
+  it('reports unavailable, the same as history, when there is no repo at all', async () => {
+    const feature = await createFeature('', 'Auth')
+    await app.request(`/api/features/${feature.id}`, {
+      ...json({ code: [{ path: 'auth.chocks.md' }] }),
+      method: 'PATCH',
+    })
+
+    const response = await app.request('/api/code/auth')
+    const body = (await response.json()) as { unavailable: string; featureLastCommit: unknown }
+    expect(body.unavailable).toBe('not-a-repo')
+    expect(body.featureLastCommit).toBeNull()
+  })
+
+  describe('with git history', () => {
+    async function git(...args: string[]): Promise<void> {
+      await run('git', ['-C', root, ...args])
+    }
+
+    async function commit(message: string): Promise<void> {
+      await git('add', '-A')
+      await git('-c', 'user.email=t@example.com', '-c', 'user.name=Tester', 'commit', '-m', message)
+    }
+
+    it('finds the feature file and each code entry their own last commit', async () => {
+      await git('init', '-q', '-b', 'main')
+      await writeFile(path.join(root, 'auth.ts'), '', 'utf8')
+      await commit('feat: add auth')
+
+      const feature = await createFeature('', 'Auth')
+      await app.request(`/api/features/${feature.id}`, {
+        ...json({ code: [{ path: 'auth.ts' }] }),
+        method: 'PATCH',
+      })
+      await commit('docs: add auth feature')
+
+      const response = await app.request('/api/code/auth')
+      const body = (await response.json()) as {
+        unavailable?: string
+        featureLastCommit: { subject: string } | null
+        matches: { lastCommit: { subject: string } | null }[]
+      }
+      expect(body.unavailable).toBeUndefined()
+      expect(body.featureLastCommit?.subject).toBe('docs: add auth feature')
+      expect(body.matches[0]?.lastCommit?.subject).toBe('feat: add auth')
+    })
   })
 })
 

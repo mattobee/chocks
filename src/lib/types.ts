@@ -34,11 +34,17 @@ export interface CodeMatch {
   path: string
   /** Null for a `flag` entry: there's no path to check it against. */
   count: number | null
+  /** Most recent commit touching a matched file. Null with no match, or git unavailable. */
+  lastCommit: Commit | null
 }
 
 /** What `/api/code/:id` returns. */
 export interface FeatureCodeMatches {
   matches: CodeMatch[]
+  /** Most recent commit touching the feature file itself, for comparison against each entry. */
+  featureLastCommit: Commit | null
+  /** Set when git could not be read at all; every commit above is then null. */
+  unavailable?: HistoryUnavailable
 }
 
 /**

@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Code, Flag, FlaskConical, TriangleAlert } from 'lucide-react'
+import { Clock, Code, Flag, FlaskConical, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/ui/components/ui/badge'
 import { codeMatchesQuery } from '@/ui/lib/queries'
+import { relativeDate } from '@/ui/lib/dates'
+import { MODIFIED_COLOR } from '@/lib/status'
+import { cn } from '@/lib/utils'
 import type { FeatureCodeRef } from '@/lib/types'
 
 const CODE_KIND_ICONS = new Map<string, typeof Code>([
@@ -21,19 +24,40 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
   // Matched by position against the feature's own `code`, which is the order this list is
   // rendered in. A mismatched length (a stale response, or one still loading) just means no
   // badge yet for the entries past it, rather than a wrong one.
-  const counts = matches.data?.matches
+  const entries = matches.data?.matches
+  const featureLastCommit = matches.data?.featureLastCommit ?? null
+  const featureChanged = featureLastCommit ? new Date(featureLastCommit.date).getTime() : null
 
   return (
     <section className="mb-6">
-      <h2 className="mb-3 text-lg font-semibold">Code</h2>
+      <h2 className="mb-1 text-lg font-semibold">Code</h2>
+      {featureLastCommit && (
+        <p className="text-muted-foreground mb-3 text-xs">
+          Feature last changed{' '}
+          <time
+            dateTime={featureLastCommit.date}
+            title={new Date(featureLastCommit.date).toLocaleString()}
+          >
+            {relativeDate(featureLastCommit.date)}
+          </time>
+        </p>
+      )}
       <ul className="flex list-none flex-col items-start gap-2 p-0">
         {code.map(({ path, kind }, index) => {
           const Icon = CODE_KIND_ICONS.get(kind ?? '') ?? Code
-          const count = counts?.[index]?.count
+          const count = entries?.[index]?.count
+          const lastCommit = entries?.[index]?.lastCommit ?? null
+          // The drift this is meant to surface: the code moved on and the plan didn't, not
+          // the ordinary case of the plan being edited alongside or after its own code.
+          const drifted =
+            lastCommit &&
+            featureChanged !== null &&
+            new Date(lastCommit.date).getTime() > featureChanged
+
           return (
             <li
               key={`${path}:${index}`}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
+              className="inline-flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
             >
               <Icon aria-hidden="true" className="size-4" />
               <span className="font-mono">{path}</span>
@@ -45,6 +69,23 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
                   {count === 0 && <TriangleAlert aria-hidden="true" />}
                   {count === 0 ? 'No matches' : `${count} match${count === 1 ? '' : 'es'}`}
                 </Badge>
+              )}
+              {lastCommit && (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 text-xs',
+                    drifted ? MODIFIED_COLOR : 'text-muted-foreground',
+                  )}
+                >
+                  {drifted && <Clock aria-hidden="true" className="size-3" />}
+                  changed{' '}
+                  <time
+                    dateTime={lastCommit.date}
+                    title={new Date(lastCommit.date).toLocaleString()}
+                  >
+                    {relativeDate(lastCommit.date)}
+                  </time>
+                </span>
               )}
             </li>
           )

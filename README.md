@@ -96,7 +96,9 @@ The markdown body is the description, and everything is editable by hand: the ru
 
 `code` is a separate, similarly shaped list claiming where a feature is implemented. Where a link is somewhere to click, a `code` entry is a repo-relative glob, and each needs a `path`. An optional `kind` is one of `code`, `test` or `flag` and defaults to `code`, with an unrecognised `kind` falling back to the default rather than being dropped. It's capped at 20 entries the same way `links` is.
 
-The feature page shows how many files each `path` currently matches, read fresh from disk on that page rather than folded into the tree scan, so opening the tree stays fast. Zero matches is shown as a broken claim rather than a neutral fact, since a glob that finds nothing and one that finds plenty would otherwise look identical. A `flag` entry has no path to check, so it's skipped rather than reported as zero. Beyond that count, `code` is read-only in the UI: nothing yet fails a build over a stale entry, which is what a future `chocks audit` would do.
+The feature page shows how many files each `path` currently matches, read fresh from disk on that page rather than folded into the tree scan, so opening the tree stays fast. Zero matches is shown as a broken claim rather than a neutral fact, since a glob that finds nothing and one that finds plenty would otherwise look identical. A `flag` entry has no path to check, so it's skipped rather than reported as zero.
+
+Next to each entry is when its matched files last changed, against when the feature file itself last changed. That comparison is the drift signal: a `code` entry that moved on after the plan did is worth a second look, so it's the one case highlighted, rather than the ordinary one of the plan being edited alongside or after its own code. Both dates come straight from git, and degrade the same way the feature page's own History section does: no repo, no git, or nothing committed yet all mean there's nothing to show rather than an error. Beyond that, `code` is read-only in the UI: nothing yet fails a build over a stale entry, which is what a future `chocks audit` would do.
 
 ## Seeding a tree
 

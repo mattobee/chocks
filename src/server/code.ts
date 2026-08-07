@@ -1,14 +1,17 @@
 import { lstat, readdir } from 'node:fs/promises'
 import path from 'node:path'
+import { lastCommitTouching } from './git'
 import type { CodeMatch, FeatureCodeRef } from '../lib/types'
 
 /**
- * Counts how many files in the repo match each `code` entry's glob.
+ * Counts how many files in the repo match each `code` entry's glob, and when any of them
+ * last changed.
  *
  * Walked fresh per request, on its own endpoint rather than folded into the feature scan,
  * so opening the tree stays as fast as it always was: this only runs when a feature page
- * with `code` entries is open. A `flag` entry has no path to check, so its count is left
- * null rather than reported as zero, which would read as a broken claim it never made.
+ * with `code` entries is open. A `flag` entry has no path to check, so its count and last
+ * commit are left null rather than reported as zero, which would read as a broken claim it
+ * never made.
  */
 export async function matchCodeRefs(
   repoRoot: string,
@@ -19,12 +22,17 @@ export async function matchCodeRefs(
 
   return Promise.all(
     code.map(async (ref) => {
-      if (ref.kind === 'flag') return { path: ref.path, count: null }
-      if (!isGlob(ref.path)) {
-        return { path: ref.path, count: (await exists(repoRoot, ref.path)) ? 1 : 0 }
-      }
-      const regex = globToRegExp(ref.path)
-      return { path: ref.path, count: entries!.filter((entry) => regex.test(entry)).length }
+      if (ref.kind === 'flag') return { path: ref.path, count: null, lastCommit: null }
+
+      const matchedFiles = isGlob(ref.path)
+        ? entries!.filter((entry) => globToRegExp(ref.path).test(entry))
+        : (await exists(repoRoot, ref.path))
+          ? [ref.path]
+          : []
+
+      const lastCommit =
+        matchedFiles.length > 0 ? await lastCommitTouching(repoRoot, matchedFiles) : null
+      return { path: ref.path, count: matchedFiles.length, lastCommit }
     }),
   )
 }

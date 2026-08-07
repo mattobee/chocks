@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FeatureCode } from './feature-code'
-import type { FeatureCodeMatches } from '@/lib/types'
+import type { Commit, FeatureCodeMatches } from '@/lib/types'
 
 const codeMatches = vi.fn<() => Promise<FeatureCodeMatches>>()
 
@@ -13,8 +13,18 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
 
 afterEach(() => codeMatches.mockReset())
 
-function setup(props: Parameters<typeof FeatureCode>[0], matches?: FeatureCodeMatches) {
-  codeMatches.mockResolvedValue(matches ?? { matches: [] })
+function commit(daysAgo: number, subject = 'a commit'): Commit {
+  return {
+    sha: 'a'.repeat(40),
+    shortSha: 'a'.repeat(7),
+    author: 'Tester',
+    date: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString(),
+    subject,
+  }
+}
+
+function setup(props: Parameters<typeof FeatureCode>[0], matches?: Partial<FeatureCodeMatches>) {
+  codeMatches.mockResolvedValue({ matches: [], featureLastCommit: null, ...matches })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
@@ -63,7 +73,7 @@ describe('FeatureCode', () => {
   it('shows how many files a glob matched', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/store/*.test.ts' }] },
-      { matches: [{ path: 'src/store/*.test.ts', count: 3 }] },
+      { matches: [{ path: 'src/store/*.test.ts', count: 3, lastCommit: null }] },
     )
     expect(await screen.findByText('3 matches')).toBeInTheDocument()
   })
@@ -71,7 +81,7 @@ describe('FeatureCode', () => {
   it('says one match, not one matches', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
-      { matches: [{ path: 'src/auth.ts', count: 1 }] },
+      { matches: [{ path: 'src/auth.ts', count: 1, lastCommit: null }] },
     )
     expect(await screen.findByText('1 match')).toBeInTheDocument()
   })
@@ -79,7 +89,7 @@ describe('FeatureCode', () => {
   it('marks zero matches as a broken claim, not a neutral count', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/gone.ts' }] },
-      { matches: [{ path: 'src/gone.ts', count: 0 }] },
+      { matches: [{ path: 'src/gone.ts', count: 0, lastCommit: null }] },
     )
     const badge = await screen.findByText('No matches')
     expect(badge.closest('[data-slot="badge"]')).toHaveAttribute('data-variant', 'destructive')
@@ -88,10 +98,56 @@ describe('FeatureCode', () => {
   it('renders no badge for a flag entry rather than a false zero', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'new-onboarding', kind: 'flag' }] },
-      { matches: [{ path: 'new-onboarding', count: null }] },
+      { matches: [{ path: 'new-onboarding', count: null, lastCommit: null }] },
     )
     expect(await screen.findByText('new-onboarding')).toBeInTheDocument()
     expect(screen.queryByText('No matches')).not.toBeInTheDocument()
     expect(screen.queryByText(/match/)).not.toBeInTheDocument()
+  })
+})
+
+describe('drift against the feature file', () => {
+  it('shows when the feature itself last changed', async () => {
+    setup(
+      { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
+      {
+        matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(10) }],
+        featureLastCommit: commit(3),
+      },
+    )
+    expect(await screen.findByText(/Feature last changed/)).toBeInTheDocument()
+  })
+
+  it('shows no date for an entry git could not date', async () => {
+    setup(
+      { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
+      { matches: [{ path: 'src/auth.ts', count: 1, lastCommit: null }] },
+    )
+    await screen.findByText('src/auth.ts')
+    expect(screen.queryByText(/^changed/)).not.toBeInTheDocument()
+  })
+
+  it('flags an entry that changed after the feature file, with a warning icon', async () => {
+    const { container } = setup(
+      { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
+      {
+        matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(1, 'feat: rework auth') }],
+        featureLastCommit: commit(10, 'docs: describe auth'),
+      },
+    )
+    expect(await screen.findByText(/^changed/)).toBeInTheDocument()
+    expect(container.querySelector('.lucide-clock')).toBeInTheDocument()
+  })
+
+  it('does not flag an entry that is older than, or level with, the feature file', async () => {
+    const { container } = setup(
+      { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
+      {
+        matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(10, 'feat: add auth') }],
+        featureLastCommit: commit(1, 'docs: describe auth'),
+      },
+    )
+    expect(await screen.findByText(/^changed/)).toBeInTheDocument()
+    expect(container.querySelector('.lucide-clock')).not.toBeInTheDocument()
   })
 })
