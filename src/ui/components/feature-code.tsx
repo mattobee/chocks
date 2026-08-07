@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Clock, Code, Flag, FlaskConical, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/ui/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/ui/components/ui/table'
 import { codeMatchesQuery } from '@/ui/lib/queries'
 import { relativeDate } from '@/ui/lib/dates'
 import { MODIFIED_COLOR } from '@/lib/status'
@@ -21,9 +29,9 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
 
   if (code.length === 0) return null
 
-  // Matched by position against the feature's own `code`, which is the order this list is
+  // Matched by position against the feature's own `code`, which is the order this table is
   // rendered in. A mismatched length (a stale response, or one still loading) just means no
-  // badge yet for the entries past it, rather than a wrong one.
+  // cell content yet for the entries past it, rather than a wrong one.
   const entries = matches.data?.matches
   const featureLastCommit = matches.data?.featureLastCommit ?? null
   const featureChanged = featureLastCommit ? new Date(featureLastCommit.date).getTime() : null
@@ -42,55 +50,68 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
           </time>
         </p>
       )}
-      <ul className="flex list-none flex-col items-start gap-2 p-0">
-        {code.map(({ path, kind }, index) => {
-          const Icon = CODE_KIND_ICONS.get(kind ?? '') ?? Code
-          const count = entries?.[index]?.count
-          const lastCommit = entries?.[index]?.lastCommit ?? null
-          // The drift this is meant to surface: the code moved on and the plan didn't, not
-          // the ordinary case of the plan being edited alongside or after its own code.
-          const drifted =
-            lastCommit &&
-            featureChanged !== null &&
-            new Date(lastCommit.date).getTime() > featureChanged
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Path</TableHead>
+            <TableHead>Matches</TableHead>
+            <TableHead>Changed</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {code.map(({ path, kind }, index) => {
+            const Icon = CODE_KIND_ICONS.get(kind ?? '') ?? Code
+            const count = entries?.[index]?.count
+            const lastCommit = entries?.[index]?.lastCommit ?? null
+            // The drift this is meant to surface: the code moved on and the plan didn't,
+            // not the ordinary case of the plan being edited alongside or after its code.
+            const drifted =
+              lastCommit &&
+              featureChanged !== null &&
+              new Date(lastCommit.date).getTime() > featureChanged
 
-          return (
-            <li
-              key={`${path}:${index}`}
-              className="inline-flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
-            >
-              <Icon aria-hidden="true" className="size-4" />
-              <span className="font-mono">{path}</span>
-              {/* A `flag` entry's count is null: there's no path to check it against, and
-                  a badge claiming zero would read as a broken flag rather than a skipped
-                  check. */}
-              {count !== undefined && count !== null && (
-                <Badge variant={count === 0 ? 'destructive' : 'outline'}>
-                  {count === 0 && <TriangleAlert aria-hidden="true" />}
-                  {count === 0 ? 'No matches' : `${count} match${count === 1 ? '' : 'es'}`}
-                </Badge>
-              )}
-              {lastCommit && (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 text-xs',
-                    drifted ? MODIFIED_COLOR : 'text-muted-foreground',
+            return (
+              <TableRow key={`${path}:${index}`}>
+                <TableCell className="font-mono text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Icon aria-hidden="true" className="size-4 shrink-0" />
+                    {path}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  {/* A `flag` entry's count is null: there's no path to check it against,
+                      and a badge claiming zero would read as a broken flag rather than a
+                      skipped check. */}
+                  {count !== undefined && count !== null && (
+                    <Badge variant={count === 0 ? 'destructive' : 'outline'}>
+                      {count === 0 && <TriangleAlert aria-hidden="true" />}
+                      {count === 0 ? 'No matches' : `${count} match${count === 1 ? '' : 'es'}`}
+                    </Badge>
                   )}
-                >
-                  {drifted && <Clock aria-hidden="true" className="size-3" />}
-                  changed{' '}
-                  <time
-                    dateTime={lastCommit.date}
-                    title={new Date(lastCommit.date).toLocaleString()}
-                  >
-                    {relativeDate(lastCommit.date)}
-                  </time>
-                </span>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+                </TableCell>
+                <TableCell>
+                  {lastCommit && (
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 text-xs',
+                        drifted ? MODIFIED_COLOR : 'text-muted-foreground',
+                      )}
+                    >
+                      {drifted && <Clock aria-hidden="true" className="size-3" />}
+                      <time
+                        dateTime={lastCommit.date}
+                        title={new Date(lastCommit.date).toLocaleString()}
+                      >
+                        {relativeDate(lastCommit.date)}
+                      </time>
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
     </section>
   )
 }

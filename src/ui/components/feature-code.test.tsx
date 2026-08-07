@@ -39,7 +39,7 @@ describe('FeatureCode', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('keeps author order and renders each path as plain text, not a link', () => {
+  it('is a table with one row per entry, in author order', () => {
     setup({
       featureId: 'auth',
       code: [
@@ -49,7 +49,14 @@ describe('FeatureCode', () => {
       ],
     })
     expect(screen.getByRole('heading', { level: 2, name: 'Code' })).toBeInTheDocument()
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
+      'Path',
+      'Matches',
+      'Changed',
+    ])
+    // Header row plus one row per entry.
+    expect(screen.getAllByRole('row')).toHaveLength(4)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.getByText('src/store/format.ts')).toBeInTheDocument()
     expect(screen.getByText('src/store/*.test.ts')).toBeInTheDocument()
@@ -123,8 +130,9 @@ describe('drift against the feature file', () => {
       { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
       { matches: [{ path: 'src/auth.ts', count: 1, lastCommit: null }] },
     )
-    await screen.findByText('src/auth.ts')
-    expect(screen.queryByText(/^changed/)).not.toBeInTheDocument()
+    const row = await screen.findByText('src/auth.ts')
+    const cells = row.closest('tr')?.querySelectorAll('td') ?? []
+    expect(cells[2]).toHaveTextContent('')
   })
 
   it('flags an entry that changed after the feature file, with a warning icon', async () => {
@@ -135,7 +143,7 @@ describe('drift against the feature file', () => {
         featureLastCommit: commit(10, 'docs: describe auth'),
       },
     )
-    expect(await screen.findByText(/^changed/)).toBeInTheDocument()
+    expect(await screen.findByText('yesterday')).toBeInTheDocument()
     expect(container.querySelector('.lucide-clock')).toBeInTheDocument()
   })
 
@@ -147,7 +155,7 @@ describe('drift against the feature file', () => {
         featureLastCommit: commit(1, 'docs: describe auth'),
       },
     )
-    expect(await screen.findByText(/^changed/)).toBeInTheDocument()
+    expect(await screen.findByText('last week')).toBeInTheDocument()
     expect(container.querySelector('.lucide-clock')).not.toBeInTheDocument()
   })
 })
