@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { GitCommitVertical, SquareDot } from 'lucide-react'
 import { Skeleton } from '@/ui/components/ui/skeleton'
 import { historyQuery } from '@/ui/lib/queries'
+import { relativeDate } from '@/ui/lib/dates'
 import { MODIFIED_COLOR } from '@/lib/status'
 
 /**
@@ -87,25 +88,4 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
       )}
     </div>
   )
-}
-
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ['year', 365 * 24 * 60 * 60 * 1000],
-  ['month', 30 * 24 * 60 * 60 * 1000],
-  ['week', 7 * 24 * 60 * 60 * 1000],
-  ['day', 24 * 60 * 60 * 1000],
-  ['hour', 60 * 60 * 1000],
-  ['minute', 60 * 1000],
-]
-
-function relativeDate(iso: string): string {
-  const time = new Date(iso).getTime()
-  if (Number.isNaN(time)) return ''
-
-  const elapsed = time - Date.now()
-  const format = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
-  for (const [unit, ms] of UNITS) {
-    if (Math.abs(elapsed) >= ms) return format.format(Math.round(elapsed / ms), unit)
-  }
-  return format.format(0, 'minute')
 }

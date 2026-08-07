@@ -5,10 +5,11 @@ import {
   parseDocument,
   stringify as stringifyYaml,
 } from 'yaml'
+import { normaliseCode } from '../lib/code'
 import { isValidUid } from '../lib/ids'
 import { normaliseLinks } from '../lib/links'
 import { isValidStatusId } from '../lib/status'
-import type { Feature, FeatureLink } from '../lib/types'
+import type { Feature, FeatureCodeRef, FeatureLink } from '../lib/types'
 
 /**
  * Pure conversions between a feature and the text of its markdown file.
@@ -18,7 +19,7 @@ import type { Feature, FeatureLink } from '../lib/types'
  */
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
-const FRONTMATTER_KEYS = ['title', 'status', 'tags', 'links', 'sort', 'uid'] as const
+const FRONTMATTER_KEYS = ['title', 'status', 'tags', 'links', 'code', 'sort', 'uid'] as const
 
 export class FrontmatterError extends Error {
   constructor() {
@@ -33,6 +34,7 @@ export interface ParsedFile {
   status: string
   tags: string[]
   links: FeatureLink[]
+  code: FeatureCodeRef[]
   sort: string
   description: string
 }
@@ -69,6 +71,7 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
     status: isValidStatusId(data.status) ? data.status : '',
     tags: normaliseTags(data.tags),
     links: normaliseLinks(data.links),
+    code: normaliseCode(data.code),
     sort: typeof data.sort === 'string' && data.sort !== '' ? data.sort : '',
     description: body.replace(/^\r?\n/, '').trimEnd(),
   }
@@ -92,7 +95,10 @@ function normaliseTags(value: unknown): string[] {
  * it stays out of the way of the fields people actually read.
  */
 export function serializeFeatureFile(
-  feature: Pick<Feature, 'title' | 'status' | 'tags' | 'links' | 'sort' | 'description' | 'uid'>,
+  feature: Pick<
+    Feature,
+    'title' | 'status' | 'tags' | 'links' | 'code' | 'sort' | 'description' | 'uid'
+  >,
   originalContent?: string,
 ): string {
   const frontmatter: Record<string, unknown> = {
@@ -107,6 +113,13 @@ export function serializeFeatureFile(
       ...(label ? { label } : {}),
       url,
       ...(type ? { type } : {}),
+    }))
+  }
+  // Same again for code, kept after links so the header reads ...tags, links, code, sort.
+  if (feature.code.length > 0) {
+    frontmatter.code = feature.code.map(({ path, kind }) => ({
+      path,
+      ...(kind ? { kind } : {}),
     }))
   }
   frontmatter.sort = feature.sort
@@ -140,7 +153,7 @@ export function serializeFeatureFile(
         document.contents.items.splice(index, 0, pair)
       }
     }
-    for (const key of ['tags', 'links', 'uid']) {
+    for (const key of ['tags', 'links', 'code', 'uid']) {
       if (!(key in frontmatter)) document.delete(key)
     }
     yaml = document.toString({ lineWidth: 0 }).trimEnd()

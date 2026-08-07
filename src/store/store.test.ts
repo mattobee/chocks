@@ -32,6 +32,7 @@ import {
 import { buildTree, findByKey, isValidSortKey } from '../lib/tree'
 import { featureKey } from '../lib/ids'
 import {
+  MAX_CODE_COUNT,
   MAX_DESCRIPTION_LENGTH,
   MAX_LINK_COUNT,
   MAX_TAG_COUNT,
@@ -134,6 +135,18 @@ describe('scan', () => {
     expect(feature?.links).toEqual([
       { label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' },
       { url: 'docs/auth.md' },
+    ])
+  })
+
+  it('reads code through to the feature', async () => {
+    await given(
+      'auth.chocks.md',
+      'title: Auth\nstatus: planned\ncode:\n  - path: src/auth\n  - path: src/auth/*.test.ts\n    kind: test\nsort: a0',
+    )
+    const [feature] = await scan(root)
+    expect(feature?.code).toEqual([
+      { path: 'src/auth' },
+      { path: 'src/auth/*.test.ts', kind: 'test' },
     ])
   })
 
@@ -627,6 +640,18 @@ describe('create', () => {
         title: 'Valid',
         links: Array.from({ length: MAX_LINK_COUNT + 1 }, (_, index) => ({
           url: `https://example.com/${index}`,
+        })),
+      }),
+    ).rejects.toThrow(StoreError)
+  })
+
+  it('rejects too much code', async () => {
+    await expect(
+      create(root, {
+        parent: '',
+        title: 'Valid',
+        code: Array.from({ length: MAX_CODE_COUNT + 1 }, (_, index) => ({
+          path: `src/file-${index}.ts`,
         })),
       }),
     ).rejects.toThrow(StoreError)

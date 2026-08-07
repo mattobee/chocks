@@ -7,6 +7,7 @@ import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog
 import { StatusDropdown } from '@/ui/components/status-dropdown'
 import { TagEditor } from '@/ui/components/tag-editor'
 import { FeatureLinks } from '@/ui/components/feature-links'
+import { FeatureCode } from '@/ui/components/feature-code'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -393,6 +394,8 @@ export function FeaturePage() {
             <p className="text-muted-foreground">No description yet.</p>
           )}
         </div>
+
+        <FeatureCode featureId={featureId} code={feature.code} />
 
         <div className="mt-8 mb-3 flex items-center gap-3">
           <h2 className="flex-1 text-lg font-semibold">

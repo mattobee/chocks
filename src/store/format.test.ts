@@ -13,6 +13,7 @@ describe('parseFeatureFile', () => {
       status: 'pre-release',
       tags: ['api', 'auth'],
       links: [],
+      code: [],
       sort: 'a1',
       description: 'Supports GitHub and Google.',
     })
@@ -106,6 +107,48 @@ describe('parseFeatureFile', () => {
     expect(parsed.links.at(-1)?.url).toBe('https://example.com/19')
   })
 
+  it('reads code entries in author order, defaulting and preserving kind', () => {
+    const parsed = parseFeatureFile(
+      '---\ncode:\n  - path: src/store/format.ts\n  - path: src/store/*.test.ts\n    kind: test\n  - path: new-onboarding\n    kind: flag\n---\n',
+      'x',
+    )
+    expect(parsed.code).toEqual([
+      { path: 'src/store/format.ts' },
+      { path: 'src/store/*.test.ts', kind: 'test' },
+      { path: 'new-onboarding', kind: 'flag' },
+    ])
+  })
+
+  it('treats a non-list code value as empty', () => {
+    expect(parseFeatureFile('---\ncode: { path: src/x.ts }\n---\n', 'x').code).toEqual([])
+    expect(parseFeatureFile('---\ncode: not-a-list\n---\n', 'x').code).toEqual([])
+    expect(parseFeatureFile('---\ncode: 3\n---\n', 'x').code).toEqual([])
+  })
+
+  it('skips malformed code entries, drops a missing path, and trims usable fields', () => {
+    expect(
+      parseFeatureFile(
+        '---\ncode:\n  - not-a-map\n  - path: " src/x.ts "\n    kind: " test "\n  - kind: test\n  - path: 3\n  - path: "  "\n---\n',
+        'x',
+      ).code,
+    ).toEqual([{ path: 'src/x.ts', kind: 'test' }])
+  })
+
+  it('falls back to code for an unrecognised kind, rather than dropping the entry', () => {
+    expect(
+      parseFeatureFile('---\ncode:\n  - path: src/x.ts\n    kind: custom\n---\n', 'x').code,
+    ).toEqual([{ path: 'src/x.ts' }])
+  })
+
+  it('takes the first 20 code entries from a longer file', () => {
+    const entries = Array.from({ length: 21 }, (_, index) => `  - path: src/file-${index}.ts`).join(
+      '\n',
+    )
+    const parsed = parseFeatureFile(`---\ncode:\n${entries}\n---\n`, 'x')
+    expect(parsed.code).toHaveLength(20)
+    expect(parsed.code.at(-1)?.path).toBe('src/file-19.ts')
+  })
+
   it('handles CRLF line endings', () => {
     const parsed = parseFeatureFile('---\r\ntitle: Win\r\nstatus: done\r\n---\r\n\r\nBody\r\n', 'x')
     expect(parsed.title).toBe('Win')
@@ -128,6 +171,10 @@ describe('serializeFeatureFile', () => {
         { label: 'OAuth docs', url: 'https://docs.example.com/oauth', type: 'docs' },
         { url: 'https://github.com/x/1', type: 'issue' },
       ],
+      code: [
+        { path: 'src/store/format.ts' },
+        { path: 'src/store/*.test.ts', kind: 'test' as const },
+      ],
       sort: 'a1',
       description: 'Some **markdown**.',
     }
@@ -141,6 +188,7 @@ describe('serializeFeatureFile', () => {
       uid: '',
       tags: [],
       links: [],
+      code: [],
       sort: 'a0',
       description: '',
     })
@@ -154,10 +202,25 @@ describe('serializeFeatureFile', () => {
       uid: '',
       tags: [],
       links: [],
+      code: [],
       sort: 'a0',
       description: '',
     })
     expect(output).not.toContain('links')
+  })
+
+  it('omits empty code to keep diffs clean', () => {
+    const output = serializeFeatureFile({
+      title: 'X',
+      status: 'planned',
+      uid: '',
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+      description: '',
+    })
+    expect(output).not.toContain('code')
   })
 
   it('writes links after tags and before sort', () => {
@@ -167,11 +230,29 @@ describe('serializeFeatureFile', () => {
       uid: '',
       tags: ['a'],
       links: [{ label: 'Docs', url: 'https://docs.example.com', type: 'docs' }],
+      code: [],
       sort: 'a0',
       description: '',
     })
     expect(output.indexOf('tags')).toBeLessThan(output.indexOf('links'))
     expect(output.indexOf('links')).toBeLessThan(output.indexOf('sort'))
+  })
+
+  it('writes code after links and before sort, omitting a default kind', () => {
+    const output = serializeFeatureFile({
+      title: 'X',
+      status: 'planned',
+      uid: '',
+      tags: [],
+      links: [{ url: 'https://docs.example.com' }],
+      code: [{ path: 'src/store/format.ts' }, { path: 'src/store/*.test.ts', kind: 'test' }],
+      sort: 'a0',
+      description: '',
+    })
+    expect(output.indexOf('links')).toBeLessThan(output.indexOf('code'))
+    expect(output.indexOf('code')).toBeLessThan(output.indexOf('sort'))
+    expect(output).not.toContain('kind: code')
+    expect(output).toContain('kind: test')
   })
 
   it('writes a body-less feature without trailing blank lines', () => {
@@ -182,6 +263,7 @@ describe('serializeFeatureFile', () => {
         uid: '',
         tags: [],
         links: [],
+        code: [],
         sort: 'a0',
         description: '',
       }),
@@ -195,6 +277,7 @@ describe('serializeFeatureFile', () => {
       uid: '',
       tags: ['b', 'a'],
       links: [],
+      code: [],
       sort: 'a0',
       description: 'x',
     })
@@ -225,6 +308,7 @@ Old body.
         uid: 'a1b2c3d4e5',
         tags: [],
         links: [],
+        code: [],
         sort: 'a0',
         description: 'New body.',
       },
@@ -258,6 +342,7 @@ Old body.
           uid: '',
           tags: [],
           links: [],
+          code: [],
           sort: 'a0',
           description: '',
         },
@@ -274,6 +359,7 @@ Old body.
         uid: 'a1b2c3d4e5',
         tags: ['api'],
         links: [{ url: 'docs/api.md' }],
+        code: [{ path: 'src/x.ts' }],
         sort: 'a0',
         description: '',
       },
@@ -282,7 +368,8 @@ Old body.
 
     expect(output.indexOf('status')).toBeLessThan(output.indexOf('tags'))
     expect(output.indexOf('tags')).toBeLessThan(output.indexOf('links'))
-    expect(output.indexOf('links')).toBeLessThan(output.indexOf('sort'))
+    expect(output.indexOf('links')).toBeLessThan(output.indexOf('code'))
+    expect(output.indexOf('code')).toBeLessThan(output.indexOf('sort'))
     expect(output.indexOf('sort')).toBeLessThan(output.indexOf('uid'))
   })
 
@@ -294,6 +381,7 @@ Old body.
         uid: '',
         tags: [],
         links: [],
+        code: [],
         sort: 'a0',
         description: '',
       },
@@ -312,6 +400,7 @@ Old body.
       uid: 'a1b2c3d4e5',
       tags: [],
       links: [],
+      code: [],
       sort: 'a0',
       description: 'Before\n\n---\n\nAfter',
     }
@@ -329,6 +418,7 @@ describe('uid round trip', () => {
       uid: 'a1b2c3d4e5',
       tags: [],
       links: [],
+      code: [],
       sort: 'a0',
       description: '',
     })
@@ -343,6 +433,7 @@ describe('uid round trip', () => {
       uid: '',
       tags: [],
       links: [],
+      code: [],
       sort: 'a0',
       description: '',
     })

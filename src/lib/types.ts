@@ -4,12 +4,43 @@ export const MAX_TITLE_LENGTH = 300
 export const MAX_TAG_LENGTH = 50
 export const MAX_TAG_COUNT = 100
 export const MAX_LINK_COUNT = 20
+export const MAX_CODE_COUNT = 20
 export const MAX_DESCRIPTION_LENGTH = 10_000
 
 export interface FeatureLink {
   url: string
   label?: string
   type?: string
+}
+
+/** What a `code` entry claims about a path: implementation, a test for it, or a flag key. */
+export type CodeKind = 'code' | 'test' | 'flag'
+
+/**
+ * A claim about where a feature lives in the repo, distinct from `links`.
+ *
+ * A link is somewhere to click; this is what a future `chocks audit` would check: a glob
+ * that should match something, and whether it changed since last confirmed.
+ */
+export interface FeatureCodeRef {
+  /** Repo-relative glob. */
+  path: string
+  /** Defaults to `code` when absent. */
+  kind?: CodeKind
+}
+
+/** How many files a `code` entry's glob matched, read fresh from disk. */
+export interface CodeMatch {
+  path: string
+  /** Null for a `flag` entry: there's no path to check it against. */
+  count: number | null
+  /** Most recent commit touching a matched file. Null with no match, or git unavailable. */
+  lastCommit: Commit | null
+}
+
+/** What `/api/code/:id` returns. */
+export interface FeatureCodeMatches {
+  matches: CodeMatch[]
 }
 
 /**
@@ -42,6 +73,11 @@ export interface Feature {
   tags: string[]
   /** Ordered links from frontmatter. Read-only in the UI. */
   links: FeatureLink[]
+  /**
+   * Ordered code/test/flag claims from frontmatter. Read-only in the UI. Whether a `path`
+   * currently matches anything is checked separately, by `/api/code/:id`, rather than here.
+   */
+  code: FeatureCodeRef[]
   /** Fractional index key ordering this feature among its siblings. */
   sort: string
 }

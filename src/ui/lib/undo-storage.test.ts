@@ -38,6 +38,7 @@ describe('the undo stack across a refresh', () => {
           status: 'idea',
           tags: ['api'],
           links: [],
+          code: [],
           sort: 'a0',
           slug: 'auth',
           parentUid: null,

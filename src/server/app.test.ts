@@ -5,7 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from './app'
-import { MAX_LINK_COUNT, type Feature, type Workspace } from '../lib/types'
+import { MAX_CODE_COUNT, MAX_LINK_COUNT, type Feature, type Workspace } from '../lib/types'
 
 const run = promisify(execFile)
 
@@ -224,6 +224,7 @@ describe('features API', () => {
   it('updates fields', async () => {
     const feature = await createFeature('', 'Auth')
     const links = [{ label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' }]
+    const code = [{ path: 'src/auth' }, { path: 'src/auth/*.test.ts', kind: 'test' }]
     const response = await app.request(`/api/features/${feature.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -232,6 +233,7 @@ describe('features API', () => {
         description: 'Shipped.',
         tags: ['api'],
         links,
+        code,
       }),
     })
     const updated = (await response.json()) as Feature
@@ -240,6 +242,7 @@ describe('features API', () => {
       description: 'Shipped.',
       tags: ['api'],
       links,
+      code,
     })
   })
 
@@ -259,6 +262,27 @@ describe('features API', () => {
     const feature = await createFeature('', 'Auth')
     const updateResponse = await app.request(`/api/features/${feature.id}`, {
       ...json({ links }),
+      method: 'PATCH',
+    })
+    expect(updateResponse.status).toBe(400)
+  })
+
+  it('rejects API writes over the code limit', async () => {
+    const code = Array.from({ length: MAX_CODE_COUNT + 1 }, (_, index) => ({
+      path: `src/file-${index}.ts`,
+    }))
+    const createResponse = await app.request(
+      '/api/features',
+      json({ parent: '', title: 'Auth', code }),
+    )
+    expect(createResponse.status).toBe(400)
+    expect(await createResponse.json()).toEqual({
+      message: `Code exceeds maximum count of ${MAX_CODE_COUNT}`,
+    })
+
+    const feature = await createFeature('', 'Auth')
+    const updateResponse = await app.request(`/api/features/${feature.id}`, {
+      ...json({ code }),
       method: 'PATCH',
     })
     expect(updateResponse.status).toBe(400)
@@ -478,6 +502,105 @@ describe('history route', () => {
   it('refuses a traversing id', async () => {
     const response = await app.request('/api/history/..%2F..%2Fetc%2Fpasswd')
     expect(response.status).toBe(400)
+  })
+})
+
+describe('code route', () => {
+  it('is not shadowed by the feature read route', async () => {
+    await createFeature('', 'Auth')
+    const response = await app.request('/api/code/auth')
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { matches: unknown[] }
+    expect(Array.isArray(body.matches)).toBe(true)
+  })
+
+  it('resolves matches for a nested feature', async () => {
+    await createFeature('', 'Auth')
+    await createFeature('auth', 'OAuth')
+    const response = await app.request('/api/code/auth/oauth')
+    expect(response.status).toBe(200)
+    expect(Array.isArray(((await response.json()) as { matches: unknown[] }).matches)).toBe(true)
+  })
+
+  it('refuses a traversing id', async () => {
+    const response = await app.request('/api/code/..%2F..%2Fetc%2Fpasswd')
+    expect(response.status).toBe(400)
+  })
+
+  it('counts a literal path against the repo root, not the chocks directory', async () => {
+    // No repoRoot passed to createApp in this suite, so it defaults to root: writing the
+    // file straight into root is what makes it "repo-relative" here.
+    await writeFile(path.join(root, 'auth.ts'), '', 'utf8')
+    const feature = await createFeature('', 'Auth')
+    await app.request(`/api/features/${feature.id}`, {
+      ...json({ code: [{ path: 'auth.ts' }, { path: 'missing.ts' }] }),
+      method: 'PATCH',
+    })
+
+    const response = await app.request('/api/code/auth')
+    const body = (await response.json()) as {
+      matches: { path: string; count: number | null; lastCommit: unknown }[]
+    }
+    expect(body.matches).toEqual([
+      { path: 'auth.ts', count: 1, lastCommit: null },
+      { path: 'missing.ts', count: 0, lastCommit: null },
+    ])
+  })
+
+  it('skips a flag entry rather than reporting it as zero', async () => {
+    const feature = await createFeature('', 'Auth')
+    await app.request(`/api/features/${feature.id}`, {
+      ...json({ code: [{ path: 'new-onboarding', kind: 'flag' }] }),
+      method: 'PATCH',
+    })
+
+    const response = await app.request('/api/code/auth')
+    const body = (await response.json()) as { matches: { count: number | null }[] }
+    expect(body.matches).toEqual([{ path: 'new-onboarding', count: null, lastCommit: null }])
+  })
+
+  it('degrades a matched entry to a null lastCommit when there is no repo at all', async () => {
+    const feature = await createFeature('', 'Auth')
+    await app.request(`/api/features/${feature.id}`, {
+      ...json({ code: [{ path: 'auth.chocks.md' }] }),
+      method: 'PATCH',
+    })
+
+    const response = await app.request('/api/code/auth')
+    const body = (await response.json()) as { matches: { lastCommit: unknown }[] }
+    // No repo at all, so there is nothing to find a commit against; the count is
+    // unaffected, since that comes from the filesystem walk, not git.
+    expect(body.matches[0]?.lastCommit).toBeNull()
+  })
+
+  describe('with git history', () => {
+    async function git(...args: string[]): Promise<void> {
+      await run('git', ['-C', root, ...args])
+    }
+
+    async function commit(message: string): Promise<void> {
+      await git('add', '-A')
+      await git('-c', 'user.email=t@example.com', '-c', 'user.name=Tester', 'commit', '-m', message)
+    }
+
+    it("finds each code entry's own last commit", async () => {
+      await git('init', '-q', '-b', 'main')
+      await writeFile(path.join(root, 'auth.ts'), '', 'utf8')
+      await commit('feat: add auth')
+
+      const feature = await createFeature('', 'Auth')
+      await app.request(`/api/features/${feature.id}`, {
+        ...json({ code: [{ path: 'auth.ts' }] }),
+        method: 'PATCH',
+      })
+      await commit('docs: add auth feature')
+
+      const response = await app.request('/api/code/auth')
+      const body = (await response.json()) as {
+        matches: { lastCommit: { subject: string } | null }[]
+      }
+      expect(body.matches[0]?.lastCommit?.subject).toBe('feat: add auth')
+    })
   })
 })
 

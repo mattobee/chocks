@@ -1,5 +1,7 @@
 import type {
   Feature,
+  FeatureCodeMatches,
+  FeatureCodeRef,
   FeatureHistory,
   FeatureLink,
   UncommittedFeatures,
@@ -62,6 +64,7 @@ export const api = {
     status?: string
     tags?: string[]
     links?: FeatureLink[]
+    code?: FeatureCodeRef[]
     description?: string
     uid?: string
     sort?: string
@@ -75,6 +78,7 @@ export const api = {
       status?: string
       tags?: string[]
       links?: FeatureLink[]
+      code?: FeatureCodeRef[]
       description?: string
       sort?: string
     },
@@ -95,6 +99,9 @@ export const api = {
     }),
 
   featureHistory: (id: string) => request<FeatureHistory>(`/api/history/${encodeId(id)}`),
+
+  /** How many files each of the feature's `code` entries currently matches. */
+  codeMatches: (id: string) => request<FeatureCodeMatches>(`/api/code/${encodeId(id)}`),
 
   deleteFeature: (id: string) =>
     request<void>(`/api/features/${encodeId(id)}`, { method: 'DELETE' }),

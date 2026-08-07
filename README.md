@@ -79,6 +79,12 @@ links:
     type: docs
   - label: Original proposal
     url: docs/notifications.md
+code:
+  - path: src/notifications/daily-digest.ts
+  - path: src/notifications/daily-digest.test.ts
+    kind: test
+  - path: daily-digest-send-time
+    kind: flag
 ---
 
 Sends once a day with everything you missed. Still behind a flag while the send time is settled.
@@ -87,6 +93,12 @@ Sends once a day with everything you missed. Still behind a flag while the send 
 The markdown body is the description, and everything is editable by hand: the running UI picks up changes immediately. Features saved through chocks allow titles up to 300 characters, 100 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id is its path, so there's no `parent` field that can disagree with the filesystem, and moving or retitling a feature is just a rename. Links keep working after a move, because they resolve on a `uid` generated once per feature rather than on the path.
 
 `links` is an ordered list of up to 20 objects. Each needs a `url`, which can be a URL or a repo-relative path. An optional `label` replaces the URL as the link text. An optional `type` adds an icon for `docs`, `issue`, `pr`, `design` or `spec`; anything else gets the generic link icon without being corrected or dropped. A hand-written file with more than 20 entries opens with the first 20, while an API write over the limit is rejected. Links are read-only in the UI for now, so editing one is a hand edit.
+
+`code` is a separate, similarly shaped list claiming where a feature is implemented. Where a link is somewhere to click, a `code` entry is a repo-relative glob, and each needs a `path`. An optional `kind` is one of `code`, `test` or `flag` and defaults to `code`, with an unrecognised `kind` falling back to the default rather than being dropped. It's capped at 20 entries the same way `links` is.
+
+The feature page shows how many files each `path` currently matches, read fresh from disk on that page rather than folded into the tree scan, so opening the tree stays fast. Zero matches is shown as a broken claim rather than a neutral fact, since a glob that finds nothing and one that finds plenty would otherwise look identical. A `flag` entry has no path to check, so it's skipped rather than reported as zero.
+
+Next to each entry is when its matched files last changed, against when the feature file itself last changed. That comparison is the drift signal: a `code` entry that moved on after the plan did is worth a second look. Both dates come straight from git, and degrade the same way the feature page's own History section does: no repo, no git, or nothing committed yet all mean there's nothing to show rather than an error. Beyond that, `code` is read-only in the UI: nothing yet fails a build over a stale entry, which is what a future `chocks audit` would do.
 
 ## Seeding a tree
 
@@ -99,7 +111,7 @@ A feature is a capability someone outside the team would recognise, not a file, 
 
 A leaf feature is <slug>.chocks.md. A feature with children is a <slug>/ directory with its own content in <slug>/index.chocks.md and its children alongside that index. Never create both <slug>.chocks.md and <slug>/ for one feature, and never create a feature directory without index.chocks.md.
 
-For each feature, write a title, a status, tags for cross-cutting concerns such as "api" or "billing", and a couple of sentences describing it in the markdown body. The status must be one of planned, pre-release, released, deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case use those ids exactly. Use released for something that looks fully built, and pre-release for something still missing pieces. Add a `links` list when the feature has a URL you can point to, but only then: a made-up or guessed URL is worse than none.
+For each feature, write a title, a status, tags for cross-cutting concerns such as "api" or "billing", and a couple of sentences describing it in the markdown body. The status must be one of planned, pre-release, released, deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case use those ids exactly. Use released for something that looks fully built, and pre-release for something still missing pieces. Add a `links` list when the feature has a URL you can point to, but only then: a made-up or guessed URL is worse than none. Add a `code` list of the paths that implement it, since you're already reading them to write the description.
 
 Only add features you can see in the code. Leave out anything referenced but not built, like a TODO or an empty route. You can't tell from the code whether it's planned or abandoned, and a wrong guess is harder to notice later than a gap.
 
@@ -123,7 +135,7 @@ For a big or unfamiliar codebase, narrow the same prompt to one directory or one
 
 ## Agent context
 
-`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, tags, links and a summary taken from the first paragraph of its description. It writes only to stdout and does not start the server or open a browser.
+`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, tags, links, code and a summary taken from the first paragraph of its description. It writes only to stdout and does not start the server or open a browser.
 
 Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of inferring it from the code:
 

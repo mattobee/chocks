@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { FEATURE_SUFFIX } from '../lib/ids'
-import type { FeatureHistory, HistoryUnavailable } from '../lib/types'
+import type { Commit, FeatureHistory, HistoryUnavailable } from '../lib/types'
 
 const run = promisify(execFile)
 
@@ -28,6 +28,40 @@ async function git(repoRoot: string, args: string[]): Promise<string> {
     maxBuffer: 4 * 1024 * 1024,
   })
   return stdout
+}
+
+/**
+ * As `git`, but for a pathspec list long enough that passing it as argv is the risk, not
+ * git itself: a glob like `src/**` can match tens of thousands of files in a large repo,
+ * and execFile's argument array has to go through the OS the same way a shell command
+ * line does, so it fails with E2BIG long before git would object to anything. Piped over
+ * stdin instead, which has no such limit.
+ *
+ * Not `run`, the promisified helper: writing to stdin needs the real `ChildProcess`, which
+ * `util.promisify` does not hand back.
+ */
+function gitWithPathsOnStdin(repoRoot: string, args: string[], paths: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      'git',
+      ['-C', repoRoot, ...args],
+      { timeout: TIMEOUT, maxBuffer: 4 * 1024 * 1024 },
+      (error, stdout) => {
+        if (error) reject(error)
+        else resolve(stdout)
+      },
+    )
+    // If git exits early — "not a git repository" doesn't wait to read stdin — the pipe
+    // closes while writes are still queued, and the next write throws EPIPE. The callback
+    // above already turns that exit into the rejection; without this handler, Node treats
+    // the write's EPIPE as a second, unhandled error and crashes the process over it.
+    child.stdin?.on('error', () => {})
+    // `--` first marks everything after it as paths rather than revisions; see `--stdin`
+    // in git-log(1).
+    child.stdin?.write('--\n')
+    for (const relative of paths) child.stdin?.write(`${relative}\n`)
+    child.stdin?.end()
+  })
 }
 
 /**
@@ -84,6 +118,36 @@ function isMissingHistory(error: unknown): boolean {
     /does not have any commits yet/i.test(message) ||
     /ambiguous argument/i.test(message)
   )
+}
+
+/**
+ * The most recent commit touching any of `paths`.
+ *
+ * A `code` glob can match several files at once, so this takes a pathspec list rather than
+ * one file, and skips `--follow`: it only tracks a single path's renames, and which of
+ * several matched files it would even apply to isn't well-defined. Callers degrade the
+ * same way `featureHistory` does — this returns null rather than throwing, whatever the
+ * reason git couldn't answer.
+ */
+export async function lastCommitTouching(
+  repoRoot: string,
+  paths: string[],
+): Promise<Commit | null> {
+  if (paths.length === 0) return null
+
+  try {
+    const stdout = await gitWithPathsOnStdin(
+      repoRoot,
+      ['log', '--stdin', '-1', `--format=%H${FIELD}%h${FIELD}%an${FIELD}%aI${FIELD}%s`],
+      paths,
+    )
+    const record = stdout.trim()
+    if (record === '') return null
+    const [sha = '', shortSha = '', author = '', date = '', subject = ''] = record.split(FIELD)
+    return { sha, shortSha, author, date, subject }
+  } catch {
+    return null
+  }
 }
 
 /**

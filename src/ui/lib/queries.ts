@@ -5,6 +5,7 @@ export const queryKeys = {
   workspace: ['workspace'] as const,
   features: ['features'] as const,
   history: (id: string) => ['history', id] as const,
+  codeMatches: (id: string) => ['codeMatches', id] as const,
   uncommitted: ['uncommitted'] as const,
 }
 
@@ -28,5 +29,14 @@ export const historyQuery = (id: string) =>
     queryFn: () => api.featureHistory(id),
     enabled: id !== '',
     // Shelling out to git per view; no need to re-run it on every focus.
+    staleTime: 60_000,
+  })
+
+export const codeMatchesQuery = (id: string, enabled: boolean) =>
+  queryOptions({
+    queryKey: queryKeys.codeMatches(id),
+    queryFn: () => api.codeMatches(id),
+    enabled: id !== '' && enabled,
+    // Walks the repo per view; no need to re-run it on every focus.
     staleTime: 60_000,
   })
