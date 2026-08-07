@@ -5,6 +5,35 @@ don't appear here.
 
 Releases before 0.1.3 predate this file.
 
+## 0.7.0
+
+### Added
+
+- The feature tree now stays visible in a persistent sidebar while you browse. Search,
+  status and tag filters, drag and drop, and creating a top-level feature all live there.
+  The tree also has proper ARIA tree semantics and supports keyboard drag and drop.
+- Features can include related links in frontmatter. HTTP and HTTPS URLs open from the
+  feature page; repo paths and unsupported schemes stay visible as plain text because
+  Chocks does not serve files from the repo.
+- Features can declare the code, tests, and flags behind them. The feature page shows each
+  repo-relative path or glob, how many files it matches, and when those files last changed.
+  `chocks context` includes the same references for coding agents.
+
+### Changed
+
+- A feature's status can be changed directly from the sidebar, feature page, or sub-feature
+  list instead of opening an edit dialog.
+- Editing a feature preserves frontmatter fields and comments Chocks does not recognise, so
+  metadata owned by other tools or added by hand is not removed.
+
+### Fixed
+
+- An empty feature directory, or a feature that exists in both file and directory forms, no
+  longer blocks every valid feature from loading. Chocks skips the bad entry and names the
+  problem in the terminal.
+
+[Full changes](https://github.com/mattobee/chocks/compare/v0.6.1...v0.7.0)
+
 ## 0.6.1
 
 ### Changed
