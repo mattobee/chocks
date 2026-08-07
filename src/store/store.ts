@@ -193,7 +193,7 @@ async function assertNoSymlinks(root: string, target: string): Promise<void> {
 
 /** Reads every feature under the root. */
 export async function scan(root: string): Promise<Feature[]> {
-  const { features } = await scanWithIgnored(root)
+  const { features } = await scanStore(root, false)
   return features
 }
 
@@ -201,9 +201,29 @@ export async function scan(root: string): Promise<Feature[]> {
 export async function scanWithIgnored(
   root: string,
 ): Promise<{ features: Feature[]; ignored: string[] }> {
+  const { features, ignored } = await scanStore(root, false)
+  return { features, ignored }
+}
+
+export async function scanWithProblems(
+  root: string,
+): Promise<{ features: Feature[]; ignored: string[]; problems: string[] }> {
+  return scanStore(root, true)
+}
+
+async function scanStore(
+  root: string,
+  tolerateProblems: boolean,
+): Promise<{ features: Feature[]; ignored: string[]; problems: string[] }> {
   await assertNoSymlinks(root, root)
   const features: Feature[] = []
   const ignored: string[] = []
+  const problems: string[] = []
+
+  function reportProblem(message: string): void {
+    if (!tolerateProblems) throw new StoreError(message, 400)
+    problems.push(message)
+  }
 
   async function addFeature(filePath: string, id: string, parent: string): Promise<void> {
     let content: string
@@ -241,11 +261,17 @@ export async function scanWithIgnored(
       parentId === '' &&
       entries.some((entry) => entry.isFile() && entry.name === `index${FEATURE_SUFFIX}`)
     ) {
-      throw new StoreError(
+      reportProblem(
         `Invalid feature index at ${path.join(root, `index${FEATURE_SUFFIX}`)}: remove the root index.chocks.md`,
-        400,
       )
     }
+
+    const fileNames = new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name))
+    const duplicateLeaves = new Set(
+      entries
+        .filter((entry) => entry.isDirectory() && fileNames.has(`${entry.name}${FEATURE_SUFFIX}`))
+        .map((entry) => `${entry.name}${FEATURE_SUFFIX}`),
+    )
 
     for (const entry of entries) {
       if (entry.name.startsWith('.')) continue
@@ -253,11 +279,11 @@ export async function scanWithIgnored(
       if (entry.isDirectory()) {
         const id = joinId(parentId, entry.name)
         const leafName = `${entry.name}${FEATURE_SUFFIX}`
-        if (entries.some((candidate) => candidate.isFile() && candidate.name === leafName)) {
-          throw new StoreError(
+        if (duplicateLeaves.has(leafName)) {
+          reportProblem(
             `Invalid feature ${id}: remove either ${leafName} or the ${entry.name}/ directory`,
-            400,
           )
+          continue
         }
         const indexFile = path.join(entryPath, `index${FEATURE_SUFFIX}`)
         let hasIndex = false
@@ -275,16 +301,17 @@ export async function scanWithIgnored(
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
             continue
           }
-          throw new StoreError(
+          reportProblem(
             `Invalid feature directory ${entryPath}: add index.chocks.md or remove the directory`,
-            400,
           )
+          continue
         }
         await addFeature(indexFile, id, parentId)
         await walk(entryPath, id)
         continue
       }
       if (!entry.isFile()) continue
+      if (duplicateLeaves.has(entry.name)) continue
       if (!entry.name.endsWith(FEATURE_SUFFIX)) {
         if (entry.name.endsWith('.md')) ignored.push(entryPath)
         continue
@@ -297,7 +324,7 @@ export async function scanWithIgnored(
   }
 
   await walk(root, '')
-  return { features, ignored }
+  return { features, ignored, problems }
 }
 
 /**
@@ -568,7 +595,7 @@ export function backfill(root: string): Promise<Backfilled> {
 }
 
 async function backfillUnlocked(root: string): Promise<Backfilled> {
-  const features = await scan(root)
+  const { features } = await scanWithProblems(root)
   const sortKeys = plannedSortKeys(features)
 
   const counts: Backfilled = { uids: 0, sortKeys: 0, failures: [] }
