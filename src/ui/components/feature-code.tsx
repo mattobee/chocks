@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { Clock, Code, Flag, FlaskConical, TriangleAlert } from 'lucide-react'
-import { Badge } from '@/ui/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -9,16 +8,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/ui/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/ui/components/ui/tooltip'
 import { codeMatchesQuery } from '@/ui/lib/queries'
 import { relativeDate } from '@/ui/lib/dates'
 import { MODIFIED_COLOR } from '@/lib/status'
 import { cn } from '@/lib/utils'
-import type { FeatureCodeRef } from '@/lib/types'
+import type { CodeKind, FeatureCodeRef } from '@/lib/types'
 
-const CODE_KIND_ICONS = new Map<string, typeof Code>([
-  ['test', FlaskConical],
-  ['flag', Flag],
-])
+const CODE_KIND_INFO: Record<CodeKind, { icon: typeof Code; label: string }> = {
+  code: { icon: Code, label: 'Code' },
+  test: { icon: FlaskConical, label: 'Test' },
+  flag: { icon: Flag, label: 'Feature flag' },
+}
 
 /**
  * Not links: a `code` entry is a glob, not a URL, so it renders as plain text rather than
@@ -60,7 +61,7 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
         </TableHeader>
         <TableBody>
           {code.map(({ path, kind }, index) => {
-            const Icon = CODE_KIND_ICONS.get(kind ?? '') ?? Code
+            const { icon: Icon, label: kindLabel } = CODE_KIND_INFO[kind ?? 'code']
             const count = entries?.[index]?.count
             const lastCommit = entries?.[index]?.lastCommit ?? null
             // The drift this is meant to surface: the code moved on and the plan didn't,
@@ -74,19 +75,42 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
               <TableRow key={`${path}:${index}`}>
                 <TableCell className="font-mono text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
-                    <Icon aria-hidden="true" className="size-4 shrink-0" />
+                    <Tooltip>
+                      {/* Base UI doesn't make a render-prop trigger focusable on its own,
+                          and the icon is the only text alternative for `kind` there is, so
+                          both a tabIndex and an aria-label are load-bearing here rather
+                          than decoration. */}
+                      <TooltipTrigger
+                        render={
+                          <span
+                            tabIndex={0}
+                            role="img"
+                            aria-label={kindLabel}
+                            className="inline-flex shrink-0"
+                          />
+                        }
+                      >
+                        <Icon aria-hidden="true" className="size-4" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{kindLabel}</TooltipContent>
+                    </Tooltip>
                     {path}
                   </span>
                 </TableCell>
                 <TableCell>
                   {/* A `flag` entry's count is null: there's no path to check it against,
-                      and a badge claiming zero would read as a broken flag rather than a
-                      skipped check. */}
+                      and claiming zero would read as a broken flag rather than a skipped
+                      check. */}
                   {count !== undefined && count !== null && (
-                    <Badge variant={count === 0 ? 'destructive' : 'outline'}>
-                      {count === 0 && <TriangleAlert aria-hidden="true" />}
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1',
+                        count === 0 ? 'text-destructive' : 'text-muted-foreground',
+                      )}
+                    >
+                      {count === 0 && <TriangleAlert aria-hidden="true" className="size-4" />}
                       {count === 0 ? 'No matches' : `${count} match${count === 1 ? '' : 'es'}`}
-                    </Badge>
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>

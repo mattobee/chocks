@@ -77,6 +77,25 @@ describe('FeatureCode', () => {
     expect(container.querySelector('.lucide-flag')).toBeInTheDocument()
   })
 
+  it('gives each kind icon a text alternative, since the icon is the only place kind appears', () => {
+    setup({
+      featureId: 'auth',
+      code: [
+        { path: 'src/store/format.ts' },
+        { path: 'src/store/format.test.ts', kind: 'test' },
+        { path: 'new-onboarding', kind: 'flag' },
+      ],
+    })
+    expect(screen.getByRole('img', { name: 'Code' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Test' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Feature flag' })).toBeInTheDocument()
+  })
+
+  it('makes the kind icon reachable by keyboard, so its tooltip is not mouse-only', () => {
+    setup({ featureId: 'auth', code: [{ path: 'src/store/format.ts', kind: 'test' }] })
+    expect(screen.getByRole('img', { name: 'Test' })).toHaveAttribute('tabindex', '0')
+  })
+
   it('shows how many files a glob matched', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/store/*.test.ts' }] },
@@ -98,11 +117,11 @@ describe('FeatureCode', () => {
       { featureId: 'auth', code: [{ path: 'src/gone.ts' }] },
       { matches: [{ path: 'src/gone.ts', count: 0, lastCommit: null }] },
     )
-    const badge = await screen.findByText('No matches')
-    expect(badge.closest('[data-slot="badge"]')).toHaveAttribute('data-variant', 'destructive')
+    const text = await screen.findByText('No matches')
+    expect(text).toHaveClass('text-destructive')
   })
 
-  it('renders no badge for a flag entry rather than a false zero', async () => {
+  it('renders no match count for a flag entry rather than a false zero', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'new-onboarding', kind: 'flag' }] },
       { matches: [{ path: 'new-onboarding', count: null, lastCommit: null }] },
