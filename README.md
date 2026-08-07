@@ -174,4 +174,6 @@ pnpm test:e2e     # builds, then runs Playwright
 pnpm build        # dist/ui (Vite) + dist/cli.mjs (tsdown)
 ```
 
+`dev` has no backend of its own: it just proxies `/api` to :2457, so `dev:server` needs to be running too, in a second terminal.
+
 `src/lib` is pure and shared by both sides: tree building, filtering, drag projection and sort keys. `src/store` owns the file format and the filesystem. `src/server` is Hono. `src/ui` is React, Tailwind and shadcn/ui on Base UI.
