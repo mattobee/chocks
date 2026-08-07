@@ -31,6 +31,35 @@ async function git(repoRoot: string, args: string[]): Promise<string> {
 }
 
 /**
+ * As `git`, but for a pathspec list long enough that passing it as argv is the risk, not
+ * git itself: a glob like `src/**` can match tens of thousands of files in a large repo,
+ * and execFile's argument array has to go through the OS the same way a shell command
+ * line does, so it fails with E2BIG long before git would object to anything. Piped over
+ * stdin instead, which has no such limit.
+ *
+ * Not `run`, the promisified helper: writing to stdin needs the real `ChildProcess`, which
+ * `util.promisify` does not hand back.
+ */
+function gitWithPathsOnStdin(repoRoot: string, args: string[], paths: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      'git',
+      ['-C', repoRoot, ...args],
+      { timeout: TIMEOUT, maxBuffer: 4 * 1024 * 1024 },
+      (error, stdout) => {
+        if (error) reject(error)
+        else resolve(stdout)
+      },
+    )
+    // `--` first marks everything after it as paths rather than revisions; see `--stdin`
+    // in git-log(1).
+    child.stdin?.write('--\n')
+    for (const relative of paths) child.stdin?.write(`${relative}\n`)
+    child.stdin?.end()
+  })
+}
+
+/**
  * Commits touching `absoluteFile`, newest first.
  *
  * Uses `--follow`, which matters more here than in most tools: retitling a feature renames
@@ -102,13 +131,11 @@ export async function lastCommitTouching(
   if (paths.length === 0) return null
 
   try {
-    const stdout = await git(repoRoot, [
-      'log',
-      '-1',
-      `--format=%H${FIELD}%h${FIELD}%an${FIELD}%aI${FIELD}%s`,
-      '--',
-      ...paths,
-    ])
+    const stdout = await gitWithPathsOnStdin(
+      repoRoot,
+      ['log', '--stdin', '-1', `--format=%H${FIELD}%h${FIELD}%an${FIELD}%aI${FIELD}%s`],
+      paths,
+    )
     const record = stdout.trim()
     if (record === '') return null
     const [sha = '', shortSha = '', author = '', date = '', subject = ''] = record.split(FIELD)

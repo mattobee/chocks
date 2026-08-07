@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { featureHistory, isGitRepo, uncommittedFeatureIds } from './git'
+import { featureHistory, isGitRepo, lastCommitTouching, uncommittedFeatureIds } from './git'
 
 const run = promisify(execFile)
 
@@ -138,6 +138,45 @@ describe('featureHistory', () => {
     const history = await featureHistory(repo, '/etc/passwd')
     expect(history.unavailable).toBe('failed')
     expect(history.commits).toEqual([])
+  })
+})
+
+describe('lastCommitTouching', () => {
+  it('finds the commit touching a single path', async () => {
+    const file = path.join(repo, 'auth.ts')
+    await writeFile(file, '', 'utf8')
+    await commit('feat: add auth')
+
+    const commit_ = await lastCommitTouching(repo, ['auth.ts'])
+    expect(commit_?.subject).toBe('feat: add auth')
+  })
+
+  it('returns null for a path with no history', async () => {
+    await writeFile(path.join(repo, 'auth.ts'), '', 'utf8')
+    expect(await lastCommitTouching(repo, ['auth.ts'])).toBeNull()
+  })
+
+  it('returns null for an empty path list without asking git', async () => {
+    expect(await lastCommitTouching(repo, [])).toBeNull()
+  })
+
+  it('returns null rather than throwing when the repo has no commits', async () => {
+    expect(await lastCommitTouching(repo, ['nothing-committed-yet.ts'])).toBeNull()
+  })
+
+  // The regression this guards: a `code` glob can match far more files than fit on one
+  // command line, and passing them as execFile arguments hits the OS's own E2BIG rather
+  // than anything git enforces — this used to fail silently into a caught error and a
+  // blank "Changed" column. A few thousand paths, well past a typical ARG_MAX, is enough
+  // to prove they go over stdin instead.
+  it('does not fail with a very large number of paths', async () => {
+    const file = path.join(repo, 'auth.ts')
+    await writeFile(file, '', 'utf8')
+    await commit('feat: add auth')
+
+    const manyPaths = Array.from({ length: 50_000 }, (_, index) => `generated/file-${index}.ts`)
+    const commit_ = await lastCommitTouching(repo, [...manyPaths, 'auth.ts'])
+    expect(commit_?.subject).toBe('feat: add auth')
   })
 })
 
