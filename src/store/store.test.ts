@@ -710,6 +710,27 @@ describe('update', () => {
     expect(text).toContain('status: released')
   })
 
+  it('does not overwrite malformed frontmatter', async () => {
+    const file = path.join(root, 'conflicted.chocks.md')
+    const content = [
+      '---',
+      'title: Conflicted',
+      '<' + '<<<<<< HEAD',
+      'owner: platform',
+      '=' + '======',
+      'owner: payments',
+      '>' + '>>>>>> branch',
+      '---',
+      '',
+      'Keep me.',
+      '',
+    ].join('\n')
+    await writeFile(file, content, 'utf8')
+
+    await expect(update(root, 'conflicted', { status: 'released' })).rejects.toThrow()
+    expect(await readFile(file, 'utf8')).toBe(content)
+  })
+
   it('ignores a blank title instead of writing one', async () => {
     const created = await create(root, { parent: '', title: 'Auth' })
     expect((await update(root, created.id, { title: '  ' })).title).toBe('Auth')

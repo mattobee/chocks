@@ -1,4 +1,10 @@
-import { isMap, parse as parseYaml, parseDocument, stringify as stringifyYaml } from 'yaml'
+import {
+  isMap,
+  isScalar,
+  parse as parseYaml,
+  parseDocument,
+  stringify as stringifyYaml,
+} from 'yaml'
 import { isValidUid } from '../lib/ids'
 import { normaliseLinks } from '../lib/links'
 import { isValidStatusId } from '../lib/status'
@@ -12,6 +18,7 @@ import type { Feature, FeatureLink } from '../lib/types'
  */
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
+const FRONTMATTER_KEYS = ['title', 'status', 'tags', 'links', 'sort', 'uid'] as const
 
 export interface ParsedFile {
   uid: string
@@ -102,15 +109,34 @@ export function serializeFeatureFile(
   let yaml: string
   if (originalFrontmatter !== undefined) {
     const document = parseDocument(originalFrontmatter)
-    if (document.errors.length === 0 && isMap(document.contents)) {
-      for (const [key, value] of Object.entries(frontmatter)) document.set(key, value)
-      for (const key of ['tags', 'links', 'uid']) {
-        if (!(key in frontmatter)) document.delete(key)
-      }
-      yaml = document.toString({ lineWidth: 0 }).trimEnd()
-    } else {
-      yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
+    if (document.errors.length > 0) throw document.errors[0]
+    if (!isMap(document.contents)) {
+      throw new Error('Cannot rewrite feature: frontmatter must be a mapping')
     }
+
+    for (const [key, value] of Object.entries(frontmatter)) {
+      if (document.has(key)) {
+        document.set(key, value)
+        continue
+      }
+
+      const keyOrder = FRONTMATTER_KEYS.indexOf(key as (typeof FRONTMATTER_KEYS)[number])
+      const index = document.contents.items.findIndex((pair) => {
+        if (!isScalar(pair.key) || typeof pair.key.value !== 'string') return false
+        return (
+          FRONTMATTER_KEYS.indexOf(pair.key.value as (typeof FRONTMATTER_KEYS)[number]) > keyOrder
+        )
+      })
+      document.set(key, value)
+      if (index !== -1) {
+        const pair = document.contents.items.pop()!
+        document.contents.items.splice(index, 0, pair)
+      }
+    }
+    for (const key of ['tags', 'links', 'uid']) {
+      if (!(key in frontmatter)) document.delete(key)
+    }
+    yaml = document.toString({ lineWidth: 0 }).trimEnd()
   } else {
     yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
   }

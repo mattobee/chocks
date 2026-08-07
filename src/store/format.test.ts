@@ -237,6 +237,73 @@ Old body.
     expect(output).toContain('\nNew body.\n')
   })
 
+  it('refuses to rewrite malformed frontmatter', () => {
+    const malformed = [
+      '---',
+      'title: X',
+      '<' + '<<<<<< HEAD',
+      'owner: platform',
+      '=' + '======',
+      'owner: payments',
+      '>' + '>>>>>> branch',
+      '---',
+      '',
+    ].join('\n')
+
+    expect(() =>
+      serializeFeatureFile(
+        {
+          title: 'X',
+          status: 'done',
+          uid: '',
+          tags: [],
+          links: [],
+          sort: 'a0',
+          description: '',
+        },
+        malformed,
+      ),
+    ).toThrow()
+  })
+
+  it('inserts missing known keys in canonical order', () => {
+    const output = serializeFeatureFile(
+      {
+        title: 'X',
+        status: 'planned',
+        uid: 'a1b2c3d4e5',
+        tags: ['api'],
+        links: [{ url: 'docs/api.md' }],
+        sort: 'a0',
+        description: '',
+      },
+      '---\ntitle: X\nstatus: planned\nsort: a0\nuid: a1b2c3d4e5\n---\n',
+    )
+
+    expect(output.indexOf('status')).toBeLessThan(output.indexOf('tags'))
+    expect(output.indexOf('tags')).toBeLessThan(output.indexOf('links'))
+    expect(output.indexOf('links')).toBeLessThan(output.indexOf('sort'))
+    expect(output.indexOf('sort')).toBeLessThan(output.indexOf('uid'))
+  })
+
+  it('removes a deleted key and its attached comment', () => {
+    const output = serializeFeatureFile(
+      {
+        title: 'X',
+        status: 'planned',
+        uid: '',
+        tags: [],
+        links: [],
+        sort: 'a0',
+        description: '',
+      },
+      '---\ntitle: X\nstatus: planned\n# these tags matter\ntags: [api]\nsort: a0\n---\n',
+    )
+
+    expect(output).not.toContain('tags')
+    expect(output).not.toContain('# these tags matter')
+  })
+
   it('preserves markdown containing a horizontal rule', () => {
     // A `---` inside the body must not be mistaken for frontmatter on the way back in.
     const original = {
