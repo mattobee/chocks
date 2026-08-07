@@ -41,10 +41,6 @@ export interface CodeMatch {
 /** What `/api/code/:id` returns. */
 export interface FeatureCodeMatches {
   matches: CodeMatch[]
-  /** Most recent commit touching the feature file itself, for comparison against each entry. */
-  featureLastCommit: Commit | null
-  /** Set when git could not be read at all; every commit above is then null. */
-  unavailable?: HistoryUnavailable
 }
 
 /**

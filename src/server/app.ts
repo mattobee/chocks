@@ -246,7 +246,7 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
 
   /**
    * How many files each of a feature's `code` entries currently matches, and when the
-   * matched files and the feature file itself last changed.
+   * matched files last changed.
    *
    * On its own prefix for the same reason as `/api/history`, and separate from the feature
    * itself: walking the repo for a glob and shelling out to git for each entry is not what
@@ -257,19 +257,8 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
     const id = c.req.param('id')
     if (!isValidId(id)) return c.json({ message: `Invalid feature id: ${id}` }, 400)
     const feature = await read(root, id)
-    const repoRoot = options.repoRoot ?? root
-    const file = await featureFileFor(root, id)
-    const [matches, history] = await Promise.all([
-      matchCodeRefs(repoRoot, feature.code),
-      // limit 1: only the most recent commit is wanted here, and it doubles as the
-      // degrade check, since `unavailable` comes from the same place `/api/history` gets it.
-      featureHistory(repoRoot, file, 1),
-    ])
-    return c.json({
-      matches,
-      featureLastCommit: history.commits[0] ?? null,
-      unavailable: history.unavailable,
-    })
+    const matches = await matchCodeRefs(options.repoRoot ?? root, feature.code)
+    return c.json({ matches })
   })
 
   app.get('/api/features/:id{.+}', async (c) => c.json(await read(root, c.req.param('id'))))

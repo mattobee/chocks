@@ -559,7 +559,7 @@ describe('code route', () => {
     expect(body.matches).toEqual([{ path: 'new-onboarding', count: null, lastCommit: null }])
   })
 
-  it('reports unavailable, the same as history, when there is no repo at all', async () => {
+  it('degrades a matched entry to a null lastCommit when there is no repo at all', async () => {
     const feature = await createFeature('', 'Auth')
     await app.request(`/api/features/${feature.id}`, {
       ...json({ code: [{ path: 'auth.chocks.md' }] }),
@@ -567,9 +567,10 @@ describe('code route', () => {
     })
 
     const response = await app.request('/api/code/auth')
-    const body = (await response.json()) as { unavailable: string; featureLastCommit: unknown }
-    expect(body.unavailable).toBe('not-a-repo')
-    expect(body.featureLastCommit).toBeNull()
+    const body = (await response.json()) as { matches: { lastCommit: unknown }[] }
+    // No repo at all, so there is nothing to find a commit against; the count is
+    // unaffected, since that comes from the filesystem walk, not git.
+    expect(body.matches[0]?.lastCommit).toBeNull()
   })
 
   describe('with git history', () => {
@@ -582,7 +583,7 @@ describe('code route', () => {
       await git('-c', 'user.email=t@example.com', '-c', 'user.name=Tester', 'commit', '-m', message)
     }
 
-    it('finds the feature file and each code entry their own last commit', async () => {
+    it("finds each code entry's own last commit", async () => {
       await git('init', '-q', '-b', 'main')
       await writeFile(path.join(root, 'auth.ts'), '', 'utf8')
       await commit('feat: add auth')
@@ -596,12 +597,8 @@ describe('code route', () => {
 
       const response = await app.request('/api/code/auth')
       const body = (await response.json()) as {
-        unavailable?: string
-        featureLastCommit: { subject: string } | null
         matches: { lastCommit: { subject: string } | null }[]
       }
-      expect(body.unavailable).toBeUndefined()
-      expect(body.featureLastCommit?.subject).toBe('docs: add auth feature')
       expect(body.matches[0]?.lastCommit?.subject).toBe('feat: add auth')
     })
   })

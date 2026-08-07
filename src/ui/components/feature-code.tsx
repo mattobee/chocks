@@ -32,22 +32,10 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
   // rendered in. A mismatched length (a stale response, or one still loading) just means no
   // cell content yet for the entries past it, rather than a wrong one.
   const entries = matches.data?.matches
-  const featureLastCommit = matches.data?.featureLastCommit ?? null
 
   return (
     <section className="mb-6">
-      <h2 className="mb-1 text-lg font-semibold">Code</h2>
-      {featureLastCommit && (
-        <p className="text-muted-foreground mb-3 text-sm">
-          Feature last changed{' '}
-          <time
-            dateTime={featureLastCommit.date}
-            title={new Date(featureLastCommit.date).toLocaleString()}
-          >
-            {relativeDate(featureLastCommit.date)}
-          </time>
-        </p>
-      )}
+      <h2 className="mb-3 text-lg font-semibold">Code</h2>
       <Table>
         <TableHeader>
           <TableRow>
@@ -65,13 +53,20 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
 
             return (
               <TableRow key={`${path}:${index}`}>
+                {/* Font metrics differ between the mono path and the plain-font cells beside
+                    it, so neither `vertical-align: middle` nor `baseline` on the `<td>` lines
+                    them up reliably. Flex-centering each cell's content against its own
+                    rendered height sidesteps that entirely: it centres the box, not a
+                    baseline, so it doesn't care what font produced it. */}
                 <TableCell className="font-mono text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
+                  <span className="flex h-full items-center gap-1.5">
                     <Icon aria-hidden="true" className="size-4 shrink-0" />
                     {path}
                   </span>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{kindLabel}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  <span className="flex h-full items-center">{kindLabel}</span>
+                </TableCell>
                 <TableCell>
                   {/* A `flag` entry's count is null: there's no path to check it against,
                       and claiming zero would read as a broken flag rather than a skipped
@@ -79,7 +74,7 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
                   {count !== undefined && count !== null && (
                     <span
                       className={cn(
-                        'inline-flex items-center gap-1',
+                        'flex h-full items-center gap-1',
                         count === 0 ? 'text-destructive' : 'text-muted-foreground',
                       )}
                     >
@@ -90,7 +85,7 @@ export function FeatureCode({ featureId, code }: { featureId: string; code: Feat
                 </TableCell>
                 <TableCell>
                   {lastCommit && (
-                    <span className="text-muted-foreground inline-flex items-center gap-1">
+                    <span className="text-muted-foreground flex h-full items-center gap-1">
                       <time
                         dateTime={lastCommit.date}
                         title={new Date(lastCommit.date).toLocaleString()}

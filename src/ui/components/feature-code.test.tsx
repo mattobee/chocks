@@ -24,7 +24,7 @@ function commit(daysAgo: number, subject = 'a commit'): Commit {
 }
 
 function setup(props: Parameters<typeof FeatureCode>[0], matches?: Partial<FeatureCodeMatches>) {
-  codeMatches.mockResolvedValue({ matches: [], featureLastCommit: null, ...matches })
+  codeMatches.mockResolvedValue({ matches: [], ...matches })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
@@ -133,17 +133,6 @@ describe('FeatureCode', () => {
 })
 
 describe('last-changed dates', () => {
-  it('shows when the feature itself last changed', async () => {
-    setup(
-      { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
-      {
-        matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(10) }],
-        featureLastCommit: commit(3),
-      },
-    )
-    expect(await screen.findByText(/Feature last changed/)).toBeInTheDocument()
-  })
-
   it('shows no date for an entry git could not date', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
@@ -154,13 +143,10 @@ describe('last-changed dates', () => {
     expect(cells[3]).toHaveTextContent('')
   })
 
-  it('shows when a matched file itself last changed, so it can be read against the feature date above', async () => {
+  it('shows when a matched file itself last changed', async () => {
     setup(
       { featureId: 'auth', code: [{ path: 'src/auth.ts' }] },
-      {
-        matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(1, 'feat: rework auth') }],
-        featureLastCommit: commit(10, 'docs: describe auth'),
-      },
+      { matches: [{ path: 'src/auth.ts', count: 1, lastCommit: commit(1, 'feat: rework auth') }] },
     )
     expect(await screen.findByText('yesterday')).toBeInTheDocument()
   })
