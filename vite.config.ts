@@ -29,7 +29,12 @@ export default defineConfig({
   server: {
     // `pnpm dev:server` runs the API on 2457; this keeps the app on one origin.
     proxy: {
-      '/api': { target: 'http://127.0.0.1:2457', ws: false },
+      '/api': {
+        target: 'http://127.0.0.1:2457',
+        changeOrigin: true,
+        headers: { Origin: 'http://127.0.0.1:2457' },
+        ws: false,
+      },
     },
   },
 })
