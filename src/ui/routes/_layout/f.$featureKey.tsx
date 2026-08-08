@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
+import { ChevronsDown, ChevronsUp, Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
 
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusDropdown } from '@/ui/components/status-dropdown'
@@ -43,6 +43,7 @@ import { featuresQuery, uncommittedQuery, workspaceQuery } from '@/ui/lib/querie
 import { DEFAULT_STATUSES, MODIFIED_COLOR } from '@/lib/status'
 import { featureKey } from '@/lib/ids'
 import { describeError } from '@/lib/errors'
+import { effectiveImportance } from '@/lib/importance'
 import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from '@/lib/types'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
@@ -199,6 +200,8 @@ export function FeaturePage() {
   }
 
   const ancestors = ancestorsOf(featureList, featureId)
+  const importance = effectiveImportance(feature, ancestors)
+  const inheritedImportance = importance.source !== null && importance.source.id !== feature.id
   const children = childrenOf(featureList, featureId)
   const tags = allTags(featureList)
 
@@ -326,6 +329,28 @@ export function FeaturePage() {
             ariaLabel="Status"
             onChange={(status) => update.mutate({ id: featureId, status })}
           />
+          {importance.value !== 'normal' && (
+            <span className="inline-flex items-center gap-1 text-sm font-medium">
+              {importance.value === 'high' ? (
+                <ChevronsUp className="size-4" aria-hidden="true" />
+              ) : (
+                <ChevronsDown className="size-4" aria-hidden="true" />
+              )}
+              {importance.value === 'high' ? 'High importance' : 'Low importance'}
+              {inheritedImportance && importance.source && (
+                <span className="font-normal">
+                  {' inherited from '}
+                  <Link
+                    to="/f/$featureKey"
+                    params={{ featureKey: featureKey(importance.source) }}
+                    className="underline underline-offset-4"
+                  >
+                    {importance.source.title}
+                  </Link>
+                </span>
+              )}
+            </span>
+          )}
         </div>
 
         <div className="mb-6 max-w-sm">

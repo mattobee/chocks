@@ -1,6 +1,7 @@
 ---
 title: chocks context
 status: released
+importance: high
 links:
   - label: Agent context docs
     url: README.md#agent-context

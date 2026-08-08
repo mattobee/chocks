@@ -2,7 +2,7 @@ import { toast } from 'sonner'
 import { api } from './api'
 import { childrenOf, indexAfter } from '@/lib/tree'
 import { joinId, slugOf } from '@/lib/ids'
-import type { Feature, FeatureCodeRef, FeatureLink } from '@/lib/types'
+import type { Feature, FeatureCodeRef, FeatureLink, Importance } from '@/lib/types'
 
 /**
  * Reversing what the UI just did.
@@ -29,6 +29,7 @@ export interface Snapshot {
   title: string
   description: string
   status: string
+  importance?: Importance
   tags: string[]
   links: FeatureLink[]
   code: FeatureCodeRef[]
@@ -95,6 +96,7 @@ export function snapshot(features: Feature[], feature: Feature): Snapshot {
     title: feature.title,
     description: feature.description,
     status: feature.status,
+    ...(feature.importance !== undefined ? { importance: feature.importance } : {}),
     tags: feature.tags,
     links: feature.links,
     code: feature.code,
@@ -230,6 +232,7 @@ async function restoreSubtree(subtree: Snapshot[], features: Feature[]): Promise
         parent: parentId,
         title: item.title,
         status: item.status,
+        ...(item.importance !== undefined ? { importance: item.importance } : {}),
         tags: item.tags,
         links: item.links,
         code: item.code,
