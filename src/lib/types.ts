@@ -104,7 +104,7 @@ export interface Commit {
 
 export interface HistoryCommit extends Commit {
   event: 'created' | 'updated'
-  /** Earliest tag containing this commit, by tag creation date. */
+  /** Earliest containing tag by Git creatordate: tagger date, or commit date if lightweight. */
   release?: string
   statusChange?: {
     from?: string

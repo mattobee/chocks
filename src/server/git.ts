@@ -109,13 +109,19 @@ export async function featureHistory(
         return { sha, shortSha, author, date, subject, path: paths.at(-1)?.trim() ?? relative }
       })
 
-    const commitMetadata = await Promise.all(
-      commitData.map(async (commit) => {
-        const [status, release] = await Promise.all([
-          statusAtCommit(repoRoot, commit.sha, commit.path),
-          firstTagContaining(repoRoot, commit.sha),
-        ])
-        return { status, release }
+    const commitMetadata: { status: string | null; release: string | null }[] = []
+    let nextCommit = 0
+    await Promise.all(
+      Array.from({ length: Math.min(4, commitData.length) }, async () => {
+        while (nextCommit < commitData.length) {
+          const index = nextCommit++
+          const commit = commitData[index]!
+          const [status, release] = await Promise.all([
+            statusAtCommit(repoRoot, commit.sha, commit.path),
+            firstTagContaining(repoRoot, commit.sha),
+          ])
+          commitMetadata[index] = { status, release }
+        }
       }),
     )
     const commits = commitData.map(({ path: _path, ...commit }, index) => {
