@@ -1,6 +1,8 @@
 ---
 title: Search features by keyword
 status: released
+tags:
+  - search
 code:
   - path: src/ui/components/app-sidebar.tsx
   - path: src/lib/tree.ts

@@ -1,6 +1,8 @@
 ---
 title: Delete a feature
 status: released
+tags:
+  - delete
 code:
   - path: src/ui/routes/_layout/f.$featureKey.tsx
   - path: src/ui/components/delete-feature-dialog.tsx

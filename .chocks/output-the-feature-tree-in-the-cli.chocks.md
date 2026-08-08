@@ -2,6 +2,8 @@
 title: Output the feature tree in the CLI
 status: released
 importance: high
+tags:
+  - CLI
 links:
   - label: Agent context docs
     url: README.md#agent-context

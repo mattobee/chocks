@@ -1,6 +1,8 @@
 ---
 title: Edit a feature description
 status: released
+tags:
+  - edit
 code:
   - path: src/ui/routes/_layout/f.$featureKey.tsx
   - path: src/ui/components/markdown.tsx

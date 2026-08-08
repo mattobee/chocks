@@ -3,6 +3,8 @@ title: Undo and redo
 status: released
 tags:
   - ux
+  - undo
+  - redo
 sort: a2
 uid: bd9ea39c84
 ---
