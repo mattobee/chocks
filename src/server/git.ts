@@ -79,7 +79,7 @@ export async function featureHistory(
 ): Promise<FeatureHistory> {
   const relative = path.relative(repoRoot, absoluteFile).split(path.sep).join('/')
   if (relative.startsWith('../') || path.isAbsolute(relative)) {
-    return { commits: [], tags: [], uncommitted: false, unavailable: 'failed' }
+    return { commits: [], uncommitted: false, unavailable: 'failed' }
   }
 
   try {
@@ -109,13 +109,19 @@ export async function featureHistory(
         return { sha, shortSha, author, date, subject, path: paths.at(-1)?.trim() ?? relative }
       })
 
-    const statuses: (string | null)[] = []
-    for (const commit of commitData) {
-      statuses.push(await statusAtCommit(repoRoot, commit.sha, commit.path))
-    }
+    const commitMetadata = await Promise.all(
+      commitData.map(async (commit) => {
+        const [status, release] = await Promise.all([
+          statusAtCommit(repoRoot, commit.sha, commit.path),
+          firstTagContaining(repoRoot, commit.sha),
+        ])
+        return { status, release }
+      }),
+    )
     const commits = commitData.map(({ path: _path, ...commit }, index) => {
-      const status = statuses[index]
-      const previous = statuses[index + 1] ?? null
+      const status = commitMetadata[index]?.status ?? null
+      const previous = commitMetadata[index + 1]?.status ?? null
+      const release = commitMetadata[index]?.release
       const statusChange =
         status !== null && commit.sha === createdIn
           ? status === ''
@@ -130,23 +136,20 @@ export async function featureHistory(
       return {
         ...commit,
         event: commit.sha === createdIn ? ('created' as const) : ('updated' as const),
+        ...(release && { release }),
         ...(statusChange && { statusChange }),
         ...(commitBaseUrl && { url: `${commitBaseUrl}${commit.sha}` }),
       }
     })
 
-    const latest = commitData[0]
-    const tags = latest
-      ? await featureReleaseTags(repoRoot, createdIn, latest.sha, latest.date)
-      : []
-    return { commits, tags, uncommitted: await hasUncommittedChanges(repoRoot, relative) }
+    return { commits, uncommitted: await hasUncommittedChanges(repoRoot, relative) }
   } catch (error) {
     // A path git has never seen, or a repo with no commits at all, exits non-zero. That is
     // "no history yet" — the normal state of a feature you just created — not a failure.
     if (isMissingHistory(error)) {
-      return { commits: [], tags: [], uncommitted: await hasUncommittedChanges(repoRoot, relative) }
+      return { commits: [], uncommitted: await hasUncommittedChanges(repoRoot, relative) }
     }
-    return { commits: [], tags: [], uncommitted: false, unavailable: classify(error) }
+    return { commits: [], uncommitted: false, unavailable: classify(error) }
   }
 }
 
@@ -163,49 +166,19 @@ async function statusAtCommit(
   }
 }
 
-async function featureReleaseTags(
-  repoRoot: string,
-  creationSha: string,
-  latestSha: string,
-  latestDate: string,
-): Promise<FeatureHistory['tags']> {
-  const [first, current] = await Promise.all([
-    firstTagContaining(repoRoot, creationSha),
-    firstTagContaining(repoRoot, latestSha),
-  ])
-  if (!current) {
-    return [
-      ...(first ? [{ ...first, position: 'first' as const }] : []),
-      { date: latestDate, position: 'unreleased' as const },
-    ]
-  }
-  if (first?.name === current.name) return [{ ...current, position: 'only' }]
-  return [
-    ...(first ? [{ ...first, position: 'first' as const }] : []),
-    { ...current, position: 'current' },
-  ]
-}
-
-async function firstTagContaining(
-  repoRoot: string,
-  sha: string,
-): Promise<{ name: string; date: string } | null> {
+async function firstTagContaining(repoRoot: string, sha: string): Promise<string | null> {
   if (sha === '') return null
   try {
     const stdout = await git(repoRoot, [
       'for-each-ref',
       '--merged=HEAD',
       `--contains=${sha}`,
-      '--sort=version:refname',
       '--sort=creatordate',
       '--count=1',
-      `--format=%(refname:short)${FIELD}%(creatordate:iso-strict)${RECORD}`,
+      '--format=%(refname:short)',
       'refs/tags',
     ])
-    const record = stdout.replace(RECORD, '').trim()
-    if (record === '') return null
-    const [name = '', date = ''] = record.split(FIELD)
-    return { name, date }
+    return stdout.trim() || null
   } catch {
     return null
   }
