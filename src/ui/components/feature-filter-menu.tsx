@@ -12,7 +12,13 @@ import {
   DropdownMenuTrigger,
 } from '@/ui/components/ui/dropdown-menu'
 import type { StatusDefinition } from '@/lib/status'
-import type { TreeFilters } from '@/lib/tree'
+import type { ImportanceFilter, TreeFilters } from '@/lib/tree'
+
+const IMPORTANCE_OPTIONS: { value: ImportanceFilter; label: string }[] = [
+  { value: 'high', label: 'High' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'low', label: 'Low' },
+]
 
 /**
  * One "Filter" button with the status and tag pickers nested inside it as submenus — the
@@ -48,7 +54,16 @@ export function FeatureFilterMenu({
     })
   }
 
-  const activeCount = filters.statuses.length + filters.tags.length
+  function toggleImportance(importance: ImportanceFilter) {
+    onChange({
+      ...filters,
+      importances: filters.importances.includes(importance)
+        ? filters.importances.filter((value) => value !== importance)
+        : [...filters.importances, importance],
+    })
+  }
+
+  const activeCount = filters.statuses.length + filters.tags.length + filters.importances.length
   const hasActiveFilters = activeCount > 0
 
   return (
@@ -89,6 +104,21 @@ export function FeatureFilterMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Importance</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {IMPORTANCE_OPTIONS.map((importance) => (
+              <DropdownMenuCheckboxItem
+                key={importance.value}
+                checked={filters.importances.includes(importance.value)}
+                onCheckedChange={() => toggleImportance(importance.value)}
+              >
+                {importance.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+
         {tags.length > 0 && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Tags</DropdownMenuSubTrigger>
@@ -109,7 +139,9 @@ export function FeatureFilterMenu({
         {hasActiveFilters && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onChange({ ...filters, statuses: [], tags: [] })}>
+            <DropdownMenuItem
+              onClick={() => onChange({ ...filters, statuses: [], tags: [], importances: [] })}
+            >
               <X aria-hidden="true" />
               Clear filters
             </DropdownMenuItem>

@@ -2,6 +2,8 @@ import { generateKeyBetween } from 'fractional-indexing'
 import { slugFromKey, slugOf, uidFromKey } from './ids'
 import type { Feature } from './types'
 
+export type ImportanceFilter = NonNullable<Feature['importance']> | 'normal'
+
 export interface TreeNode {
   feature: Feature
   children: TreeNode[]
@@ -81,12 +83,19 @@ export interface TreeFilters {
   statuses: string[]
   /** Empty means "any tag". A feature matches if it carries at least one listed tag. */
   tags: string[]
+  /** Empty means "any importance". Normal is a feature with no importance value. */
+  importances: ImportanceFilter[]
 }
 
-export const EMPTY_FILTERS: TreeFilters = { query: '', statuses: [], tags: [] }
+export const EMPTY_FILTERS: TreeFilters = { query: '', statuses: [], tags: [], importances: [] }
 
 export function isFiltering(filters: TreeFilters): boolean {
-  return filters.query.trim() !== '' || filters.statuses.length > 0 || filters.tags.length > 0
+  return (
+    filters.query.trim() !== '' ||
+    filters.statuses.length > 0 ||
+    filters.tags.length > 0 ||
+    filters.importances.length > 0
+  )
 }
 
 export interface FilterResult {
@@ -106,6 +115,8 @@ function matches(feature: Feature, filters: TreeFilters, query: string): boolean
   if (filters.tags.length > 0 && !feature.tags.some((tag) => filters.tags.includes(tag))) {
     return false
   }
+  const importance = feature.importance ?? 'normal'
+  if (filters.importances.length > 0 && !filters.importances.includes(importance)) return false
   return true
 }
 
