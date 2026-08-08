@@ -87,7 +87,7 @@ export async function featureHistory(
         'log',
         '--follow',
         `--max-count=${limit}`,
-        `--format=%H${FIELD}%h${FIELD}%an${FIELD}%aI${FIELD}%s${RECORD}`,
+        `--format=%H${FIELD}%h${FIELD}%an${FIELD}%cI${FIELD}%s${RECORD}`,
         '--',
         relative,
       ]),

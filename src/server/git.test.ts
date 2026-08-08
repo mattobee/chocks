@@ -51,6 +51,35 @@ describe('featureHistory', () => {
     expect(history.commits[0]?.url).toBeUndefined()
   })
 
+  it('uses commit date rather than author date', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await git('add', '-A')
+    await run(
+      'git',
+      [
+        '-C',
+        repo,
+        '-c',
+        'user.email=t@example.com',
+        '-c',
+        'user.name=Tester',
+        'commit',
+        '-m',
+        'add auth',
+      ],
+      {
+        env: {
+          ...process.env,
+          GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z',
+          GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
+        },
+      },
+    )
+
+    expect((await featureHistory(repo, file)).commits[0]?.date).toBe('2026-01-01T00:00:00Z')
+  })
+
   it.each([
     ['git@github.com:acme/widgets.git', 'https://github.com/acme/widgets/commit/'],
     ['https://gitlab.com/acme/widgets.git', 'https://gitlab.com/acme/widgets/-/commit/'],
