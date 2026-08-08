@@ -57,12 +57,12 @@ describe('chocks context', () => {
   it('prints a nested tree with first description paragraphs in stable order', async () => {
     await feature(
       'auth/index.chocks.md',
-      'title: Authentication\nstatus: released\ntags: [security]\nsort: a0',
+      'title: Authentication\nstatus: released\nimportance: high\ntags: [security]\nsort: a0',
       'Sign in and out.',
     )
     await feature(
       'auth/passwords.chocks.md',
-      'title: Passwords\nstatus: planned\nimportance: high\ntags: [security, accounts]\nsort: a1',
+      'title: Passwords\nstatus: planned\nimportance: normal\ntags: [security, accounts]\nsort: a1',
       'Reset passwords.\n\nIncludes expiry.',
     )
     await feature(
@@ -77,6 +77,7 @@ describe('chocks context', () => {
           path: 'auth',
           title: 'Authentication',
           status: 'released',
+          importance: 'high',
           tags: ['security'],
           links: [],
           code: [],
@@ -86,6 +87,7 @@ describe('chocks context', () => {
           path: 'auth/oauth',
           title: 'OAuth',
           status: 'pre-release',
+          importance: 'high',
           tags: ['api'],
           links: [],
           code: [],
@@ -95,7 +97,7 @@ describe('chocks context', () => {
           path: 'auth/passwords',
           title: 'Passwords',
           status: 'planned',
-          importance: 'high',
+          importance: 'normal',
           tags: ['security', 'accounts'],
           links: [],
           code: [],
@@ -126,6 +128,7 @@ describe('chocks context', () => {
         path: 'search',
         title: 'Search',
         status: 'shipped',
+        importance: 'normal',
         tags: ['discovery'],
         links: [],
         code: [],
@@ -146,6 +149,7 @@ describe('chocks context', () => {
         path: 'search',
         title: 'Search',
         status: 'shipped',
+        importance: 'normal',
         tags: ['discovery'],
         links: [
           { label: 'Search docs', url: 'https://docs.example.com/search', type: 'docs' },
@@ -169,6 +173,7 @@ describe('chocks context', () => {
         path: 'search',
         title: 'Search',
         status: 'shipped',
+        importance: 'normal',
         tags: ['discovery'],
         links: [],
         code: [{ path: 'src/search.ts' }, { path: 'src/search.test.ts', kind: 'test' }],

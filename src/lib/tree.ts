@@ -1,8 +1,9 @@
 import { generateKeyBetween } from 'fractional-indexing'
 import { slugFromKey, slugOf, uidFromKey } from './ids'
-import type { Feature } from './types'
+import { effectiveImportance } from './importance'
+import type { Feature, Importance } from './types'
 
-export type ImportanceFilter = NonNullable<Feature['importance']> | 'normal'
+export type ImportanceFilter = Importance
 
 export interface TreeNode {
   feature: Feature
@@ -107,7 +108,12 @@ export interface FilterResult {
   ancestorIds: Set<string>
 }
 
-function matches(feature: Feature, filters: TreeFilters, query: string): boolean {
+function matches(
+  feature: Feature,
+  ancestors: Feature[],
+  filters: TreeFilters,
+  query: string,
+): boolean {
   if (query && !`${feature.title}\n${feature.description}`.toLowerCase().includes(query)) {
     return false
   }
@@ -115,7 +121,7 @@ function matches(feature: Feature, filters: TreeFilters, query: string): boolean
   if (filters.tags.length > 0 && !feature.tags.some((tag) => filters.tags.includes(tag))) {
     return false
   }
-  const importance = feature.importance ?? 'normal'
+  const importance = effectiveImportance(feature, ancestors).value
   if (filters.importances.length > 0 && !filters.importances.includes(importance)) return false
   return true
 }
@@ -137,11 +143,11 @@ export function filterTree(nodes: TreeNode[], filters: TreeFilters): FilterResul
 
   const query = filters.query.trim().toLowerCase()
 
-  function walk(input: TreeNode[]): TreeNode[] {
+  function walk(input: TreeNode[], ancestors: Feature[]): TreeNode[] {
     const kept: TreeNode[] = []
     for (const node of input) {
-      const children = walk(node.children)
-      const selfMatches = matches(node.feature, filters, query)
+      const children = walk(node.children, [...ancestors, node.feature])
+      const selfMatches = matches(node.feature, ancestors, filters, query)
       if (selfMatches) matchedIds.add(node.feature.id)
       else if (children.length > 0) ancestorIds.add(node.feature.id)
 
@@ -152,7 +158,7 @@ export function filterTree(nodes: TreeNode[], filters: TreeFilters): FilterResul
     return kept
   }
 
-  return { nodes: walk(nodes), matchedIds, ancestorIds }
+  return { nodes: walk(nodes, []), matchedIds, ancestorIds }
 }
 
 /** Every ancestor id of the given features, for auto-expanding a filtered tree. */

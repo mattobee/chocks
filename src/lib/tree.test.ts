@@ -108,9 +108,13 @@ describe('buildTree', () => {
 
 describe('filterTree', () => {
   const features = [
-    feature('auth', '', 'a0', { title: 'Auth' }),
+    feature('auth', '', 'a0', { title: 'Auth', importance: 'high' }),
     feature('oauth', 'auth', 'a0', { title: 'OAuth' }),
-    feature('github', 'oauth', 'a0', { title: 'GitHub provider', status: 'done' }),
+    feature('github', 'oauth', 'a0', {
+      title: 'GitHub provider',
+      status: 'done',
+      importance: 'normal',
+    }),
     feature('google', 'oauth', 'a1', { title: 'Google provider', importance: 'low' }),
     feature('billing', '', 'a1', { title: 'Billing', tags: ['t1'], importance: 'high' }),
   ]
@@ -186,17 +190,17 @@ describe('filterTree', () => {
   })
 
   it.each([
-    ['high', ['billing']],
-    ['normal', ['auth', 'oauth', 'github']],
-    ['low', ['auth', 'oauth', 'google']],
-  ] as const)('filters by %s importance', (importance, expected) => {
+    ['high', ['auth', 'billing', 'oauth']],
+    ['normal', ['github']],
+    ['low', ['google']],
+  ] as const)('filters by effective %s importance', (importance, expected) => {
     const result = filterTree(tree, {
       query: '',
       statuses: [],
       tags: [],
       importances: [importance],
     })
-    expect(shape(result.nodes).map((id) => id.trim())).toEqual(expected)
+    expect([...result.matchedIds].sort()).toEqual(expected)
   })
 
   it('combines selected importance values with OR', () => {
@@ -206,7 +210,7 @@ describe('filterTree', () => {
       tags: [],
       importances: ['high', 'low'],
     })
-    expect([...result.matchedIds].sort()).toEqual(['billing', 'google'])
+    expect([...result.matchedIds].sort()).toEqual(['auth', 'billing', 'google', 'oauth'])
   })
 })
 
