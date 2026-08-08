@@ -76,22 +76,27 @@ export async function featureHistory(
   absoluteFile: string,
   limit = 30,
 ): Promise<FeatureHistory> {
-  const relative = path.relative(repoRoot, absoluteFile)
-  if (relative.startsWith('..')) {
-    return { commits: [], uncommitted: false, unavailable: 'failed' }
+  const relative = path.relative(repoRoot, absoluteFile).split(path.sep).join('/')
+  if (relative.startsWith('../') || path.isAbsolute(relative)) {
+    return { commits: [], tags: [], uncommitted: false, unavailable: 'failed' }
   }
 
   try {
-    const stdout = await git(repoRoot, [
-      'log',
-      '--follow',
-      `--max-count=${limit}`,
-      `--format=%H${FIELD}%h${FIELD}%an${FIELD}%aI${FIELD}%s${RECORD}`,
-      '--',
-      relative,
+    const [stdout, creationSha, commitBaseUrl] = await Promise.all([
+      git(repoRoot, [
+        'log',
+        '--follow',
+        `--max-count=${limit}`,
+        `--format=%H${FIELD}%h${FIELD}%an${FIELD}%cI${FIELD}%s${RECORD}`,
+        '--',
+        relative,
+      ]),
+      git(repoRoot, ['log', '--follow', '--diff-filter=A', '--format=%H', '--', relative]),
+      remoteCommitBaseUrl(repoRoot),
     ])
+    const createdIn = creationSha.trim().split('\n').at(-1) ?? ''
 
-    const commits = stdout
+    const commitData = stdout
       .split(RECORD)
       .map((record) => record.replace(/^\n/, '').trim())
       .filter((record) => record !== '')
@@ -100,15 +105,131 @@ export async function featureHistory(
         return { sha, shortSha, author, date, subject }
       })
 
-    return { commits, uncommitted: await hasUncommittedChanges(repoRoot, relative) }
+    const commits = commitData.map((commit) => ({
+      ...commit,
+      event: commit.sha === createdIn ? ('created' as const) : ('updated' as const),
+      ...(commitBaseUrl && { url: `${commitBaseUrl}${commit.sha}` }),
+    }))
+
+    const latest = commitData[0]
+    const tags = latest
+      ? await featureReleaseTags(repoRoot, createdIn, latest.sha, latest.date)
+      : []
+    return { commits, tags, uncommitted: await hasUncommittedChanges(repoRoot, relative) }
   } catch (error) {
     // A path git has never seen, or a repo with no commits at all, exits non-zero. That is
     // "no history yet" — the normal state of a feature you just created — not a failure.
     if (isMissingHistory(error)) {
-      return { commits: [], uncommitted: await hasUncommittedChanges(repoRoot, relative) }
+      return { commits: [], tags: [], uncommitted: await hasUncommittedChanges(repoRoot, relative) }
     }
-    return { commits: [], uncommitted: false, unavailable: classify(error) }
+    return { commits: [], tags: [], uncommitted: false, unavailable: classify(error) }
   }
+}
+
+async function featureReleaseTags(
+  repoRoot: string,
+  creationSha: string,
+  latestSha: string,
+  latestDate: string,
+): Promise<FeatureHistory['tags']> {
+  const [first, current] = await Promise.all([
+    firstTagContaining(repoRoot, creationSha),
+    firstTagContaining(repoRoot, latestSha),
+  ])
+  if (!current) {
+    return [
+      ...(first ? [{ ...first, position: 'first' as const }] : []),
+      { date: latestDate, position: 'unreleased' as const },
+    ]
+  }
+  if (first?.name === current.name) return [{ ...current, position: 'only' }]
+  return [
+    ...(first ? [{ ...first, position: 'first' as const }] : []),
+    { ...current, position: 'current' },
+  ]
+}
+
+async function firstTagContaining(
+  repoRoot: string,
+  sha: string,
+): Promise<{ name: string; date: string } | null> {
+  if (sha === '') return null
+  try {
+    const stdout = await git(repoRoot, [
+      'for-each-ref',
+      '--merged=HEAD',
+      `--contains=${sha}`,
+      '--sort=version:refname',
+      '--sort=creatordate',
+      '--count=1',
+      `--format=%(refname:short)${FIELD}%(creatordate:iso-strict)${RECORD}`,
+      'refs/tags',
+    ])
+    const record = stdout.replace(RECORD, '').trim()
+    if (record === '') return null
+    const [name = '', date = ''] = record.split(FIELD)
+    return { name, date }
+  } catch {
+    return null
+  }
+}
+
+async function remoteCommitBaseUrl(repoRoot: string): Promise<string | null> {
+  let remote: string
+  try {
+    remote = (await git(repoRoot, ['remote', 'get-url', 'origin'])).trim()
+  } catch {
+    return null
+  }
+
+  const scp = remote.match(/^[^@/:]+@([^:]+):(.+)$/)
+  if (scp) remote = `https://${scp[1]}/${scp[2]}`
+  else if (/^(?:git\+)?ssh:/.test(remote)) {
+    try {
+      const parsed = new URL(remote.replace(/^git\+/, ''))
+      remote = `https://${parsed.hostname}${parsed.pathname}`
+    } catch {
+      return null
+    }
+  } else if (remote.startsWith('git+')) {
+    remote = remote.slice('git+'.length)
+  }
+
+  let url: URL
+  try {
+    url = new URL(remote)
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+
+  url.username = ''
+  url.password = ''
+  url.search = ''
+  url.hash = ''
+  url.pathname = url.pathname.replace(/\.git\/?$/, '').replace(/\/$/, '')
+
+  if (url.hostname === 'ssh.dev.azure.com') {
+    const match = url.pathname.match(/^\/v3\/([^/]+)\/([^/]+)\/([^/]+)$/)
+    if (!match) return null
+    return `https://dev.azure.com/${match[1]}/${match[2]}/_git/${match[3]}/commit/`
+  }
+  if (url.hostname === 'dev.azure.com' || url.hostname.endsWith('.visualstudio.com')) {
+    return `${url.toString().replace(/\/$/, '')}/commit/`
+  }
+  if (url.hostname === 'bitbucket.org') {
+    return `${url.toString().replace(/\/$/, '')}/commits/`
+  }
+  if (url.hostname === 'gitlab.com') {
+    return `${url.toString().replace(/\/$/, '')}/-/commit/`
+  }
+  if (
+    ['github.com', 'codeberg.org', 'sr.ht'].includes(url.hostname) ||
+    url.hostname.endsWith('.sr.ht')
+  ) {
+    return `${url.toString().replace(/\/$/, '')}/commit/`
+  }
+  return null
 }
 
 function isMissingHistory(error: unknown): boolean {

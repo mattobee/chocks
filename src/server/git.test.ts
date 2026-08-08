@@ -43,9 +43,70 @@ describe('featureHistory', () => {
       'feat: ship auth',
       'feat: add auth',
     ])
+    expect(history.commits.map((entry) => entry.event)).toEqual(['updated', 'created'])
+    expect(history.tags).toMatchObject([{ position: 'unreleased' }])
     expect(history.commits[0]?.author).toBe('Tester')
     expect(history.commits[0]?.shortSha).toHaveLength(7)
     expect(new Date(history.commits[0]!.date).getTime()).toBeGreaterThan(0)
+    expect(history.commits[0]?.url).toBeUndefined()
+  })
+
+  it('uses commit date rather than author date', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await git('add', '-A')
+    await run(
+      'git',
+      [
+        '-C',
+        repo,
+        '-c',
+        'user.email=t@example.com',
+        '-c',
+        'user.name=Tester',
+        'commit',
+        '-m',
+        'add auth',
+      ],
+      {
+        env: {
+          ...process.env,
+          GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z',
+          GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
+        },
+      },
+    )
+
+    expect(new Date((await featureHistory(repo, file)).commits[0]!.date).toISOString()).toBe(
+      '2026-01-01T00:00:00.000Z',
+    )
+  })
+
+  it.each([
+    ['git@github.com:acme/widgets.git', 'https://github.com/acme/widgets/commit/'],
+    ['https://gitlab.com/acme/widgets.git', 'https://gitlab.com/acme/widgets/-/commit/'],
+    ['git@bitbucket.org:acme/widgets.git', 'https://bitbucket.org/acme/widgets/commits/'],
+    [
+      'git@ssh.dev.azure.com:v3/acme/widgets/app',
+      'https://dev.azure.com/acme/widgets/_git/app/commit/',
+    ],
+  ])('links commits for remote %s', async (remote, expectedBase) => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await git('remote', 'add', 'origin', remote)
+
+    const history = await featureHistory(repo, file)
+    expect(history.commits[0]?.url).toBe(`${expectedBase}${history.commits[0]?.sha}`)
+  })
+
+  it('leaves commits unlinked for an unknown forge', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await git('remote', 'add', 'origin', 'https://git.example.com/acme/widgets.git')
+
+    expect((await featureHistory(repo, file)).commits[0]?.url).toBeUndefined()
   })
 
   it('follows a parent index across a directory rename', async () => {
@@ -69,6 +130,7 @@ describe('featureHistory', () => {
       'refactor: retitle auth',
       'feat: add auth',
     ])
+    expect(history.commits.map((entry) => entry.event)).toEqual(['updated', 'created'])
   })
 
   it('follows the file across a reparent', async () => {
@@ -83,6 +145,77 @@ describe('featureHistory', () => {
 
     const history = await featureHistory(repo, after)
     expect(history.commits).toHaveLength(2)
+  })
+
+  it('uses an annotated tag as a release boundary', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await git(
+      '-c',
+      'user.email=t@example.com',
+      '-c',
+      'user.name=Tester',
+      'tag',
+      '-a',
+      'v1.0.0',
+      '-m',
+      'Stable release',
+    )
+
+    expect((await featureHistory(repo, file)).tags).toMatchObject([
+      { name: 'v1.0.0', position: 'only' },
+    ])
+  })
+
+  it('includes a tag created by a later release commit', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await writeFile(path.join(repo, 'CHANGELOG.md'), '# 1.0.0\n', 'utf8')
+    await commit('release: v1.0.0')
+    await git('tag', 'v1.0.0')
+
+    const history = await featureHistory(repo, file)
+    expect(history.tags[0]).toMatchObject({ name: 'v1.0.0', position: 'only' })
+    expect(new Date(history.tags[0]!.date).getTime()).toBeGreaterThan(0)
+  })
+
+  it('finds the first release and the first release containing the latest change', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+
+    await writeFile(path.join(repo, 'VERSION'), 'v1.0.0\n', 'utf8')
+    await commit('release: v1.0.0')
+    await git('tag', 'v1.0.0')
+    await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
+    await commit('feat: update auth')
+    await writeFile(path.join(repo, 'VERSION'), 'v1.1.0\n', 'utf8')
+    await commit('release: v1.1.0')
+    await git('tag', 'v1.1.0')
+    await writeFile(path.join(repo, 'VERSION'), 'v2.0.0\n', 'utf8')
+    await commit('release: v2.0.0')
+    await git('tag', 'v2.0.0')
+
+    expect((await featureHistory(repo, file)).tags).toMatchObject([
+      { name: 'v1.0.0', position: 'first' },
+      { name: 'v1.1.0', position: 'current' },
+    ])
+  })
+
+  it('reports when the latest feature change is not released', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await git('tag', 'v1.0.0')
+    await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
+    await commit('feat: update auth')
+
+    expect((await featureHistory(repo, file)).tags).toMatchObject([
+      { name: 'v1.0.0', position: 'first' },
+      { position: 'unreleased' },
+    ])
   })
 
   it('reports an uncommitted edit', async () => {
@@ -112,6 +245,9 @@ describe('featureHistory', () => {
       await commit(`chore: edit ${index}`)
     }
     expect((await featureHistory(repo, file, 3)).commits).toHaveLength(3)
+    expect(
+      (await featureHistory(repo, file, 3)).commits.every((entry) => entry.event === 'updated'),
+    ).toBe(true)
   })
 
   it('preserves a subject containing the field separators', async () => {
