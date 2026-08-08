@@ -1,6 +1,7 @@
 ---
-title: Drag to reorder and reparent
+title: Drag features to reorder and reparent
 status: released
+importance: low
 tags:
   - ux
 sort: a1
