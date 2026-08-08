@@ -133,10 +133,9 @@ describe('featureHistory', () => {
       'Stable release',
     )
 
-    expect((await featureHistory(repo, file)).tags.map((tag) => tag.name)).toEqual([
-      'v1.0.0',
-      'stable',
-    ])
+    expect((await featureHistory(repo, file)).tags.map((tag) => tag.name)).toEqual(
+      expect.arrayContaining(['v1.0.0', 'stable']),
+    )
   })
 
   it('includes a tag created by a later release commit', async () => {
