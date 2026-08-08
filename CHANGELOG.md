@@ -5,6 +5,22 @@ don't appear here.
 
 Releases before 0.1.3 predate this file.
 
+## 0.8.0
+
+### Added
+
+- Features can be marked high or low importance, inherited through the tree, or explicitly normal to stop inheritance. Effective importance appears on feature pages, in filters, and in `chocks context` output.
+
+### Changed
+
+- Feature history is now a timeline that distinguishes creation from later changes, shows status transitions and per-commit release inclusion, and links commits on recognised repository hosts.
+
+### Fixed
+
+- The development server starts on current Node versions and works when Vite is opened over a local network address.
+
+[Full changes](https://github.com/mattobee/chocks/compare/v0.7.0...v0.8.0)
+
 ## 0.7.0
 
 ### Added
