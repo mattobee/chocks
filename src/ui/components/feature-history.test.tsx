@@ -13,8 +13,8 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
 
 afterEach(() => featureHistory.mockReset())
 
-function setup(history: History) {
-  featureHistory.mockResolvedValue(history)
+function setup(history: Omit<History, 'tags'> & Partial<Pick<History, 'tags'>>) {
+  featureHistory.mockResolvedValue({ ...history, tags: history.tags ?? [] })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -29,6 +29,7 @@ const commit = {
   author: 'Matt Obee',
   date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
   subject: 'feat: add auth',
+  event: 'updated' as const,
 }
 
 describe('uncommitted indicator', () => {
@@ -54,6 +55,53 @@ describe('commits', () => {
     expect(await screen.findByText('feat: add auth')).toBeInTheDocument()
     expect(screen.getByText('Matt Obee')).toBeInTheDocument()
     expect(screen.getByText('abc123d')).toBeInTheDocument()
+  })
+
+  it('links the sha when the server resolves a forge URL', async () => {
+    setup({
+      commits: [{ ...commit, url: 'https://gitlab.com/acme/widgets/-/commit/abc123def456' }],
+      uncommitted: false,
+    })
+    const link = await screen.findByRole('link', { name: 'abc123d' })
+    expect(link).toHaveAttribute('href', 'https://gitlab.com/acme/widgets/-/commit/abc123def456')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
+  })
+
+  it('marks the commit that created the feature', async () => {
+    setup({ commits: [{ ...commit, event: 'created' }], uncommitted: false })
+    const row = (await screen.findByText('feat: add auth')).closest('li')
+    expect(row).toHaveTextContent('Created')
+    expect(row?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('places a git tag between commits according to its date', async () => {
+    const older = { ...commit, sha: 'older', date: '2026-08-01T00:00:00.000Z', subject: 'Older' }
+    const newer = { ...commit, sha: 'newer', date: '2026-08-03T00:00:00.000Z', subject: 'Newer' }
+    setup({
+      commits: [newer, older],
+      tags: [{ name: 'v1.2.0', date: '2026-08-02T00:00:00.000Z', position: 'only' }],
+      uncommitted: false,
+    })
+    const items = await screen.findAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringContaining('Newer'),
+      expect.stringContaining('v1.2.0'),
+      expect.stringContaining('Older'),
+    ])
+  })
+
+  it('labels first and latest tag events', async () => {
+    setup({
+      commits: [commit],
+      tags: [
+        { name: 'v2.0.0', date: '2026-08-03T00:00:00.000Z', position: 'latest' },
+        { name: 'v1.0.0', date: '2026-08-01T00:00:00.000Z', position: 'first' },
+      ],
+      uncommitted: false,
+    })
+    expect(await screen.findByText('Last tagged')).toBeInTheDocument()
+    expect(screen.getByText('First tagged')).toBeInTheDocument()
   })
 
   it('gives the date a machine readable value as well as a relative one', async () => {

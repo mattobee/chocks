@@ -102,11 +102,26 @@ export interface Commit {
   subject: string
 }
 
+export interface HistoryCommit extends Commit {
+  event: 'created' | 'updated'
+  /** Web URL when the repository remote can be mapped to a forge. */
+  url?: string
+}
+
+export interface HistoryTag {
+  name: string
+  /** Tagger date for annotated tags, commit date for lightweight tags. ISO 8601. */
+  date: string
+  position: 'first' | 'latest' | 'only'
+}
+
 export type HistoryUnavailable = 'not-a-repo' | 'git-missing' | 'failed'
 
 /** What `/api/history/:id` returns — chocks has no revision model beyond the repo. */
 export interface FeatureHistory {
-  commits: Commit[]
+  commits: HistoryCommit[]
+  /** Git tags created since this feature entered history. */
+  tags: HistoryTag[]
   /** Set when history could not be read at all; `commits` is then empty. */
   unavailable?: HistoryUnavailable
   /** True when the file has changes that are not committed yet. */

@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { GitCommitVertical, SquareDot } from 'lucide-react'
+import { FilePlus2, GitCommitVertical, SquareDot, Tag } from 'lucide-react'
 import { Skeleton } from '@/ui/components/ui/skeleton'
+import { Badge } from '@/ui/components/ui/badge'
+import {
+  Timeline,
+  TimelineContent,
+  TimelineDate,
+  TimelineHeader,
+  TimelineIndicator,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineTitle,
+} from '@/ui/components/ui/timeline'
 import { historyQuery } from '@/ui/lib/queries'
 import { relativeDate } from '@/ui/lib/dates'
 import { MODIFIED_COLOR } from '@/lib/status'
@@ -36,6 +47,11 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
     )
   }
 
+  const events = [
+    ...data.commits.map((commit) => ({ type: 'commit' as const, date: commit.date, commit })),
+    ...data.tags.map((tag) => ({ type: 'tag' as const, date: tag.date, tag })),
+  ].sort((left, right) => Date.parse(right.date) - Date.parse(left.date))
+
   return (
     <div className="flex flex-col gap-3">
       {/*
@@ -64,27 +80,94 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
           Not committed yet — history appears once this file is in a commit.
         </p>
       ) : (
-        <ol className="flex flex-col">
-          {data.commits.map((commit) => (
-            <li key={commit.sha} className="flex items-baseline gap-2.5 py-1.5 text-sm">
-              <GitCommitVertical className="text-muted-foreground size-4 shrink-0 self-center" />
-              <span className="flex-1 truncate" title={commit.subject}>
-                {commit.subject}
-              </span>
-              <span className="text-muted-foreground shrink-0 text-xs">{commit.author}</span>
-              <time
-                className="text-muted-foreground shrink-0 text-xs tabular-nums"
-                dateTime={commit.date}
-                title={new Date(commit.date).toLocaleString()}
-              >
-                {relativeDate(commit.date)}
-              </time>
-              <code className="text-muted-foreground shrink-0 font-mono text-xs">
-                {commit.shortSha}
-              </code>
-            </li>
-          ))}
-        </ol>
+        <Timeline>
+          {events.map((event) =>
+            event.type === 'tag' ? (
+              <TimelineItem key={`tag:${event.tag.name}`}>
+                <TimelineSeparator />
+                <TimelineIndicator className="border-foreground text-foreground">
+                  <Tag className="size-3.5" aria-hidden="true" />
+                </TimelineIndicator>
+                <TimelineHeader>
+                  <TimelineTitle className="flex items-center gap-2">
+                    <span>
+                      {event.tag.position === 'first'
+                        ? 'First tagged'
+                        : event.tag.position === 'latest'
+                          ? 'Last tagged'
+                          : 'Tagged'}
+                    </span>
+                    <Badge variant="secondary" size="sm">
+                      {event.tag.name}
+                    </Badge>
+                  </TimelineTitle>
+                </TimelineHeader>
+                <TimelineContent>
+                  <TimelineDate
+                    dateTime={event.tag.date}
+                    title={new Date(event.tag.date).toLocaleString()}
+                  >
+                    {relativeDate(event.tag.date)}
+                  </TimelineDate>
+                </TimelineContent>
+              </TimelineItem>
+            ) : (
+              <TimelineItem key={event.commit.sha}>
+                <TimelineSeparator />
+                <TimelineIndicator
+                  className={
+                    event.commit.event === 'created'
+                      ? 'border-foreground text-foreground'
+                      : undefined
+                  }
+                >
+                  {event.commit.event === 'created' ? (
+                    <FilePlus2 className="size-3.5" aria-hidden="true" />
+                  ) : (
+                    <GitCommitVertical className="size-3.5" aria-hidden="true" />
+                  )}
+                </TimelineIndicator>
+                <TimelineHeader>
+                  <TimelineTitle className="flex min-w-0 items-center gap-2">
+                    {event.commit.event === 'created' && (
+                      <Badge variant="success" size="sm">
+                        Created
+                      </Badge>
+                    )}
+                    <span className="truncate">{event.commit.subject}</span>
+                  </TimelineTitle>
+                </TimelineHeader>
+                <TimelineContent className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span>{event.commit.author}</span>
+                    <span aria-hidden="true">·</span>
+                    <TimelineDate
+                      dateTime={event.commit.date}
+                      title={new Date(event.commit.date).toLocaleString()}
+                    >
+                      {relativeDate(event.commit.date)}
+                    </TimelineDate>
+                    <span aria-hidden="true">·</span>
+                    <code className="font-mono">
+                      {event.commit.url ? (
+                        <a
+                          href={event.commit.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-foreground underline-offset-4 hover:underline"
+                        >
+                          {event.commit.shortSha}
+                        </a>
+                      ) : (
+                        event.commit.shortSha
+                      )}
+                    </code>
+                  </div>
+                </TimelineContent>
+              </TimelineItem>
+            ),
+          )}
+        </Timeline>
       )}
     </div>
   )
