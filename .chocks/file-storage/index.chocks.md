@@ -1,6 +1,7 @@
 ---
 title: File storage
 status: released
+importance: high
 sort: a2
 uid: c58e048085
 ---
