@@ -48,7 +48,7 @@ describe('featureHistory', () => {
       { from: 'planned', to: 'released' },
       { to: 'planned' },
     ])
-    expect(history.tags).toMatchObject([{ position: 'unreleased' }])
+    expect(history.commits.every((entry) => entry.release === undefined)).toBe(true)
     expect(history.commits[0]?.author).toBe('Tester')
     expect(history.commits[0]?.shortSha).toHaveLength(7)
     expect(new Date(history.commits[0]!.date).getTime()).toBeGreaterThan(0)
@@ -211,27 +211,6 @@ describe('featureHistory', () => {
     expect(history.commits[1]?.statusChange).toEqual({ to: 'planned' })
   })
 
-  it('uses an annotated tag as a release boundary', async () => {
-    const file = path.join(repo, '.chocks', 'auth.chocks.md')
-    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
-    await commit('feat: add auth')
-    await git(
-      '-c',
-      'user.email=t@example.com',
-      '-c',
-      'user.name=Tester',
-      'tag',
-      '-a',
-      'v1.0.0',
-      '-m',
-      'Stable release',
-    )
-
-    expect((await featureHistory(repo, file)).tags).toMatchObject([
-      { name: 'v1.0.0', position: 'only' },
-    ])
-  })
-
   it('includes a tag created by a later release commit', async () => {
     const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
@@ -241,11 +220,10 @@ describe('featureHistory', () => {
     await git('tag', 'v1.0.0')
 
     const history = await featureHistory(repo, file)
-    expect(history.tags[0]).toMatchObject({ name: 'v1.0.0', position: 'only' })
-    expect(new Date(history.tags[0]!.date).getTime()).toBeGreaterThan(0)
+    expect(history.commits[0]?.release).toBe('v1.0.0')
   })
 
-  it('finds the first release and the first release containing the latest change', async () => {
+  it('uses the earliest of several tags containing a commit', async () => {
     const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
     await commit('feat: add auth')
@@ -253,33 +231,18 @@ describe('featureHistory', () => {
     await writeFile(path.join(repo, 'VERSION'), 'v1.0.0\n', 'utf8')
     await commit('release: v1.0.0')
     await git('tag', 'v1.0.0')
-    await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
-    await commit('feat: update auth')
     await writeFile(path.join(repo, 'VERSION'), 'v1.1.0\n', 'utf8')
     await commit('release: v1.1.0')
     await git('tag', 'v1.1.0')
-    await writeFile(path.join(repo, 'VERSION'), 'v2.0.0\n', 'utf8')
-    await commit('release: v2.0.0')
-    await git('tag', 'v2.0.0')
 
-    expect((await featureHistory(repo, file)).tags).toMatchObject([
-      { name: 'v1.0.0', position: 'first' },
-      { name: 'v1.1.0', position: 'current' },
-    ])
+    expect((await featureHistory(repo, file)).commits[0]?.release).toBe('v1.0.0')
   })
 
-  it('reports when the latest feature change is not released', async () => {
+  it('omits release when no tag contains a commit', async () => {
     const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
     await commit('feat: add auth')
-    await git('tag', 'v1.0.0')
-    await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
-    await commit('feat: update auth')
-
-    expect((await featureHistory(repo, file)).tags).toMatchObject([
-      { name: 'v1.0.0', position: 'first' },
-      { position: 'unreleased' },
-    ])
+    expect((await featureHistory(repo, file)).commits[0]?.release).toBeUndefined()
   })
 
   it('reports an uncommitted edit', async () => {

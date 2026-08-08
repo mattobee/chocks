@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { FilePlus2, GitCommitVertical, SquareDot, Tag } from 'lucide-react'
+import { FilePlus2, GitCommitVertical, SquareDot } from 'lucide-react'
 import { Skeleton } from '@/ui/components/ui/skeleton'
-import { Badge } from '@/ui/components/ui/badge'
 import {
   Timeline,
   TimelineContent,
@@ -55,15 +54,6 @@ export function FeatureHistory({
     )
   }
 
-  const events = [
-    ...data.commits.map((commit) => ({ type: 'commit' as const, date: commit.date, commit })),
-    ...data.tags.map((tag) => ({ type: 'tag' as const, date: tag.date, tag })),
-  ].sort(
-    (left, right) =>
-      Date.parse(right.date) - Date.parse(left.date) ||
-      Number(right.type === 'tag') - Number(left.type === 'tag'),
-  )
-
   return (
     <div className="flex flex-col gap-3">
       {/*
@@ -93,131 +83,86 @@ export function FeatureHistory({
         </p>
       ) : (
         <Timeline>
-          {events.map((event) =>
-            event.type === 'tag' ? (
-              <TimelineItem
-                key={`tag:${event.tag.position}:${'name' in event.tag ? event.tag.name : ''}`}
+          {data.commits.map((commit) => (
+            <TimelineItem key={commit.sha}>
+              <TimelineSeparator />
+              <TimelineIndicator
+                className={
+                  commit.event === 'created' ? 'border-foreground text-foreground' : undefined
+                }
               >
-                <TimelineSeparator />
-                <TimelineIndicator className="border-foreground text-foreground">
-                  <Tag className="size-3.5" aria-hidden="true" />
-                </TimelineIndicator>
-                <TimelineHeader>
-                  <TimelineTitle className="flex items-center gap-2">
-                    <span>
-                      {event.tag.position === 'first'
-                        ? 'First included in'
-                        : event.tag.position === 'current'
-                          ? 'Current version included in'
-                          : event.tag.position === 'unreleased'
-                            ? 'Not yet included in a release'
-                            : 'Included in'}
-                    </span>
-                    {'name' in event.tag && (
-                      <Badge variant="secondary" size="sm">
-                        {event.tag.name}
-                      </Badge>
-                    )}
-                  </TimelineTitle>
-                </TimelineHeader>
-                <TimelineContent>
-                  <TimelineDate
-                    dateTime={event.tag.date}
-                    title={new Date(event.tag.date).toLocaleString()}
-                  >
-                    {relativeDate(event.tag.date)}
-                  </TimelineDate>
-                </TimelineContent>
-              </TimelineItem>
-            ) : (
-              <TimelineItem key={event.commit.sha}>
-                <TimelineSeparator />
-                <TimelineIndicator
-                  className={
-                    event.commit.event === 'created'
-                      ? 'border-foreground text-foreground'
-                      : undefined
-                  }
-                >
-                  {event.commit.event === 'created' ? (
-                    <FilePlus2 className="size-3.5" aria-hidden="true" />
-                  ) : (
-                    <GitCommitVertical className="size-3.5" aria-hidden="true" />
+                {commit.event === 'created' ? (
+                  <FilePlus2 className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <GitCommitVertical className="size-3.5" aria-hidden="true" />
+                )}
+              </TimelineIndicator>
+              <TimelineHeader>
+                <TimelineTitle className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">
+                    {commit.event === 'created' ? 'First added to Chocks' : commit.subject}
+                  </span>
+                  {commit.event === 'created' && commit.statusChange?.to && (
+                    <>
+                      <span>as</span>
+                      <StatusBadge statuses={statuses} status={commit.statusChange.to} />
+                    </>
                   )}
-                </TimelineIndicator>
-                <TimelineHeader>
-                  <TimelineTitle className="flex min-w-0 items-center gap-2">
-                    <span className="truncate">
-                      {event.commit.event === 'created'
-                        ? 'First added to Chocks'
-                        : event.commit.subject}
-                    </span>
-                    {event.commit.event === 'created' && event.commit.statusChange?.to && (
+                </TimelineTitle>
+              </TimelineHeader>
+              <TimelineContent className="flex flex-col gap-1.5">
+                {commit.statusChange && commit.event !== 'created' && (
+                  <div className="text-foreground flex flex-wrap items-center gap-1.5">
+                    {commit.statusChange.from && commit.statusChange.to ? (
                       <>
-                        <span>as</span>
-                        <StatusBadge statuses={statuses} status={event.commit.statusChange.to} />
+                        <span>Status changed from</span>
+                        <StatusBadge statuses={statuses} status={commit.statusChange.from} />
+                        <span>to</span>
+                        <StatusBadge statuses={statuses} status={commit.statusChange.to} />
+                      </>
+                    ) : commit.statusChange.to ? (
+                      <>
+                        <span>Status set to</span>
+                        <StatusBadge statuses={statuses} status={commit.statusChange.to} />
+                      </>
+                    ) : (
+                      <>
+                        <span>Status removed from</span>
+                        <StatusBadge statuses={statuses} status={commit.statusChange.from!} />
                       </>
                     )}
-                  </TimelineTitle>
-                </TimelineHeader>
-                <TimelineContent className="flex flex-col gap-1.5">
-                  {event.commit.statusChange && event.commit.event !== 'created' && (
-                    <div className="text-foreground flex flex-wrap items-center gap-1.5">
-                      {event.commit.statusChange.from && event.commit.statusChange.to ? (
-                        <>
-                          <span>Status changed from</span>
-                          <StatusBadge
-                            statuses={statuses}
-                            status={event.commit.statusChange.from}
-                          />
-                          <span>to</span>
-                          <StatusBadge statuses={statuses} status={event.commit.statusChange.to} />
-                        </>
-                      ) : event.commit.statusChange.to ? (
-                        <>
-                          <span>Status set to</span>
-                          <StatusBadge statuses={statuses} status={event.commit.statusChange.to} />
-                        </>
-                      ) : (
-                        <>
-                          <span>Status removed from</span>
-                          <StatusBadge
-                            statuses={statuses}
-                            status={event.commit.statusChange.from!}
-                          />
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span>{event.commit.author}</span>
-                    <span aria-hidden="true">·</span>
-                    <TimelineDate
-                      dateTime={event.commit.date}
-                      title={new Date(event.commit.date).toLocaleString()}
-                    >
-                      {relativeDate(event.commit.date)}
-                    </TimelineDate>
-                    <span aria-hidden="true">·</span>
-                    <code className="font-mono">
-                      {event.commit.url ? (
-                        <a
-                          href={event.commit.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:text-foreground underline-offset-4 hover:underline"
-                        >
-                          {event.commit.shortSha}
-                        </a>
-                      ) : (
-                        event.commit.shortSha
-                      )}
-                    </code>
                   </div>
-                </TimelineContent>
-              </TimelineItem>
-            ),
-          )}
+                )}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span>{commit.author}</span>
+                  <span aria-hidden="true">·</span>
+                  <TimelineDate
+                    dateTime={commit.date}
+                    title={new Date(commit.date).toLocaleString()}
+                  >
+                    {relativeDate(commit.date)}
+                  </TimelineDate>
+                  <span aria-hidden="true">·</span>
+                  <code className="font-mono">
+                    {commit.url ? (
+                      <a
+                        href={commit.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-foreground underline-offset-4 hover:underline"
+                      >
+                        {commit.shortSha}
+                      </a>
+                    ) : (
+                      commit.shortSha
+                    )}
+                  </code>
+                  <span aria-hidden="true">·</span>
+                  <span>{commit.release ? `in ${commit.release}` : 'not yet in a release'}</span>
+                </div>
+              </TimelineContent>
+            </TimelineItem>
+          ))}
         </Timeline>
       )}
     </div>

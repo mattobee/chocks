@@ -14,8 +14,8 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
 
 afterEach(() => featureHistory.mockReset())
 
-function setup(history: Omit<History, 'tags'> & Partial<Pick<History, 'tags'>>) {
-  featureHistory.mockResolvedValue({ ...history, tags: history.tags ?? [] })
+function setup(history: History) {
+  featureHistory.mockResolvedValue(history)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -108,53 +108,21 @@ describe('commits', () => {
     expect(unknown.querySelector('svg')).toHaveClass('fill-muted-foreground')
   })
 
-  it('places a git tag between commits according to its date', async () => {
-    const older = { ...commit, sha: 'older', date: '2026-08-01T00:00:00.000Z', subject: 'Older' }
-    const newer = { ...commit, sha: 'newer', date: '2026-08-03T00:00:00.000Z', subject: 'Newer' }
-    setup({
-      commits: [newer, older],
-      tags: [{ name: 'v1.2.0', date: '2026-08-02T00:00:00.000Z', position: 'only' }],
-      uncommitted: false,
-    })
-    const items = await screen.findAllByRole('listitem')
-    expect(items.map((item) => item.textContent)).toEqual([
-      expect.stringContaining('Newer'),
-      expect.stringContaining('v1.2.0'),
-      expect.stringContaining('Older'),
-    ])
+  it('shows release inclusion in the commit meta line', async () => {
+    setup({ commits: [{ ...commit, release: 'v1.0.0' }], uncommitted: false })
+    const row = (await screen.findByText('feat: add auth')).closest('li')
+    expect(screen.getByText('in v1.0.0')).toBeInTheDocument()
+    expect(row).toContainElement(screen.getByText('in v1.0.0'))
   })
 
-  it('labels first and current release events', async () => {
-    setup({
-      commits: [commit],
-      tags: [
-        { name: 'v2.0.0', date: '2026-08-03T00:00:00.000Z', position: 'current' },
-        { name: 'v1.0.0', date: '2026-08-01T00:00:00.000Z', position: 'first' },
-      ],
-      uncommitted: false,
-    })
-    expect(await screen.findByText('Current version included in')).toBeInTheDocument()
-    expect(screen.getByText('First included in')).toBeInTheDocument()
+  it('shows when a commit is not yet in a release', async () => {
+    setup({ commits: [commit], uncommitted: false })
+    expect(await screen.findByText('not yet in a release')).toBeInTheDocument()
   })
 
-  it('shows when the latest change is unreleased', async () => {
-    setup({
-      commits: [commit],
-      tags: [{ date: commit.date, position: 'unreleased' }],
-      uncommitted: false,
-    })
-    expect(await screen.findByText('Not yet included in a release')).toBeInTheDocument()
-  })
-
-  it('puts creation before release state when their timestamps match', async () => {
-    setup({
-      commits: [{ ...commit, event: 'created' }],
-      tags: [{ date: commit.date, position: 'unreleased' }],
-      uncommitted: false,
-    })
-    const items = await screen.findAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('Not yet included in a release')
-    expect(items[1]).toHaveTextContent('First added to Chocks')
+  it('does not create standalone timeline items for releases', async () => {
+    setup({ commits: [{ ...commit, release: 'v1.0.0' }], uncommitted: false })
+    expect(await screen.findAllByRole('listitem')).toHaveLength(1)
   })
 
   it('gives the date a machine readable value as well as a relative one', async () => {
