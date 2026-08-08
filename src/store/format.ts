@@ -71,6 +71,7 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
       // Malformed YAML: keep the body, fall back to defaults for the metadata.
     }
   }
+  const importance = normaliseImportance(data.importance)
 
   return {
     // An invalid uid is treated as absent so it gets replaced rather than trusted.
@@ -79,15 +80,19 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
     // Deliberately not checked against the configured list. A status from a branch with
     // different config, or a hand-typed one, must survive being read and written back.
     status: isValidStatusId(data.status) ? data.status : '',
-    ...(data.importance === 'high' || data.importance === 'low'
-      ? { importance: data.importance }
-      : {}),
+    ...(importance !== undefined ? { importance } : {}),
     tags: normaliseTags(data.tags),
     links: normaliseLinks(data.links),
     code: normaliseCode(data.code),
     sort: typeof data.sort === 'string' && data.sort !== '' ? data.sort : '',
     description: body.replace(/^\r?\n/, '').trimEnd(),
   }
+}
+
+function normaliseImportance(value: unknown): Importance | undefined {
+  if (typeof value !== 'string') return undefined
+  const importance = value.trim().toLowerCase()
+  return importance === 'high' || importance === 'low' ? importance : undefined
 }
 
 function normaliseTags(value: unknown): string[] {

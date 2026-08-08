@@ -48,8 +48,9 @@ describe('parseFeatureFile', () => {
   it('reads exceptional importance and treats other values as normal', () => {
     expect(parseFeatureFile('---\nimportance: high\n---\n', 'x').importance).toBe('high')
     expect(parseFeatureFile('---\nimportance: low\n---\n', 'x').importance).toBe('low')
+    expect(parseFeatureFile('---\nimportance: " HIGH "\n---\n', 'x').importance).toBe('high')
+    expect(parseFeatureFile('---\nimportance: Low\n---\n', 'x').importance).toBe('low')
     expect(parseFeatureFile('---\nimportance: medium\n---\n', 'x').importance).toBeUndefined()
-    expect(parseFeatureFile('---\nimportance: HIGH\n---\n', 'x').importance).toBeUndefined()
   })
 
   it('drops a status that is not slug-shaped', () => {
