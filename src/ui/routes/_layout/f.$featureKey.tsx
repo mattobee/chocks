@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
+import { ChevronsDown, ChevronsUp, Plus, SquareDot, Trash2, TriangleAlert } from 'lucide-react'
 
 import { FeatureDialog, type FeatureDraft } from '@/ui/components/feature-dialog'
 import { StatusDropdown } from '@/ui/components/status-dropdown'
@@ -19,7 +19,6 @@ import {
 import { FeatureHistory } from '@/ui/components/feature-history'
 import { Markdown } from '@/ui/components/markdown'
 import { Button } from '@/ui/components/ui/button'
-import { Badge } from '@/ui/components/ui/badge'
 import {
   Empty,
   EmptyContent,
@@ -328,9 +327,14 @@ export function FeaturePage() {
             onChange={(status) => update.mutate({ id: featureId, status })}
           />
           {feature.importance && (
-            <Badge variant={feature.importance === 'high' ? 'destructive' : 'secondary'}>
+            <span className="inline-flex items-center gap-1 text-sm font-medium">
+              {feature.importance === 'high' ? (
+                <ChevronsUp className="size-4" aria-hidden="true" />
+              ) : (
+                <ChevronsDown className="size-4" aria-hidden="true" />
+              )}
               {feature.importance === 'high' ? 'High importance' : 'Low importance'}
-            </Badge>
+            </span>
           )}
         </div>
 
