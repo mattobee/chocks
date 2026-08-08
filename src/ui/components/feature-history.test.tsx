@@ -113,6 +113,17 @@ describe('commits', () => {
     expect(await screen.findByText('Not yet in a release')).toBeInTheDocument()
   })
 
+  it('puts creation before release state when their timestamps match', async () => {
+    setup({
+      commits: [{ ...commit, event: 'created' }],
+      tags: [{ date: commit.date, position: 'unreleased' }],
+      uncommitted: false,
+    })
+    const items = await screen.findAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Not yet in a release')
+    expect(items[1]).toHaveTextContent('Created')
+  })
+
   it('gives the date a machine readable value as well as a relative one', async () => {
     setup({ commits: [commit], uncommitted: false })
     const time = (await screen.findByText('feat: add auth')).closest('li')?.querySelector('time')

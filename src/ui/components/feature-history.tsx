@@ -50,7 +50,11 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
   const events = [
     ...data.commits.map((commit) => ({ type: 'commit' as const, date: commit.date, commit })),
     ...data.tags.map((tag) => ({ type: 'tag' as const, date: tag.date, tag })),
-  ].sort((left, right) => Date.parse(right.date) - Date.parse(left.date))
+  ].sort(
+    (left, right) =>
+      Date.parse(right.date) - Date.parse(left.date) ||
+      Number(right.type === 'tag') - Number(left.type === 'tag'),
+  )
 
   return (
     <div className="flex flex-col gap-3">
