@@ -32,7 +32,7 @@ afterEach(async () => {
 describe('featureHistory', () => {
   it('returns commits newest first', async () => {
     const file = path.join(repo, '.chocks', 'auth.chocks.md')
-    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await writeFile(file, '---\ntitle: Auth\nstatus: planned\n---\n', 'utf8')
     await commit('feat: add auth')
     await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
     await commit('feat: ship auth')
@@ -44,6 +44,10 @@ describe('featureHistory', () => {
       'feat: add auth',
     ])
     expect(history.commits.map((entry) => entry.event)).toEqual(['updated', 'created'])
+    expect(history.commits.map((entry) => entry.statusChange)).toEqual([
+      { from: 'planned', to: 'released' },
+      { to: 'planned' },
+    ])
     expect(history.tags).toMatchObject([{ position: 'unreleased' }])
     expect(history.commits[0]?.author).toBe('Tester')
     expect(history.commits[0]?.shortSha).toHaveLength(7)
@@ -145,6 +149,66 @@ describe('featureHistory', () => {
 
     const history = await featureHistory(repo, after)
     expect(history.commits).toHaveLength(2)
+  })
+
+  it('reads a status transition across a rename', async () => {
+    const before = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(before, '---\ntitle: Auth\nstatus: planned\n---\n', 'utf8')
+    await commit('feat: add auth')
+    const after = path.join(repo, '.chocks', 'authentication.chocks.md')
+    await rename(before, after)
+    await commit('refactor: rename auth')
+    await writeFile(after, '---\ntitle: Authentication\nstatus: released\n---\n', 'utf8')
+    await commit('feat: ship auth')
+
+    const history = await featureHistory(repo, after)
+    expect(history.commits.map((entry) => entry.statusChange)).toEqual([
+      { from: 'planned', to: 'released' },
+      undefined,
+      { to: 'planned' },
+    ])
+  })
+
+  it('represents setting and removing a previously absent status', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await writeFile(file, '---\ntitle: Auth\nstatus: planned\n---\n', 'utf8')
+    await commit('feat: plan auth')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('chore: clear auth status')
+
+    const history = await featureHistory(repo, file)
+    expect(history.commits.map((entry) => entry.statusChange)).toEqual([
+      { from: 'planned' },
+      { to: 'planned' },
+      undefined,
+    ])
+  })
+
+  it('preserves an unknown status in a transition', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\nstatus: experimental\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
+    await commit('feat: ship auth')
+
+    expect((await featureHistory(repo, file)).commits[0]?.statusChange).toEqual({
+      from: 'experimental',
+      to: 'released',
+    })
+  })
+
+  it('omits an annotation when a commit does not change status', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\nstatus: planned\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await writeFile(file, '---\ntitle: Authentication\nstatus: planned\n---\n', 'utf8')
+    await commit('docs: clarify auth')
+
+    const history = await featureHistory(repo, file)
+    expect(history.commits[0]?.statusChange).toBeUndefined()
+    expect(history.commits[1]?.statusChange).toEqual({ to: 'planned' })
   })
 
   it('uses an annotated tag as a release boundary', async () => {

@@ -15,6 +15,8 @@ import {
 import { historyQuery } from '@/ui/lib/queries'
 import { relativeDate } from '@/ui/lib/dates'
 import { MODIFIED_COLOR } from '@/lib/status'
+import type { StatusDefinition } from '@/lib/status'
+import { StatusBadge } from '@/ui/components/status-badge'
 
 /**
  * A feature's history, read straight from git.
@@ -22,7 +24,13 @@ import { MODIFIED_COLOR } from '@/lib/status'
  * chocks has no revision model of its own: the repo already records who changed what and
  * why, usually in the same commit as the code the feature describes.
  */
-export function FeatureHistory({ featureId }: { featureId: string }) {
+export function FeatureHistory({
+  featureId,
+  statuses,
+}: {
+  featureId: string
+  statuses: StatusDefinition[]
+}) {
   const history = useQuery(historyQuery(featureId))
 
   if (history.isPending) {
@@ -98,12 +106,12 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
                   <TimelineTitle className="flex items-center gap-2">
                     <span>
                       {event.tag.position === 'first'
-                        ? 'First shipped in'
+                        ? 'First included in'
                         : event.tag.position === 'current'
-                          ? 'Current version shipped in'
+                          ? 'Current version included in'
                           : event.tag.position === 'unreleased'
-                            ? 'Not yet in a release'
-                            : 'Shipped in'}
+                            ? 'Not yet included in a release'
+                            : 'Included in'}
                     </span>
                     {'name' in event.tag && (
                       <Badge variant="secondary" size="sm">
@@ -139,15 +147,48 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
                 </TimelineIndicator>
                 <TimelineHeader>
                   <TimelineTitle className="flex min-w-0 items-center gap-2">
-                    {event.commit.event === 'created' && (
-                      <Badge variant="success" size="sm">
-                        Created
-                      </Badge>
+                    <span className="truncate">
+                      {event.commit.event === 'created'
+                        ? 'First added to Chocks'
+                        : event.commit.subject}
+                    </span>
+                    {event.commit.event === 'created' && event.commit.statusChange?.to && (
+                      <>
+                        <span>as</span>
+                        <StatusBadge statuses={statuses} status={event.commit.statusChange.to} />
+                      </>
                     )}
-                    <span className="truncate">{event.commit.subject}</span>
                   </TimelineTitle>
                 </TimelineHeader>
                 <TimelineContent className="flex flex-col gap-1.5">
+                  {event.commit.statusChange && event.commit.event !== 'created' && (
+                    <div className="text-foreground flex flex-wrap items-center gap-1.5">
+                      {event.commit.statusChange.from && event.commit.statusChange.to ? (
+                        <>
+                          <span>Status changed from</span>
+                          <StatusBadge
+                            statuses={statuses}
+                            status={event.commit.statusChange.from}
+                          />
+                          <span>to</span>
+                          <StatusBadge statuses={statuses} status={event.commit.statusChange.to} />
+                        </>
+                      ) : event.commit.statusChange.to ? (
+                        <>
+                          <span>Status set to</span>
+                          <StatusBadge statuses={statuses} status={event.commit.statusChange.to} />
+                        </>
+                      ) : (
+                        <>
+                          <span>Status removed from</span>
+                          <StatusBadge
+                            statuses={statuses}
+                            status={event.commit.statusChange.from!}
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span>{event.commit.author}</span>
                     <span aria-hidden="true">·</span>

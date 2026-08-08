@@ -483,8 +483,8 @@ export function FeaturePage() {
           </Empty>
         )}
 
-        <h2 className="mt-8 mb-3 text-lg font-semibold">History</h2>
-        <FeatureHistory featureId={featureId} />
+        <h2 className="mt-8 mb-3 text-lg font-semibold">History in Chocks</h2>
+        <FeatureHistory featureId={featureId} statuses={statuses} />
 
         {/* Last on the page and out of the way. It used to sit beside Rename at the top,
             one 32px target away from the button you reach for most. */}
