@@ -109,9 +109,10 @@ export async function featureHistory(
         return { sha, shortSha, author, date, subject, path: paths.at(-1)?.trim() ?? relative }
       })
 
-    const statuses = await Promise.all(
-      commitData.map((commit) => statusAtCommit(repoRoot, commit.sha, commit.path)),
-    )
+    const statuses: (string | null)[] = []
+    for (const commit of commitData) {
+      statuses.push(await statusAtCommit(repoRoot, commit.sha, commit.path))
+    }
     const commits = commitData.map(({ path: _path, ...commit }, index) => {
       const status = statuses[index]
       const previous = statuses[index + 1] ?? null
@@ -156,8 +157,9 @@ async function statusAtCommit(
 ): Promise<string | null> {
   try {
     return parseFeatureFile(await git(repoRoot, ['show', `${sha}:${relative}`]), '').status
-  } catch {
-    return null
+  } catch (error) {
+    if (/path .* does not exist in|exists on disk, but not in/i.test(messageOf(error))) return null
+    throw error
   }
 }
 
