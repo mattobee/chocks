@@ -1,5 +1,5 @@
 ---
-title: chocks context
+title: Output the feature tree in the CLI
 status: released
 importance: high
 links:
