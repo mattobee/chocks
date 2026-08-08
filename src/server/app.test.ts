@@ -233,6 +233,16 @@ describe('features API', () => {
     expect((await response.json()) as Feature).toMatchObject({ importance: 'high' })
   })
 
+  it('creates an explicit normal importance override', async () => {
+    const response = await app.request(
+      '/api/features',
+      json({ parent: '', title: 'Payments', importance: 'normal' }),
+    )
+
+    expect(response.status).toBe(201)
+    expect((await response.json()) as Feature).toMatchObject({ importance: 'normal' })
+  })
+
   it('updates fields', async () => {
     const feature = await createFeature('', 'Auth')
     const links = [{ label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' }]

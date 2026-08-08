@@ -280,7 +280,9 @@ export function createApp(options: ServerOptions): { app: Hono; stop: () => Prom
       statuses: (await loadConfig(root)).config.statuses,
       status: isValidStatusId(body.status) ? body.status : undefined,
       importance:
-        body.importance === 'high' || body.importance === 'low' ? body.importance : undefined,
+        body.importance === 'high' || body.importance === 'normal' || body.importance === 'low'
+          ? body.importance
+          : undefined,
       tags: asStringArray(body.tags),
       links: asLinks(body.links),
       code: asCode(body.code),

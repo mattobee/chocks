@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { effectiveImportance } from '../lib/importance'
+import type { Feature } from '../lib/types'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 
 describe('parseFeatureFile', () => {
@@ -45,8 +47,9 @@ describe('parseFeatureFile', () => {
     expect(parseFeatureFile('---\nstatus: shipped\n---\n', 'x').status).toBe('shipped')
   })
 
-  it('reads exceptional importance and treats other values as normal', () => {
+  it('reads declared importance and ignores other values', () => {
     expect(parseFeatureFile('---\nimportance: high\n---\n', 'x').importance).toBe('high')
+    expect(parseFeatureFile('---\nimportance: normal\n---\n', 'x').importance).toBe('normal')
     expect(parseFeatureFile('---\nimportance: low\n---\n', 'x').importance).toBe('low')
     expect(parseFeatureFile('---\nimportance: " HIGH "\n---\n', 'x').importance).toBe('high')
     expect(parseFeatureFile('---\nimportance: Low\n---\n', 'x').importance).toBe('low')
@@ -204,7 +207,7 @@ describe('serializeFeatureFile', () => {
     expect(output).not.toContain('tags')
   })
 
-  it('omits normal importance and removes an unrecognised value when rewriting', () => {
+  it('omits undeclared importance and removes an unrecognised value when rewriting', () => {
     const feature = {
       title: 'X',
       status: 'planned',
@@ -222,6 +225,52 @@ describe('serializeFeatureFile', () => {
         '---\ntitle: X\nstatus: planned\nimportance: medium\nsort: a0\n---\n',
       ),
     ).not.toContain('importance')
+  })
+
+  it('round-trips an explicit normal declaration', () => {
+    const feature = {
+      title: 'X',
+      status: 'planned',
+      importance: 'normal' as const,
+      uid: '',
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+      description: '',
+    }
+    expect(parseFeatureFile(serializeFeatureFile(feature), 'x').importance).toBe('normal')
+  })
+
+  it('never writes inherited importance into a descendant', () => {
+    const parent = {
+      id: 'parent',
+      uid: 'a000000001',
+      parent: '',
+      title: 'Parent',
+      description: '',
+      status: 'released',
+      importance: 'high' as const,
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+    } satisfies Feature
+    const child = {
+      id: 'parent/child',
+      uid: 'a000000002',
+      parent: 'parent',
+      title: 'Child',
+      description: '',
+      status: 'released',
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+    } satisfies Feature
+
+    expect(effectiveImportance(child, [parent]).value).toBe('high')
+    expect(serializeFeatureFile(child)).not.toContain('importance')
   })
 
   it('writes importance after status and before tags', () => {

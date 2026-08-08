@@ -92,7 +92,9 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
 function normaliseImportance(value: unknown): Importance | undefined {
   if (typeof value !== 'string') return undefined
   const importance = value.trim().toLowerCase()
-  return importance === 'high' || importance === 'low' ? importance : undefined
+  return importance === 'high' || importance === 'normal' || importance === 'low'
+    ? importance
+    : undefined
 }
 
 function normaliseTags(value: unknown): string[] {
