@@ -111,7 +111,10 @@ export async function featureHistory(
       ...(commitBaseUrl && { url: `${commitBaseUrl}${commit.sha}` }),
     }))
 
-    const tags = await tagsSinceCommit(repoRoot, createdIn)
+    const latest = commitData[0]
+    const tags = latest
+      ? await featureReleaseTags(repoRoot, createdIn, latest.sha, latest.date)
+      : []
     return { commits, tags, uncommitted: await hasUncommittedChanges(repoRoot, relative) }
   } catch (error) {
     // A path git has never seen, or a repo with no commits at all, exits non-zero. That is
@@ -123,37 +126,51 @@ export async function featureHistory(
   }
 }
 
-async function tagsSinceCommit(
+async function featureReleaseTags(
+  repoRoot: string,
+  creationSha: string,
+  latestSha: string,
+  latestDate: string,
+): Promise<FeatureHistory['tags']> {
+  const [first, current] = await Promise.all([
+    firstTagContaining(repoRoot, creationSha),
+    firstTagContaining(repoRoot, latestSha),
+  ])
+  if (!current) {
+    return [
+      ...(first ? [{ ...first, position: 'first' as const }] : []),
+      { date: latestDate, position: 'unreleased' as const },
+    ]
+  }
+  if (first?.name === current.name) return [{ ...current, position: 'only' }]
+  return [
+    ...(first ? [{ ...first, position: 'first' as const }] : []),
+    { ...current, position: 'current' },
+  ]
+}
+
+async function firstTagContaining(
   repoRoot: string,
   sha: string,
-): Promise<{ name: string; date: string; position: 'first' | 'latest' | 'only' }[]> {
-  if (sha === '') return []
+): Promise<{ name: string; date: string } | null> {
+  if (sha === '') return null
   try {
     const stdout = await git(repoRoot, [
       'for-each-ref',
       '--merged=HEAD',
       `--contains=${sha}`,
-      '--sort=-version:refname',
-      '--sort=-creatordate',
+      '--sort=version:refname',
+      '--sort=creatordate',
+      '--count=1',
       `--format=%(refname:short)${FIELD}%(creatordate:iso-strict)${RECORD}`,
       'refs/tags',
     ])
-    const tags = stdout
-      .split(RECORD)
-      .map((record) => record.trim())
-      .filter((record) => record !== '')
-      .map((record) => {
-        const [name = '', date = ''] = record.split(FIELD)
-        return { name, date }
-      })
-    if (tags.length === 0) return []
-    if (tags.length === 1) return [{ ...tags[0]!, position: 'only' }]
-    return [
-      { ...tags[0]!, position: 'latest' },
-      { ...tags.at(-1)!, position: 'first' },
-    ]
+    const record = stdout.replace(RECORD, '').trim()
+    if (record === '') return null
+    const [name = '', date = ''] = record.split(FIELD)
+    return { name, date }
   } catch {
-    return []
+    return null
   }
 }
 

@@ -91,17 +91,26 @@ describe('commits', () => {
     ])
   })
 
-  it('labels first and latest tag events', async () => {
+  it('labels first and current release events', async () => {
     setup({
       commits: [commit],
       tags: [
-        { name: 'v2.0.0', date: '2026-08-03T00:00:00.000Z', position: 'latest' },
+        { name: 'v2.0.0', date: '2026-08-03T00:00:00.000Z', position: 'current' },
         { name: 'v1.0.0', date: '2026-08-01T00:00:00.000Z', position: 'first' },
       ],
       uncommitted: false,
     })
-    expect(await screen.findByText('Last tagged')).toBeInTheDocument()
-    expect(screen.getByText('First tagged')).toBeInTheDocument()
+    expect(await screen.findByText('Current version shipped in')).toBeInTheDocument()
+    expect(screen.getByText('First shipped in')).toBeInTheDocument()
+  })
+
+  it('shows when the latest change is unreleased', async () => {
+    setup({
+      commits: [commit],
+      tags: [{ date: commit.date, position: 'unreleased' }],
+      uncommitted: false,
+    })
+    expect(await screen.findByText('Not yet in a release')).toBeInTheDocument()
   })
 
   it('gives the date a machine readable value as well as a relative one', async () => {

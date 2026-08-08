@@ -83,7 +83,9 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
         <Timeline>
           {events.map((event) =>
             event.type === 'tag' ? (
-              <TimelineItem key={`tag:${event.tag.name}`}>
+              <TimelineItem
+                key={`tag:${event.tag.position}:${'name' in event.tag ? event.tag.name : ''}`}
+              >
                 <TimelineSeparator />
                 <TimelineIndicator className="border-foreground text-foreground">
                   <Tag className="size-3.5" aria-hidden="true" />
@@ -92,14 +94,18 @@ export function FeatureHistory({ featureId }: { featureId: string }) {
                   <TimelineTitle className="flex items-center gap-2">
                     <span>
                       {event.tag.position === 'first'
-                        ? 'First tagged'
-                        : event.tag.position === 'latest'
-                          ? 'Last tagged'
-                          : 'Tagged'}
+                        ? 'First shipped in'
+                        : event.tag.position === 'current'
+                          ? 'Current version shipped in'
+                          : event.tag.position === 'unreleased'
+                            ? 'Not yet in a release'
+                            : 'Shipped in'}
                     </span>
-                    <Badge variant="secondary" size="sm">
-                      {event.tag.name}
-                    </Badge>
+                    {'name' in event.tag && (
+                      <Badge variant="secondary" size="sm">
+                        {event.tag.name}
+                      </Badge>
+                    )}
                   </TimelineTitle>
                 </TimelineHeader>
                 <TimelineContent>
