@@ -108,35 +108,39 @@ describe('buildTree', () => {
 
 describe('filterTree', () => {
   const features = [
-    feature('auth', '', 'a0', { title: 'Auth' }),
+    feature('auth', '', 'a0', { title: 'Auth', importance: 'high' }),
     feature('oauth', 'auth', 'a0', { title: 'OAuth' }),
-    feature('github', 'oauth', 'a0', { title: 'GitHub provider', status: 'done' }),
-    feature('google', 'oauth', 'a1', { title: 'Google provider' }),
-    feature('billing', '', 'a1', { title: 'Billing', tags: ['t1'] }),
+    feature('github', 'oauth', 'a0', {
+      title: 'GitHub provider',
+      status: 'done',
+      importance: 'normal',
+    }),
+    feature('google', 'oauth', 'a1', { title: 'Google provider', importance: 'low' }),
+    feature('billing', '', 'a1', { title: 'Billing', tags: ['t1'], importance: 'high' }),
   ]
   const tree = buildTree(features)
 
   it('returns the tree untouched when no filter is active', () => {
-    const result = filterTree(tree, { query: '', statuses: [], tags: [] })
+    const result = filterTree(tree, { query: '', statuses: [], tags: [], importances: [] })
     expect(result.nodes).toBe(tree)
     expect(result.matchedIds.size).toBe(0)
   })
 
   it('keeps ancestors of a match so the result is still navigable', () => {
-    const result = filterTree(tree, { query: 'github', statuses: [], tags: [] })
+    const result = filterTree(tree, { query: 'github', statuses: [], tags: [], importances: [] })
     expect(shape(result.nodes)).toEqual(['auth', '  oauth', '    github'])
     expect([...result.matchedIds]).toEqual(['github'])
     expect([...result.ancestorIds].sort()).toEqual(['auth', 'oauth'])
   })
 
   it('drops branches with no match anywhere', () => {
-    const result = filterTree(tree, { query: 'billing', statuses: [], tags: [] })
+    const result = filterTree(tree, { query: 'billing', statuses: [], tags: [], importances: [] })
     expect(shape(result.nodes)).toEqual(['billing'])
   })
 
   it('drops non-matching descendants of a match', () => {
     // 'OAuth' matches; its children do not, so they are pruned.
-    const result = filterTree(tree, { query: 'oauth', statuses: [], tags: [] })
+    const result = filterTree(tree, { query: 'oauth', statuses: [], tags: [], importances: [] })
     expect(shape(result.nodes)).toEqual(['auth', '  oauth'])
   })
 
@@ -144,30 +148,69 @@ describe('filterTree', () => {
     const withDescription = buildTree([
       feature('a', '', 'a0', { title: 'Nothing', description: 'Handles WEBHOOK retries' }),
     ])
-    const result = filterTree(withDescription, { query: 'webhook', statuses: [], tags: [] })
+    const result = filterTree(withDescription, {
+      query: 'webhook',
+      statuses: [],
+      tags: [],
+      importances: [],
+    })
     expect(shape(result.nodes)).toEqual(['a'])
   })
 
   it('filters by status', () => {
-    const result = filterTree(tree, { query: '', statuses: ['done'], tags: [] })
+    const result = filterTree(tree, { query: '', statuses: ['done'], tags: [], importances: [] })
     expect(shape(result.nodes)).toEqual(['auth', '  oauth', '    github'])
     expect([...result.matchedIds]).toEqual(['github'])
   })
 
   it('filters by tag', () => {
-    const result = filterTree(tree, { query: '', statuses: [], tags: ['t1'] })
+    const result = filterTree(tree, { query: '', statuses: [], tags: ['t1'], importances: [] })
     expect(shape(result.nodes)).toEqual(['billing'])
   })
 
   it('combines filters with AND', () => {
     // 'provider' matches two features, but only one is done.
-    const result = filterTree(tree, { query: 'provider', statuses: ['done'], tags: [] })
+    const result = filterTree(tree, {
+      query: 'provider',
+      statuses: ['done'],
+      tags: [],
+      importances: [],
+    })
     expect([...result.matchedIds]).toEqual(['github'])
   })
 
   it('returns an empty tree when nothing matches', () => {
-    const result = filterTree(tree, { query: 'nonexistent', statuses: [], tags: [] })
+    const result = filterTree(tree, {
+      query: 'nonexistent',
+      statuses: [],
+      tags: [],
+      importances: [],
+    })
     expect(result.nodes).toEqual([])
+  })
+
+  it.each([
+    ['high', ['auth', 'billing', 'oauth']],
+    ['normal', ['github']],
+    ['low', ['google']],
+  ] as const)('filters by effective %s importance', (importance, expected) => {
+    const result = filterTree(tree, {
+      query: '',
+      statuses: [],
+      tags: [],
+      importances: [importance],
+    })
+    expect([...result.matchedIds].sort()).toEqual(expected)
+  })
+
+  it('combines selected importance values with OR', () => {
+    const result = filterTree(tree, {
+      query: '',
+      statuses: [],
+      tags: [],
+      importances: ['high', 'low'],
+    })
+    expect([...result.matchedIds].sort()).toEqual(['auth', 'billing', 'google', 'oauth'])
   })
 })
 

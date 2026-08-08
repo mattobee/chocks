@@ -27,6 +27,7 @@ import {
   type Feature,
   type FeatureCodeRef,
   type FeatureLink,
+  type Importance,
 } from '../lib/types'
 
 /**
@@ -252,6 +253,7 @@ async function scanStore(
       title: parsed.title,
       description: parsed.description,
       status: parsed.status,
+      ...(parsed.importance !== undefined ? { importance: parsed.importance } : {}),
       tags: parsed.tags,
       links: parsed.links,
       code: parsed.code,
@@ -381,6 +383,7 @@ export interface CreateInput {
   parent: string
   title: string
   status?: string
+  importance?: Importance
   tags?: string[]
   links?: FeatureLink[]
   code?: FeatureCodeRef[]
@@ -445,6 +448,7 @@ async function createUnlocked(root: string, input: CreateInput): Promise<Feature
     title,
     description: input.description ?? '',
     status: input.status ?? defaultStatusId(input.statuses ?? DEFAULT_STATUSES),
+    ...(input.importance !== undefined ? { importance: input.importance } : {}),
     tags: input.tags ?? [],
     links: input.links ?? [],
     code: input.code ?? [],
@@ -719,6 +723,7 @@ async function readSnapshot(
       title: parsed.title,
       description: parsed.description,
       status: parsed.status,
+      ...(parsed.importance !== undefined ? { importance: parsed.importance } : {}),
       tags: parsed.tags,
       links: parsed.links,
       code: parsed.code,
