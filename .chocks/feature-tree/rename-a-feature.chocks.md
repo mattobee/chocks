@@ -1,6 +1,8 @@
 ---
 title: Rename a feature
 status: released
+tags:
+  - rename
 code:
   - path: src/ui/routes/_layout/f.$featureKey.tsx
   - path: src/store/store.ts

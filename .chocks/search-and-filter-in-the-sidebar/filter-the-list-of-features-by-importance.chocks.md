@@ -1,6 +1,8 @@
 ---
 title: Filter the list of features by importance
 status: released
+tags:
+  - filter
 code:
   - path: src/ui/components/feature-filter-menu.tsx
   - path: src/lib/tree.ts

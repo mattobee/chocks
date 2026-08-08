@@ -3,6 +3,7 @@ title: Static export
 status: deprecated
 tags:
   - api
+  - export
 sort: a0
 uid: b7e8d0e580
 ---

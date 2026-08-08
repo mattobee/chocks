@@ -3,6 +3,7 @@ title: Choose a colour mode
 status: released
 tags:
   - ux
+  - customize
 code:
   - path: src/ui/components/color-mode-switcher.tsx
   - path: src/ui/main.tsx
