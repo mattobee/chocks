@@ -77,7 +77,9 @@ describe('featureHistory', () => {
       },
     )
 
-    expect((await featureHistory(repo, file)).commits[0]?.date).toBe('2026-01-01T00:00:00Z')
+    expect(new Date((await featureHistory(repo, file)).commits[0]!.date).toISOString()).toBe(
+      '2026-01-01T00:00:00.000Z',
+    )
   })
 
   it.each([
