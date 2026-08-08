@@ -15,7 +15,10 @@ import { DEFAULT_STATUSES } from '@/lib/status'
 
 const updateFeature = vi.fn()
 /** Hoisted so the mock factory can read it, and so a test can vary it before rendering. */
-const fixture = vi.hoisted(() => ({ description: 'Plans and invoices.' }))
+const fixture = vi.hoisted(() => ({
+  description: 'Plans and invoices.',
+  importance: undefined as 'high' | 'low' | undefined,
+}))
 
 vi.mock('@/ui/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/ui/lib/api')>()
@@ -28,6 +31,9 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
       return fixture.description
     },
     status: 'idea',
+    get importance() {
+      return fixture.importance
+    },
     tags: [],
     links: [],
     code: [],
@@ -58,6 +64,7 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
 afterEach(() => {
   updateFeature.mockReset()
   fixture.description = 'Plans and invoices.'
+  fixture.importance = undefined
 })
 
 async function setup() {
@@ -176,6 +183,23 @@ describe('the feature title', () => {
     await user.keyboard('{Enter}')
 
     expect(updateFeature).not.toHaveBeenCalled()
+  })
+})
+
+describe('feature importance', () => {
+  it('shows exceptional importance without an editing control', async () => {
+    fixture.importance = 'high'
+    await setup()
+
+    expect(await screen.findByText('High importance')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /importance/i })).not.toBeInTheDocument()
+  })
+
+  it('shows nothing for normal importance', async () => {
+    await setup()
+
+    await screen.findByRole('heading', { level: 1, name: 'Billing' })
+    expect(screen.queryByText(/importance/i)).not.toBeInTheDocument()
   })
 })
 

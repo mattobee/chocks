@@ -16,6 +16,9 @@ export interface FeatureLink {
 /** What a `code` entry claims about a path: implementation, a test for it, or a flag key. */
 export type CodeKind = 'code' | 'test' | 'flag'
 
+/** Exceptional importance. Normal importance is represented by absence. */
+export type Importance = 'high' | 'low'
+
 /**
  * A claim about where a feature lives in the repo, distinct from `links`.
  *
@@ -69,6 +72,8 @@ export interface Feature {
    * value the current config does not define must survive rather than be corrected.
    */
   status: string
+  /** Omitted for normal importance. */
+  importance?: Importance
   /** Free-form labels from frontmatter — no separate tag records to keep in sync. */
   tags: string[]
   /** Ordered links from frontmatter. Read-only in the UI. */

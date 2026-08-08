@@ -71,6 +71,7 @@ Every feature directory must contain `index.chocks.md`. A directory without one 
 ---
 title: Daily digest email
 status: pre-release
+importance: high
 tags:
   - notifications
 links:
@@ -91,6 +92,8 @@ Sends once a day with everything you missed. Still behind a flag while the send 
 ```
 
 The markdown body is the description, and everything is editable by hand: the running UI picks up changes immediately. Features saved through chocks allow titles up to 300 characters, 100 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id is its path, so there's no `parent` field that can disagree with the filesystem, and moving or retitling a feature is just a rename. Links keep working after a move, because they resolve on a `uid` generated once per feature rather than on the path.
+
+`importance` marks an exceptional feature as `high` or `low`. Normal importance is represented by leaving the key out. Unrecognised values are treated as normal. Importance is shown on the feature page and is read-only in the UI, so change it by editing the file.
 
 `links` is an ordered list of up to 20 objects. Each needs a `url`. HTTP, HTTPS and protocol-relative URLs are clickable; repo-relative paths and other schemes render as plain text because chocks does not serve files from the repo. An optional `label` replaces a clickable URL as the link text. For non-clickable entries, the label appears alongside the raw value in muted monospace text so the file or target is not hidden. An optional `type` adds an icon for `docs`, `issue`, `pr`, `design` or `spec`; anything else gets the generic link icon without being corrected or dropped. A hand-written file with more than 20 entries opens with the first 20, while an API write over the limit is rejected. Links are read-only in the UI for now, so editing one is a hand edit.
 
@@ -135,7 +138,7 @@ For a big or unfamiliar codebase, narrow the same prompt to one directory or one
 
 ## Agent context
 
-`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, tags, links, code and a summary taken from the first paragraph of its description. It writes only to stdout and does not start the server or open a browser.
+`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, optional importance, tags, links, code and a summary taken from the first paragraph of its description. It writes only to stdout and does not start the server or open a browser.
 
 Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of inferring it from the code:
 

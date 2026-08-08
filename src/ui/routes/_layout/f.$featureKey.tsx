@@ -19,6 +19,7 @@ import {
 import { FeatureHistory } from '@/ui/components/feature-history'
 import { Markdown } from '@/ui/components/markdown'
 import { Button } from '@/ui/components/ui/button'
+import { Badge } from '@/ui/components/ui/badge'
 import {
   Empty,
   EmptyContent,
@@ -326,6 +327,11 @@ export function FeaturePage() {
             ariaLabel="Status"
             onChange={(status) => update.mutate({ id: featureId, status })}
           />
+          {feature.importance && (
+            <Badge variant={feature.importance === 'high' ? 'destructive' : 'secondary'}>
+              {feature.importance === 'high' ? 'High importance' : 'Low importance'}
+            </Badge>
+          )}
         </div>
 
         <div className="mb-6 max-w-sm">

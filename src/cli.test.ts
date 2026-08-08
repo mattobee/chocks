@@ -62,7 +62,7 @@ describe('chocks context', () => {
     )
     await feature(
       'auth/passwords.chocks.md',
-      'title: Passwords\nstatus: planned\ntags: [security, accounts]\nsort: a1',
+      'title: Passwords\nstatus: planned\nimportance: high\ntags: [security, accounts]\nsort: a1',
       'Reset passwords.\n\nIncludes expiry.',
     )
     await feature(
@@ -95,6 +95,7 @@ describe('chocks context', () => {
           path: 'auth/passwords',
           title: 'Passwords',
           status: 'planned',
+          importance: 'high',
           tags: ['security', 'accounts'],
           links: [],
           code: [],

@@ -1,10 +1,11 @@
 import { buildTree, type TreeNode } from './tree'
-import type { Feature, FeatureCodeRef, FeatureLink } from './types'
+import type { Feature, FeatureCodeRef, FeatureLink, Importance } from './types'
 
 export interface ContextEntry {
   path: string
   title: string
   status: string
+  importance?: Importance
   tags: string[]
   links: FeatureLink[]
   code: FeatureCodeRef[]
@@ -18,6 +19,7 @@ export function formatContext(features: Feature[]): string {
         path: feature.id,
         title: feature.title,
         status: feature.status,
+        ...(feature.importance !== undefined ? { importance: feature.importance } : {}),
         tags: feature.tags,
         links: feature.links,
         code: feature.code,
