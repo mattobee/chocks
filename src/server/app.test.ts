@@ -221,6 +221,28 @@ describe('features API', () => {
     expect(((await response.json()) as Feature).title).toBe('OAuth')
   })
 
+  it('includes importance in feature responses', async () => {
+    await writeFile(
+      path.join(root, 'payments.chocks.md'),
+      '---\ntitle: Payments\nstatus: released\nimportance: high\nsort: a0\n---\n',
+      'utf8',
+    )
+
+    const response = await app.request('/api/features/payments')
+    expect(response.status).toBe(200)
+    expect((await response.json()) as Feature).toMatchObject({ importance: 'high' })
+  })
+
+  it('creates an explicit normal importance override', async () => {
+    const response = await app.request(
+      '/api/features',
+      json({ parent: '', title: 'Payments', importance: 'normal' }),
+    )
+
+    expect(response.status).toBe(201)
+    expect((await response.json()) as Feature).toMatchObject({ importance: 'normal' })
+  })
+
   it('updates fields', async () => {
     const feature = await createFeature('', 'Auth')
     const links = [{ label: 'Auth docs', url: 'https://docs.example.com/auth', type: 'docs' }]

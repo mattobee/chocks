@@ -1,6 +1,7 @@
 ---
 title: Version in the footer
 status: released
+importance: low
 sort: a8
 uid: f4a7b222d5
 ---

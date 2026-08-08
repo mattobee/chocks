@@ -1,6 +1,7 @@
 ---
 title: Feature tree
 status: released
+importance: high
 links:
   - label: Tree design issue
     url: https://github.com/mattobee/chocks/issues/30

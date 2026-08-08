@@ -51,7 +51,13 @@ function tree(): Feature[] {
       title: 'GitHub',
       sort: 'a0',
     }),
-    makeFeature({ id: 'billing', uid: 'aaaaaaaaa4', title: 'Billing', sort: 'a1' }),
+    makeFeature({
+      id: 'billing',
+      uid: 'aaaaaaaaa4',
+      title: 'Billing',
+      importance: 'high',
+      sort: 'a1',
+    }),
   ]
 }
 
@@ -264,6 +270,7 @@ describe('undoing a delete', () => {
     await applyEntry(deletedEntry(captured), [])
 
     expect(createFeature.mock.calls[0]?.[0].sort).toBe('a1')
+    expect(createFeature.mock.calls[0]?.[0].importance).toBe('high')
   })
 })
 

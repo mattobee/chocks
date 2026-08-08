@@ -57,12 +57,12 @@ describe('chocks context', () => {
   it('prints a nested tree with first description paragraphs in stable order', async () => {
     await feature(
       'auth/index.chocks.md',
-      'title: Authentication\nstatus: released\ntags: [security]\nsort: a0',
+      'title: Authentication\nstatus: released\nimportance: high\ntags: [security]\nsort: a0',
       'Sign in and out.',
     )
     await feature(
       'auth/passwords.chocks.md',
-      'title: Passwords\nstatus: planned\ntags: [security, accounts]\nsort: a1',
+      'title: Passwords\nstatus: planned\nimportance: normal\ntags: [security, accounts]\nsort: a1',
       'Reset passwords.\n\nIncludes expiry.',
     )
     await feature(
@@ -77,6 +77,7 @@ describe('chocks context', () => {
           path: 'auth',
           title: 'Authentication',
           status: 'released',
+          importance: 'high',
           tags: ['security'],
           links: [],
           code: [],
@@ -86,6 +87,7 @@ describe('chocks context', () => {
           path: 'auth/oauth',
           title: 'OAuth',
           status: 'pre-release',
+          importance: 'high',
           tags: ['api'],
           links: [],
           code: [],

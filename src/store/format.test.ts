@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { effectiveImportance } from '../lib/importance'
+import type { Feature } from '../lib/types'
 import { parseFeatureFile, serializeFeatureFile } from './format'
 
 describe('parseFeatureFile', () => {
@@ -43,6 +45,15 @@ describe('parseFeatureFile', () => {
     // The value may come from a branch with different config; rewriting it would destroy
     // the author's data. Rendering handles the unknown case instead.
     expect(parseFeatureFile('---\nstatus: shipped\n---\n', 'x').status).toBe('shipped')
+  })
+
+  it('reads declared importance and ignores other values', () => {
+    expect(parseFeatureFile('---\nimportance: high\n---\n', 'x').importance).toBe('high')
+    expect(parseFeatureFile('---\nimportance: normal\n---\n', 'x').importance).toBe('normal')
+    expect(parseFeatureFile('---\nimportance: low\n---\n', 'x').importance).toBe('low')
+    expect(parseFeatureFile('---\nimportance: " HIGH "\n---\n', 'x').importance).toBe('high')
+    expect(parseFeatureFile('---\nimportance: Low\n---\n', 'x').importance).toBe('low')
+    expect(parseFeatureFile('---\nimportance: medium\n---\n', 'x').importance).toBeUndefined()
   })
 
   it('drops a status that is not slug-shaped', () => {
@@ -165,6 +176,7 @@ describe('serializeFeatureFile', () => {
     const original = {
       title: 'OAuth providers',
       status: 'pre-release' as const,
+      importance: 'high' as const,
       uid: 'a1b2c3d4e5',
       tags: ['api'],
       links: [
@@ -193,6 +205,88 @@ describe('serializeFeatureFile', () => {
       description: '',
     })
     expect(output).not.toContain('tags')
+  })
+
+  it('omits undeclared importance and removes an unrecognised value when rewriting', () => {
+    const feature = {
+      title: 'X',
+      status: 'planned',
+      uid: '',
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+      description: '',
+    }
+    expect(serializeFeatureFile(feature)).not.toContain('importance')
+    expect(
+      serializeFeatureFile(
+        feature,
+        '---\ntitle: X\nstatus: planned\nimportance: medium\nsort: a0\n---\n',
+      ),
+    ).not.toContain('importance')
+  })
+
+  it('round-trips an explicit normal declaration', () => {
+    const feature = {
+      title: 'X',
+      status: 'planned',
+      importance: 'normal' as const,
+      uid: '',
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+      description: '',
+    }
+    expect(parseFeatureFile(serializeFeatureFile(feature), 'x').importance).toBe('normal')
+  })
+
+  it('never writes inherited importance into a descendant', () => {
+    const parent = {
+      id: 'parent',
+      uid: 'a000000001',
+      parent: '',
+      title: 'Parent',
+      description: '',
+      status: 'released',
+      importance: 'high' as const,
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+    } satisfies Feature
+    const child = {
+      id: 'parent/child',
+      uid: 'a000000002',
+      parent: 'parent',
+      title: 'Child',
+      description: '',
+      status: 'released',
+      tags: [],
+      links: [],
+      code: [],
+      sort: 'a0',
+    } satisfies Feature
+
+    expect(effectiveImportance(child, [parent]).value).toBe('high')
+    expect(serializeFeatureFile(child)).not.toContain('importance')
+  })
+
+  it('writes importance after status and before tags', () => {
+    const output = serializeFeatureFile({
+      title: 'X',
+      status: 'planned',
+      importance: 'low',
+      uid: '',
+      tags: ['a'],
+      links: [],
+      code: [],
+      sort: 'a0',
+      description: '',
+    })
+    expect(output.indexOf('status')).toBeLessThan(output.indexOf('importance'))
+    expect(output.indexOf('importance')).toBeLessThan(output.indexOf('tags'))
   })
 
   it('omits empty links to keep diffs clean', () => {
@@ -305,6 +399,7 @@ Old body.
       {
         title: 'New title',
         status: 'done',
+        importance: 'high',
         uid: 'a1b2c3d4e5',
         tags: [],
         links: [],
@@ -317,6 +412,8 @@ Old body.
 
     expect(output).toContain('# Feature owner\ntitle: New title # shown in the tree')
     expect(output).toContain('# Used by another tool\nowner:\n  name: Platform # keep this')
+    expect(output.indexOf('status: done')).toBeLessThan(output.indexOf('importance: high'))
+    expect(output.indexOf('importance: high')).toBeLessThan(output.indexOf('sort: a0'))
     expect(output).toContain('\nuid: a1b2c3d4e5\n')
     expect(output).toContain('\nNew body.\n')
   })

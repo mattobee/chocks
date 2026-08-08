@@ -4,6 +4,7 @@ import type {
   FeatureCodeRef,
   FeatureHistory,
   FeatureLink,
+  Importance,
   UncommittedFeatures,
   Workspace,
 } from '../../lib/types'
@@ -62,6 +63,7 @@ export const api = {
     parent: string
     title: string
     status?: string
+    importance?: Importance
     tags?: string[]
     links?: FeatureLink[]
     code?: FeatureCodeRef[]

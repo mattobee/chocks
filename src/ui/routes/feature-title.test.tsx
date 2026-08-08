@@ -12,13 +12,31 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UndoProvider } from '@/ui/hooks/use-undo'
 import { DEFAULT_STATUSES } from '@/lib/status'
+import type { Importance } from '@/lib/types'
 
 const updateFeature = vi.fn()
 /** Hoisted so the mock factory can read it, and so a test can vary it before rendering. */
-const fixture = vi.hoisted(() => ({ description: 'Plans and invoices.' }))
+const fixture = vi.hoisted(() => ({
+  description: 'Plans and invoices.',
+  importance: undefined as Importance | undefined,
+  ancestors: [] as { id: string; uid: string; title: string; importance?: Importance }[],
+}))
 
 vi.mock('@/ui/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/ui/lib/api')>()
+  const makeFeature = (
+    item: { id: string; uid: string; title: string; importance?: Importance },
+    parent = '',
+  ) => ({
+    ...item,
+    parent,
+    description: '',
+    status: 'idea',
+    tags: [],
+    links: [],
+    code: [],
+    sort: 'a0',
+  })
   const billing = {
     id: 'billing',
     uid: 'aaa0000005',
@@ -28,6 +46,9 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
       return fixture.description
     },
     status: 'idea',
+    get importance() {
+      return fixture.importance
+    },
     tags: [],
     links: [],
     code: [],
@@ -37,7 +58,13 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
     ...actual,
     api: {
       ...actual.api,
-      listFeatures: () => Promise.resolve([billing]),
+      listFeatures: () =>
+        Promise.resolve([
+          ...fixture.ancestors.map((ancestor, index) =>
+            makeFeature(ancestor, fixture.ancestors[index - 1]?.id ?? ''),
+          ),
+          { ...billing, parent: fixture.ancestors.at(-1)?.id ?? '' },
+        ]),
       updateFeature: (id: string, patch: unknown) => {
         updateFeature(id, patch)
         return Promise.resolve({ ...billing, ...(patch as object) })
@@ -58,6 +85,8 @@ vi.mock('@/ui/lib/api', async (importOriginal) => {
 afterEach(() => {
   updateFeature.mockReset()
   fixture.description = 'Plans and invoices.'
+  fixture.importance = undefined
+  fixture.ancestors = []
 })
 
 async function setup() {
@@ -176,6 +205,65 @@ describe('the feature title', () => {
     await user.keyboard('{Enter}')
 
     expect(updateFeature).not.toHaveBeenCalled()
+  })
+})
+
+describe('feature importance', () => {
+  it('shows declared importance without an editing control', async () => {
+    fixture.importance = 'high'
+    await setup()
+
+    expect(await screen.findByText('High importance')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /importance/i })).not.toBeInTheDocument()
+  })
+
+  it('shows nothing for normal importance', async () => {
+    await setup()
+
+    await screen.findByRole('heading', { level: 1, name: 'Billing' })
+    expect(screen.queryByText(/importance/i)).not.toBeInTheDocument()
+  })
+
+  it('shows inherited importance and its nearest source', async () => {
+    fixture.ancestors = [
+      { id: 'commerce', uid: 'aaa0000001', title: 'Commerce', importance: 'high' },
+      { id: 'commerce/payments', uid: 'aaa0000002', title: 'Payments' },
+    ]
+    await setup()
+
+    expect(await screen.findByText('High importance')).toBeInTheDocument()
+    expect(
+      screen
+        .getAllByRole('link', { name: 'Commerce' })
+        .some((link) => link.classList.contains('underline')),
+    ).toBe(true)
+  })
+
+  it('uses a nearer ancestor over a farther one', async () => {
+    fixture.ancestors = [
+      { id: 'commerce', uid: 'aaa0000001', title: 'Commerce', importance: 'high' },
+      { id: 'commerce/payments', uid: 'aaa0000002', title: 'Payments', importance: 'low' },
+    ]
+    await setup()
+
+    expect(await screen.findByText('Low importance')).toBeInTheDocument()
+    expect(
+      screen
+        .getAllByRole('link', { name: 'Payments' })
+        .some((link) => link.classList.contains('underline')),
+    ).toBe(true)
+  })
+
+  it('lets explicit normal stop inheritance', async () => {
+    fixture.importance = 'normal'
+    fixture.ancestors = [
+      { id: 'commerce', uid: 'aaa0000001', title: 'Commerce', importance: 'high' },
+    ]
+    await setup()
+
+    await screen.findByRole('heading', { level: 1, name: 'Billing' })
+    expect(screen.queryByText(/importance/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/inherited from/)).not.toBeInTheDocument()
   })
 })
 

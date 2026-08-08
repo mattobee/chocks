@@ -43,6 +43,7 @@ import {
   ancestorsOf,
   buildTree,
   collectExpandableIds,
+  EMPTY_FILTERS,
   filterTree,
   findByKey,
   isFiltering,
@@ -115,7 +116,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { expanded, setExpanded } = useExpanded()
   const statuses = workspace.data?.config.statuses ?? DEFAULT_STATUSES
 
-  const [filters, setFilters] = useState<TreeFilters>({ query: '', statuses: [], tags: [] })
+  const [filters, setFilters] = useState<TreeFilters>(EMPTY_FILTERS)
   const [dialogOpen, setDialogOpen] = useState(false)
   const tags = useMemo(() => allTags(featureList), [featureList])
 

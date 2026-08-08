@@ -9,7 +9,7 @@ import { normaliseCode } from '../lib/code'
 import { isValidUid } from '../lib/ids'
 import { normaliseLinks } from '../lib/links'
 import { isValidStatusId } from '../lib/status'
-import type { Feature, FeatureCodeRef, FeatureLink } from '../lib/types'
+import type { Feature, FeatureCodeRef, FeatureLink, Importance } from '../lib/types'
 
 /**
  * Pure conversions between a feature and the text of its markdown file.
@@ -19,7 +19,16 @@ import type { Feature, FeatureCodeRef, FeatureLink } from '../lib/types'
  */
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
-const FRONTMATTER_KEYS = ['title', 'status', 'tags', 'links', 'code', 'sort', 'uid'] as const
+const FRONTMATTER_KEYS = [
+  'title',
+  'status',
+  'importance',
+  'tags',
+  'links',
+  'code',
+  'sort',
+  'uid',
+] as const
 
 export class FrontmatterError extends Error {
   constructor() {
@@ -32,6 +41,7 @@ export interface ParsedFile {
   uid: string
   title: string
   status: string
+  importance?: Importance
   tags: string[]
   links: FeatureLink[]
   code: FeatureCodeRef[]
@@ -61,6 +71,7 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
       // Malformed YAML: keep the body, fall back to defaults for the metadata.
     }
   }
+  const importance = normaliseImportance(data.importance)
 
   return {
     // An invalid uid is treated as absent so it gets replaced rather than trusted.
@@ -69,12 +80,21 @@ export function parseFeatureFile(content: string, fallbackTitle: string): Parsed
     // Deliberately not checked against the configured list. A status from a branch with
     // different config, or a hand-typed one, must survive being read and written back.
     status: isValidStatusId(data.status) ? data.status : '',
+    ...(importance !== undefined ? { importance } : {}),
     tags: normaliseTags(data.tags),
     links: normaliseLinks(data.links),
     code: normaliseCode(data.code),
     sort: typeof data.sort === 'string' && data.sort !== '' ? data.sort : '',
     description: body.replace(/^\r?\n/, '').trimEnd(),
   }
+}
+
+function normaliseImportance(value: unknown): Importance | undefined {
+  if (typeof value !== 'string') return undefined
+  const importance = value.trim().toLowerCase()
+  return importance === 'high' || importance === 'normal' || importance === 'low'
+    ? importance
+    : undefined
 }
 
 function normaliseTags(value: unknown): string[] {
@@ -97,7 +117,7 @@ function normaliseTags(value: unknown): string[] {
 export function serializeFeatureFile(
   feature: Pick<
     Feature,
-    'title' | 'status' | 'tags' | 'links' | 'code' | 'sort' | 'description' | 'uid'
+    'title' | 'status' | 'importance' | 'tags' | 'links' | 'code' | 'sort' | 'description' | 'uid'
   >,
   originalContent?: string,
 ): string {
@@ -105,9 +125,10 @@ export function serializeFeatureFile(
     title: feature.title,
     status: feature.status,
   }
+  if (feature.importance !== undefined) frontmatter.importance = feature.importance
   // Omit empty tags entirely; `tags: []` is noise in a diff.
   if (feature.tags.length > 0) frontmatter.tags = feature.tags
-  // Same for links, and kept after tags so the header reads title, status, tags, links.
+  // Same for links, and kept after tags so the header reads ...importance, tags, links.
   if (feature.links.length > 0) {
     frontmatter.links = feature.links.map(({ label, url, type }) => ({
       ...(label ? { label } : {}),
@@ -153,7 +174,7 @@ export function serializeFeatureFile(
         document.contents.items.splice(index, 0, pair)
       }
     }
-    for (const key of ['tags', 'links', 'code', 'uid']) {
+    for (const key of ['importance', 'tags', 'links', 'code', 'uid']) {
       if (!(key in frontmatter)) document.delete(key)
     }
     yaml = document.toString({ lineWidth: 0 }).trimEnd()
