@@ -106,12 +106,12 @@ export function FeatureHistory({
                   <TimelineTitle className="flex items-center gap-2">
                     <span>
                       {event.tag.position === 'first'
-                        ? 'First shipped in'
+                        ? 'First included in'
                         : event.tag.position === 'current'
-                          ? 'Current version shipped in'
+                          ? 'Current version included in'
                           : event.tag.position === 'unreleased'
-                            ? 'Not yet in a release'
-                            : 'Shipped in'}
+                            ? 'Not yet included in a release'
+                            : 'Included in'}
                     </span>
                     {'name' in event.tag && (
                       <Badge variant="secondary" size="sm">

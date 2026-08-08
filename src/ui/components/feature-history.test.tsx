@@ -133,8 +133,8 @@ describe('commits', () => {
       ],
       uncommitted: false,
     })
-    expect(await screen.findByText('Current version shipped in')).toBeInTheDocument()
-    expect(screen.getByText('First shipped in')).toBeInTheDocument()
+    expect(await screen.findByText('Current version included in')).toBeInTheDocument()
+    expect(screen.getByText('First included in')).toBeInTheDocument()
   })
 
   it('shows when the latest change is unreleased', async () => {
@@ -143,7 +143,7 @@ describe('commits', () => {
       tags: [{ date: commit.date, position: 'unreleased' }],
       uncommitted: false,
     })
-    expect(await screen.findByText('Not yet in a release')).toBeInTheDocument()
+    expect(await screen.findByText('Not yet included in a release')).toBeInTheDocument()
   })
 
   it('puts creation before release state when their timestamps match', async () => {
@@ -153,7 +153,7 @@ describe('commits', () => {
       uncommitted: false,
     })
     const items = await screen.findAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('Not yet in a release')
+    expect(items[0]).toHaveTextContent('Not yet included in a release')
     expect(items[1]).toHaveTextContent('First added to Chocks')
   })
 
