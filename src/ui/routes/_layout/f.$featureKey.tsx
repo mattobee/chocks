@@ -43,6 +43,7 @@ import { featuresQuery, uncommittedQuery, workspaceQuery } from '@/ui/lib/querie
 import { DEFAULT_STATUSES, MODIFIED_COLOR } from '@/lib/status'
 import { featureKey } from '@/lib/ids'
 import { describeError } from '@/lib/errors'
+import { effectiveImportance } from '@/lib/importance'
 import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from '@/lib/types'
 
 // The URL carries `<slug>~<uid>`: the slug so a pasted link is readable, the uid so it
@@ -199,6 +200,8 @@ export function FeaturePage() {
   }
 
   const ancestors = ancestorsOf(featureList, featureId)
+  const importance = effectiveImportance(feature, ancestors)
+  const inheritedImportance = importance.source !== null && importance.source.id !== feature.id
   const children = childrenOf(featureList, featureId)
   const tags = allTags(featureList)
 
@@ -326,14 +329,26 @@ export function FeaturePage() {
             ariaLabel="Status"
             onChange={(status) => update.mutate({ id: featureId, status })}
           />
-          {feature.importance && (
+          {importance.value !== 'normal' && (
             <span className="inline-flex items-center gap-1 text-sm font-medium">
-              {feature.importance === 'high' ? (
+              {importance.value === 'high' ? (
                 <ChevronsUp className="size-4" aria-hidden="true" />
               ) : (
                 <ChevronsDown className="size-4" aria-hidden="true" />
               )}
-              {feature.importance === 'high' ? 'High importance' : 'Low importance'}
+              {importance.value === 'high' ? 'High importance' : 'Low importance'}
+              {inheritedImportance && importance.source && (
+                <span className="font-normal">
+                  {' inherited from '}
+                  <Link
+                    to="/f/$featureKey"
+                    params={{ featureKey: featureKey(importance.source) }}
+                    className="underline underline-offset-4"
+                  >
+                    {importance.source.title}
+                  </Link>
+                </span>
+              )}
             </span>
           )}
         </div>

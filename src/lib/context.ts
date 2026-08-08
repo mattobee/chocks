@@ -6,7 +6,7 @@ export interface ContextEntry {
   path: string
   title: string
   status: string
-  importance: Importance
+  importance?: Importance
   tags: string[]
   links: FeatureLink[]
   code: FeatureCodeRef[]
@@ -22,7 +22,7 @@ export function formatContext(features: Feature[]): string {
           path: feature.id,
           title: feature.title,
           status: feature.status,
-          importance,
+          ...(importance !== 'normal' ? { importance } : {}),
           tags: feature.tags,
           links: feature.links,
           code: feature.code,
