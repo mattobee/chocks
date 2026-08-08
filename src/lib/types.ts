@@ -104,6 +104,10 @@ export interface Commit {
 
 export interface HistoryCommit extends Commit {
   event: 'created' | 'updated'
+  statusChange?: {
+    from?: string
+    to?: string
+  }
   /** Web URL when the repository remote can be mapped to a forge. */
   url?: string
 }

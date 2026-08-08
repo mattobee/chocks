@@ -3,6 +3,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { FEATURE_SUFFIX } from '../lib/ids'
 import type { Commit, FeatureHistory, HistoryUnavailable } from '../lib/types'
+import { parseFeatureFile } from '../store/format'
 
 const run = promisify(execFile)
 
@@ -87,7 +88,8 @@ export async function featureHistory(
         'log',
         '--follow',
         `--max-count=${limit}`,
-        `--format=%H${FIELD}%h${FIELD}%an${FIELD}%cI${FIELD}%s${RECORD}`,
+        `--format=${RECORD}%H${FIELD}%h${FIELD}%an${FIELD}%cI${FIELD}%s`,
+        '--name-only',
         '--',
         relative,
       ]),
@@ -98,18 +100,39 @@ export async function featureHistory(
 
     const commitData = stdout
       .split(RECORD)
-      .map((record) => record.replace(/^\n/, '').trim())
+      .map((record) => record.trim())
       .filter((record) => record !== '')
       .map((record) => {
-        const [sha = '', shortSha = '', author = '', date = '', subject = ''] = record.split(FIELD)
-        return { sha, shortSha, author, date, subject }
+        const [metadata = '', ...paths] = record.split('\n')
+        const [sha = '', shortSha = '', author = '', date = '', subject = ''] =
+          metadata.split(FIELD)
+        return { sha, shortSha, author, date, subject, path: paths.at(-1)?.trim() ?? relative }
       })
 
-    const commits = commitData.map((commit) => ({
-      ...commit,
-      event: commit.sha === createdIn ? ('created' as const) : ('updated' as const),
-      ...(commitBaseUrl && { url: `${commitBaseUrl}${commit.sha}` }),
-    }))
+    const statuses = await Promise.all(
+      commitData.map((commit) => statusAtCommit(repoRoot, commit.sha, commit.path)),
+    )
+    const commits = commitData.map(({ path: _path, ...commit }, index) => {
+      const status = statuses[index]
+      const previous = statuses[index + 1] ?? null
+      const statusChange =
+        status !== null && commit.sha === createdIn
+          ? status === ''
+            ? undefined
+            : { to: status }
+          : status !== null && previous !== null && status !== previous
+            ? {
+                ...(previous !== '' ? { from: previous } : {}),
+                ...(status !== '' ? { to: status } : {}),
+              }
+            : undefined
+      return {
+        ...commit,
+        event: commit.sha === createdIn ? ('created' as const) : ('updated' as const),
+        ...(statusChange && { statusChange }),
+        ...(commitBaseUrl && { url: `${commitBaseUrl}${commit.sha}` }),
+      }
+    })
 
     const latest = commitData[0]
     const tags = latest
@@ -123,6 +146,18 @@ export async function featureHistory(
       return { commits: [], tags: [], uncommitted: await hasUncommittedChanges(repoRoot, relative) }
     }
     return { commits: [], tags: [], uncommitted: false, unavailable: classify(error) }
+  }
+}
+
+async function statusAtCommit(
+  repoRoot: string,
+  sha: string,
+  relative: string,
+): Promise<string | null> {
+  try {
+    return parseFeatureFile(await git(repoRoot, ['show', `${sha}:${relative}`]), '').status
+  } catch {
+    return null
   }
 }
 

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FeatureHistory } from './feature-history'
 import type { FeatureHistory as History } from '@/lib/types'
+import { DEFAULT_STATUSES } from '@/lib/status'
 
 const featureHistory = vi.fn<() => Promise<History>>()
 
@@ -18,7 +19,7 @@ function setup(history: Omit<History, 'tags'> & Partial<Pick<History, 'tags'>>) 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <FeatureHistory featureId="auth" />
+      <FeatureHistory featureId="auth" statuses={DEFAULT_STATUSES} />
     </QueryClientProvider>,
   )
 }
@@ -70,9 +71,41 @@ describe('commits', () => {
 
   it('marks the commit that created the feature', async () => {
     setup({ commits: [{ ...commit, event: 'created' }], uncommitted: false })
-    const row = (await screen.findByText('feat: add auth')).closest('li')
-    expect(row).toHaveTextContent('Created')
+    const row = (await screen.findByText('First added to Chocks')).closest('li')
+    expect(row).not.toHaveTextContent('feat: add auth')
     expect(row?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('shows the initial status on the creation commit', async () => {
+    setup({
+      commits: [{ ...commit, event: 'created', statusChange: { to: 'planned' } }],
+      uncommitted: false,
+    })
+    const row = (await screen.findByText('First added to Chocks')).closest('li')
+    expect(row).toHaveTextContent('as')
+    expect(row).toHaveTextContent('Planned')
+    expect(row).not.toHaveTextContent('Initial status')
+  })
+
+  it('shows a status transition in text and badges', async () => {
+    setup({
+      commits: [{ ...commit, statusChange: { from: 'planned', to: 'released' } }],
+      uncommitted: false,
+    })
+    const row = (await screen.findByText('Status changed from')).closest('li')
+    expect(row).toHaveTextContent('Status changed from')
+    expect(row).toHaveTextContent('Planned')
+    expect(row).toHaveTextContent('to')
+    expect(row).toHaveTextContent('Released')
+  })
+
+  it('keeps an unknown status visible', async () => {
+    setup({
+      commits: [{ ...commit, statusChange: { from: 'experimental', to: 'released' } }],
+      uncommitted: false,
+    })
+    const unknown = await screen.findByText('Experimental')
+    expect(unknown.querySelector('svg')).toHaveClass('fill-muted-foreground')
   })
 
   it('places a git tag between commits according to its date', async () => {
@@ -121,7 +154,7 @@ describe('commits', () => {
     })
     const items = await screen.findAllByRole('listitem')
     expect(items[0]).toHaveTextContent('Not yet in a release')
-    expect(items[1]).toHaveTextContent('Created')
+    expect(items[1]).toHaveTextContent('First added to Chocks')
   })
 
   it('gives the date a machine readable value as well as a relative one', async () => {
