@@ -16,6 +16,7 @@ import { relativeDate } from '@/ui/lib/dates'
 import { MODIFIED_COLOR } from '@/lib/status'
 import type { StatusDefinition } from '@/lib/status'
 import { StatusBadge } from '@/ui/components/status-badge'
+import type { HistoryChange } from '@/lib/types'
 
 /**
  * A feature's history, read straight from git.
@@ -102,37 +103,19 @@ export function FeatureHistory({
                   <span className="truncate">
                     {commit.event === 'created' ? 'First added to Chocks' : commit.subject}
                   </span>
-                  {commit.event === 'created' && commit.statusChange?.to && (
+                  {commit.event === 'created' && initialStatus(commit.changes) && (
                     <>
                       <span>as</span>
-                      <StatusBadge statuses={statuses} status={commit.statusChange.to} />
+                      <StatusBadge statuses={statuses} status={initialStatus(commit.changes)!} />
                     </>
                   )}
                 </TimelineTitle>
               </TimelineHeader>
-              <TimelineContent className="flex flex-col gap-1.5">
-                {commit.statusChange && commit.event !== 'created' && (
-                  <div className="text-foreground flex flex-wrap items-center gap-1.5">
-                    {commit.statusChange.from && commit.statusChange.to ? (
-                      <>
-                        <span>Status changed from</span>
-                        <StatusBadge statuses={statuses} status={commit.statusChange.from} />
-                        <span>to</span>
-                        <StatusBadge statuses={statuses} status={commit.statusChange.to} />
-                      </>
-                    ) : commit.statusChange.to ? (
-                      <>
-                        <span>Status set to</span>
-                        <StatusBadge statuses={statuses} status={commit.statusChange.to} />
-                      </>
-                    ) : (
-                      <>
-                        <span>Status removed from</span>
-                        <StatusBadge statuses={statuses} status={commit.statusChange.from!} />
-                      </>
-                    )}
-                  </div>
-                )}
+              <TimelineContent className="mt-1.5 flex flex-col gap-1.5">
+                {commit.event !== 'created' &&
+                  commit.changes?.map((change) => (
+                    <FeatureChange key={change.field} change={change} statuses={statuses} />
+                  ))}
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span>{commit.author}</span>
                   <span aria-hidden="true">·</span>
@@ -167,4 +150,72 @@ export function FeatureHistory({
       )}
     </div>
   )
+}
+
+function initialStatus(changes: HistoryChange[] | undefined): string | undefined {
+  const change = changes?.find(
+    (candidate): candidate is HistoryChange & { field: 'status'; to?: string } =>
+      candidate.field === 'status',
+  )
+  return change?.to
+}
+
+function FeatureChange({
+  change,
+  statuses,
+}: {
+  change: HistoryChange
+  statuses: StatusDefinition[]
+}) {
+  if (change.field === 'status') {
+    return (
+      <div className="text-foreground flex flex-wrap items-center gap-1.5">
+        {change.from && change.to ? (
+          <>
+            <span>Status changed from</span>
+            <StatusBadge statuses={statuses} status={change.from} />
+            <span>to</span>
+            <StatusBadge statuses={statuses} status={change.to} />
+          </>
+        ) : change.to ? (
+          <>
+            <span>Status set to</span>
+            <StatusBadge statuses={statuses} status={change.to} />
+          </>
+        ) : (
+          <>
+            <span>Status removed from</span>
+            <StatusBadge statuses={statuses} status={change.from!} />
+          </>
+        )}
+      </div>
+    )
+  }
+
+  if (change.field === 'title') {
+    return (
+      <div className="text-foreground truncate">
+        Title changed from “{change.from}” to “{change.to}”
+      </div>
+    )
+  }
+
+  if (change.field === 'importance') {
+    const text =
+      change.from && change.to
+        ? `Importance changed from ${change.from} to ${change.to}`
+        : change.to
+          ? `Importance set to ${change.to}`
+          : `Importance removed from ${change.from}`
+    return <div className="text-foreground">{text}</div>
+  }
+
+  const labels = {
+    description: 'Description changed',
+    tags: 'Tags changed',
+    links: 'Links changed',
+    code: 'Code references changed',
+    sort: 'Tree order changed',
+  } as const
+  return <div className="text-foreground">{labels[change.field]}</div>
 }

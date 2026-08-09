@@ -106,13 +106,18 @@ export interface HistoryCommit extends Commit {
   event: 'created' | 'updated'
   /** Earliest containing tag by Git creatordate: tagger date, or commit date if lightweight. */
   release?: string
-  statusChange?: {
-    from?: string
-    to?: string
-  }
+  changes?: HistoryChange[]
   /** Web URL when the repository remote can be mapped to a forge. */
   url?: string
 }
+
+export type HistoryChange =
+  | {
+      field: 'title' | 'status' | 'importance'
+      from?: string
+      to?: string
+    }
+  | { field: 'description' | 'tags' | 'links' | 'code' | 'sort' }
 
 export type HistoryUnavailable = 'not-a-repo' | 'git-missing' | 'failed'
 

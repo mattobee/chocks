@@ -78,7 +78,7 @@ describe('commits', () => {
 
   it('shows the initial status on the creation commit', async () => {
     setup({
-      commits: [{ ...commit, event: 'created', statusChange: { to: 'planned' } }],
+      commits: [{ ...commit, event: 'created', changes: [{ field: 'status', to: 'planned' }] }],
       uncommitted: false,
     })
     const row = (await screen.findByText('First added to Chocks')).closest('li')
@@ -89,7 +89,12 @@ describe('commits', () => {
 
   it('shows a status transition in text and badges', async () => {
     setup({
-      commits: [{ ...commit, statusChange: { from: 'planned', to: 'released' } }],
+      commits: [
+        {
+          ...commit,
+          changes: [{ field: 'status', from: 'planned', to: 'released' }],
+        },
+      ],
       uncommitted: false,
     })
     const row = (await screen.findByText('Status changed from')).closest('li')
@@ -101,11 +106,46 @@ describe('commits', () => {
 
   it('keeps an unknown status visible', async () => {
     setup({
-      commits: [{ ...commit, statusChange: { from: 'experimental', to: 'released' } }],
+      commits: [
+        {
+          ...commit,
+          changes: [{ field: 'status', from: 'experimental', to: 'released' }],
+        },
+      ],
       uncommitted: false,
     })
     const unknown = await screen.findByText('Experimental')
     expect(unknown.querySelector('svg')).toHaveClass('fill-muted-foreground')
+  })
+
+  it('shows other feature details changed by a commit', async () => {
+    setup({
+      commits: [
+        {
+          ...commit,
+          changes: [
+            { field: 'title', from: 'Auth', to: 'Authentication' },
+            { field: 'importance', from: 'low', to: 'high' },
+            { field: 'description' },
+            { field: 'tags' },
+            { field: 'links' },
+            { field: 'code' },
+            { field: 'sort' },
+          ],
+        },
+      ],
+      uncommitted: false,
+    })
+
+    const row = (await screen.findByText('Title changed from “Auth” to “Authentication”')).closest(
+      'li',
+    )
+    expect(row).toHaveTextContent('Importance changed from low to high')
+    expect(row).toHaveTextContent('Description changed')
+    expect(row).toHaveTextContent('Tags changed')
+    expect(row).toHaveTextContent('Links changed')
+    expect(row).toHaveTextContent('Code references changed')
+    expect(row).toHaveTextContent('Tree order changed')
   })
 
   it('shows release inclusion in the commit meta line', async () => {
