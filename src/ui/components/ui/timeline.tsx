@@ -56,7 +56,7 @@ function TimelineTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="timeline-title"
-      className={cn('text-sm leading-6 font-medium', className)}
+      className={cn('text-base leading-6 font-medium', className)}
       {...props}
     />
   )
@@ -66,7 +66,7 @@ function TimelineContent({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="timeline-content"
-      className={cn('text-muted-foreground col-start-2 row-start-2 min-w-0 pb-5 text-xs', className)}
+      className={cn('text-muted-foreground col-start-2 row-start-2 min-w-0 pb-5 text-sm', className)}
       {...props}
     />
   )
