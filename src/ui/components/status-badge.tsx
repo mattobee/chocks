@@ -11,7 +11,7 @@ export function StatusBadge({
 }) {
   const definition = statusOrUnknown(statuses, status)
   return (
-    <Badge variant="outline" className="h-5 px-2 text-sm [&>svg]:size-3!">
+    <Badge variant="outline" size="md">
       <StatusDot statuses={statuses} status={status} />
       {definition.label}
     </Badge>
