@@ -87,7 +87,7 @@ export async function featureHistory(
       git(repoRoot, [
         'log',
         '--follow',
-        `--max-count=${limit}`,
+        `--max-count=${limit + 1}`,
         `--format=${RECORD}%H${FIELD}%h${FIELD}%an${FIELD}%cI${FIELD}%s`,
         '--name-only',
         '--',
@@ -124,7 +124,7 @@ export async function featureHistory(
         }
       }),
     )
-    const commits = commitData.map(({ path: _path, ...commit }, index) => {
+    const commits = commitData.slice(0, limit).map(({ path: _path, ...commit }, index) => {
       const snapshot = commitMetadata[index]?.snapshot ?? null
       const previous = commitMetadata[index + 1]?.snapshot ?? null
       const release = commitMetadata[index]?.release
@@ -165,7 +165,8 @@ async function featureAtCommit(
 ): Promise<ParsedFile | null> {
   try {
     const filename = path.posix.basename(relative).replace(FEATURE_SUFFIX, '')
-    return parseFeatureFile(await git(repoRoot, ['show', `${sha}:${relative}`]), humanise(filename))
+    const slug = filename === 'index' ? path.posix.basename(path.posix.dirname(relative)) : filename
+    return parseFeatureFile(await git(repoRoot, ['show', `${sha}:${relative}`]), humanise(slug))
   } catch (error) {
     if (/path .* does not exist in|exists on disk, but not in/i.test(messageOf(error))) return null
     throw error

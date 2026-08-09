@@ -307,6 +307,37 @@ describe('featureHistory', () => {
     ).toBe(true)
   })
 
+  it('compares the oldest returned commit with the next commit', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
+    await commit('feat: add auth')
+    await writeFile(file, '---\ntitle: Authentication\n---\n', 'utf8')
+    await commit('docs: rename auth')
+    await writeFile(file, '---\ntitle: Authentication\nstatus: planned\n---\n', 'utf8')
+    await commit('feat: plan auth')
+
+    const history = await featureHistory(repo, file, 2)
+    expect(history.commits).toHaveLength(2)
+    expect(history.commits[1]?.changes).toEqual([
+      { field: 'title', from: 'Auth', to: 'Authentication' },
+    ])
+  })
+
+  it('uses a parent directory as the fallback title for index files', async () => {
+    const directory = path.join(repo, '.chocks', 'oauth-providers')
+    await mkdir(directory)
+    const file = path.join(directory, 'index.chocks.md')
+    await writeFile(file, '---\nstatus: planned\n---\n', 'utf8')
+    await commit('feat: add oauth providers')
+    await writeFile(file, '---\ntitle: OAuth providers\nstatus: released\n---\n', 'utf8')
+    await commit('feat: ship oauth providers')
+
+    expect((await featureHistory(repo, file)).commits[0]?.changes).toEqual([
+      { field: 'title', from: 'Oauth providers', to: 'OAuth providers' },
+      { field: 'status', from: 'planned', to: 'released' },
+    ])
+  })
+
   it('preserves a subject containing the field separators', async () => {
     const file = path.join(repo, '.chocks', 'auth.chocks.md')
     await writeFile(file, '---\ntitle: Auth\n---\n', 'utf8')
