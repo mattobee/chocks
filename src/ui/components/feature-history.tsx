@@ -194,7 +194,7 @@ function FeatureChange({
 
   if (change.field === 'title') {
     return (
-      <div className="text-foreground">
+      <div className="text-foreground truncate">
         Title changed from “{change.from}” to “{change.to}”
       </div>
     )
