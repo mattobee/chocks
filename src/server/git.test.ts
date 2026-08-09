@@ -44,9 +44,9 @@ describe('featureHistory', () => {
       'feat: add auth',
     ])
     expect(history.commits.map((entry) => entry.event)).toEqual(['updated', 'created'])
-    expect(history.commits.map((entry) => entry.statusChange)).toEqual([
-      { from: 'planned', to: 'released' },
-      { to: 'planned' },
+    expect(history.commits.map((entry) => entry.changes)).toEqual([
+      [{ field: 'status', from: 'planned', to: 'released' }],
+      [{ field: 'status', to: 'planned' }],
     ])
     expect(history.commits.every((entry) => entry.release === undefined)).toBe(true)
     expect(history.commits[0]?.author).toBe('Tester')
@@ -162,10 +162,13 @@ describe('featureHistory', () => {
     await commit('feat: ship auth')
 
     const history = await featureHistory(repo, after)
-    expect(history.commits.map((entry) => entry.statusChange)).toEqual([
-      { from: 'planned', to: 'released' },
+    expect(history.commits.map((entry) => entry.changes)).toEqual([
+      [
+        { field: 'title', from: 'Auth', to: 'Authentication' },
+        { field: 'status', from: 'planned', to: 'released' },
+      ],
       undefined,
-      { to: 'planned' },
+      [{ field: 'status', to: 'planned' }],
     ])
   })
 
@@ -179,9 +182,9 @@ describe('featureHistory', () => {
     await commit('chore: clear auth status')
 
     const history = await featureHistory(repo, file)
-    expect(history.commits.map((entry) => entry.statusChange)).toEqual([
-      { from: 'planned' },
-      { to: 'planned' },
+    expect(history.commits.map((entry) => entry.changes)).toEqual([
+      [{ field: 'status', from: 'planned' }],
+      [{ field: 'status', to: 'planned' }],
       undefined,
     ])
   })
@@ -193,10 +196,9 @@ describe('featureHistory', () => {
     await writeFile(file, '---\ntitle: Auth\nstatus: released\n---\n', 'utf8')
     await commit('feat: ship auth')
 
-    expect((await featureHistory(repo, file)).commits[0]?.statusChange).toEqual({
-      from: 'experimental',
-      to: 'released',
-    })
+    expect((await featureHistory(repo, file)).commits[0]?.changes).toEqual([
+      { field: 'status', from: 'experimental', to: 'released' },
+    ])
   })
 
   it('omits an annotation when a commit does not change status', async () => {
@@ -207,8 +209,36 @@ describe('featureHistory', () => {
     await commit('docs: clarify auth')
 
     const history = await featureHistory(repo, file)
-    expect(history.commits[0]?.statusChange).toBeUndefined()
-    expect(history.commits[1]?.statusChange).toEqual({ to: 'planned' })
+    expect(history.commits[0]?.changes).toEqual([
+      { field: 'title', from: 'Auth', to: 'Authentication' },
+    ])
+    expect(history.commits[1]?.changes).toEqual([{ field: 'status', to: 'planned' }])
+  })
+
+  it('identifies changes to every persisted feature field', async () => {
+    const file = path.join(repo, '.chocks', 'auth.chocks.md')
+    await writeFile(
+      file,
+      '---\ntitle: Auth\nimportance: low\ntags: [api]\nlinks:\n  - url: https://old.example.com\ncode:\n  - path: src/old.ts\nsort: a0\n---\n\nOld description.\n',
+      'utf8',
+    )
+    await commit('feat: add auth')
+    await writeFile(
+      file,
+      '---\ntitle: Authentication\nimportance: high\ntags: [security]\nlinks:\n  - url: https://new.example.com\ncode:\n  - path: src/new.ts\nsort: z0\n---\n\nNew description.\n',
+      'utf8',
+    )
+    await commit('docs: update auth details')
+
+    expect((await featureHistory(repo, file)).commits[0]?.changes).toEqual([
+      { field: 'title', from: 'Auth', to: 'Authentication' },
+      { field: 'importance', from: 'low', to: 'high' },
+      { field: 'description' },
+      { field: 'tags' },
+      { field: 'links' },
+      { field: 'code' },
+      { field: 'sort' },
+    ])
   })
 
   it('includes a tag created by a later release commit', async () => {

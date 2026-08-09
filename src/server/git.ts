@@ -1,9 +1,9 @@
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { FEATURE_SUFFIX } from '../lib/ids'
-import type { Commit, FeatureHistory, HistoryUnavailable } from '../lib/types'
-import { parseFeatureFile } from '../store/format'
+import { FEATURE_SUFFIX, humanise } from '../lib/ids'
+import type { Commit, FeatureHistory, HistoryChange, HistoryUnavailable } from '../lib/types'
+import { parseFeatureFile, type ParsedFile } from '../store/format'
 
 const run = promisify(execFile)
 
@@ -109,41 +109,40 @@ export async function featureHistory(
         return { sha, shortSha, author, date, subject, path: paths.at(-1)?.trim() ?? relative }
       })
 
-    const commitMetadata: { status: string | null; release: string | null }[] = []
+    const commitMetadata: { snapshot: ParsedFile | null; release: string | null }[] = []
     let nextCommit = 0
     await Promise.all(
       Array.from({ length: Math.min(4, commitData.length) }, async () => {
         while (nextCommit < commitData.length) {
           const index = nextCommit++
           const commit = commitData[index]!
-          const [status, release] = await Promise.all([
-            statusAtCommit(repoRoot, commit.sha, commit.path),
+          const [snapshot, release] = await Promise.all([
+            featureAtCommit(repoRoot, commit.sha, commit.path),
             firstTagContaining(repoRoot, commit.sha),
           ])
-          commitMetadata[index] = { status, release }
+          commitMetadata[index] = { snapshot, release }
         }
       }),
     )
     const commits = commitData.map(({ path: _path, ...commit }, index) => {
-      const status = commitMetadata[index]?.status ?? null
-      const previous = commitMetadata[index + 1]?.status ?? null
+      const snapshot = commitMetadata[index]?.snapshot ?? null
+      const previous = commitMetadata[index + 1]?.snapshot ?? null
       const release = commitMetadata[index]?.release
-      const statusChange =
-        status !== null && commit.sha === createdIn
-          ? status === ''
-            ? undefined
-            : { to: status }
-          : status !== null && previous !== null && status !== previous
-            ? {
-                ...(previous !== '' ? { from: previous } : {}),
-                ...(status !== '' ? { to: status } : {}),
-              }
-            : undefined
+      const changes =
+        snapshot === null
+          ? []
+          : commit.sha === createdIn
+            ? snapshot.status === ''
+              ? []
+              : [{ field: 'status' as const, to: snapshot.status }]
+            : previous === null
+              ? []
+              : featureChanges(previous, snapshot)
       return {
         ...commit,
         event: commit.sha === createdIn ? ('created' as const) : ('updated' as const),
         ...(release && { release }),
-        ...(statusChange && { statusChange }),
+        ...(changes.length > 0 && { changes }),
         ...(commitBaseUrl && { url: `${commitBaseUrl}${commit.sha}` }),
       }
     })
@@ -159,17 +158,34 @@ export async function featureHistory(
   }
 }
 
-async function statusAtCommit(
+async function featureAtCommit(
   repoRoot: string,
   sha: string,
   relative: string,
-): Promise<string | null> {
+): Promise<ParsedFile | null> {
   try {
-    return parseFeatureFile(await git(repoRoot, ['show', `${sha}:${relative}`]), '').status
+    const filename = path.posix.basename(relative).replace(FEATURE_SUFFIX, '')
+    return parseFeatureFile(await git(repoRoot, ['show', `${sha}:${relative}`]), humanise(filename))
   } catch (error) {
     if (/path .* does not exist in|exists on disk, but not in/i.test(messageOf(error))) return null
     throw error
   }
+}
+
+function featureChanges(previous: ParsedFile, current: ParsedFile): HistoryChange[] {
+  const changes: HistoryChange[] = []
+  for (const field of ['title', 'status', 'importance'] as const) {
+    if (previous[field] === current[field]) continue
+    changes.push({
+      field,
+      ...(previous[field] ? { from: previous[field] } : {}),
+      ...(current[field] ? { to: current[field] } : {}),
+    })
+  }
+  for (const field of ['description', 'tags', 'links', 'code', 'sort'] as const) {
+    if (JSON.stringify(previous[field]) !== JSON.stringify(current[field])) changes.push({ field })
+  }
+  return changes
 }
 
 async function firstTagContaining(repoRoot: string, sha: string): Promise<string | null> {
