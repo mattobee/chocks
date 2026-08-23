@@ -67,7 +67,18 @@ jobs:
           awk -v heading="## $version" '
             $0 == heading { found = 1; next }
             found && /^## / { exit }
-            found { print }
+            found {
+              if ($0 ~ /^  / && line ~ /^- /) {
+                continuation = $0
+                sub(/^  /, "", continuation)
+                line = line " " continuation
+                next
+              }
+              if (have_line) print line
+              line = $0
+              have_line = 1
+            }
+            END { if (have_line) print line }
           ' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
             echo "CHANGELOG.md has no '## $version' section" >&2
