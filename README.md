@@ -140,7 +140,7 @@ For a big or unfamiliar codebase, narrow the same prompt to one directory or one
 
 The tree doubles as a map for coding agents. Each feature says what it is, what state it's in and which files implement it, so an agent can go straight to the right part of the repo instead of exploring to find it.
 
-That covers what an agent can't get from the code. Docs that explain how the code works go stale, and they repeat what an agent can read for itself. A feature tree holds the rest: what the product is made of, what's deprecated or dropped, and what your team calls each part.
+Docs that explain how the code works go stale, and they repeat what an agent can read for itself. A feature tree holds what the code can't say: what the product is made of, what's deprecated or dropped, and what your team calls each part.
 
 It's a map of the product, not of the architecture. Shared code that no single feature owns, like auth middleware or build tooling, won't appear unless a feature claims it.
 
