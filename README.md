@@ -18,7 +18,7 @@ The feature tree belongs next to the code that implements it.
 - **The plan changes in the same pull request as the code.** A reviewer sees the feature move to `released` in the same diff that makes it true.
 - **Branches work.** Sketch a feature tree on a spike branch and throw it away with the branch.
 - **No account, no server, no sync.** Access control is having the repo checked out.
-- **Agents can read it.** `chocks context` prints the whole tree in one go, so a coding agent starts a session knowing what the product does and what state each part is in, rather than inferring it from the code.
+- **Agents can read it.** `chocks context` prints the whole tree in one go, so a coding agent starts a session knowing what the product does, what state each part is in and where each part lives in the code, rather than working it out by exploring.
 - **Nothing to lose.** Worst case, `.chocks` is a folder of markdown you can read in any editor.
 
 A tree lives in one repo. For a product spread across several, you can keep a tree in each, or put the whole product in one dedicated chocks repo. One tree gives you one map of the product. The cost is that the plan no longer changes in the same pull request as the code, which is what stops a tree going stale. I'd keep a tree per repo, but that's a preference rather than a rule.
@@ -138,6 +138,12 @@ For a big or unfamiliar codebase, narrow the same prompt to one directory or one
 
 ## Agent context
 
+The tree doubles as a map for coding agents. Each feature says what it is, what state it's in and which files implement it, so an agent can go straight to the right part of the repo instead of exploring to find it.
+
+Docs that explain how the code works go stale, and they repeat what an agent can read for itself. A feature tree holds what the code can't say: what the product is made of, what's deprecated or dropped, and what your team calls each part.
+
+It's a map of the product, not of the architecture. Shared code that no single feature owns, like auth middleware or build tooling, won't appear unless a feature claims it.
+
 `chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, tags, links, code and a summary taken from the first paragraph of its description. Effective high or low importance is included when present; normal is omitted. It writes only to stdout and does not start the server or open a browser.
 
 Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of inferring it from the code:
@@ -146,7 +152,8 @@ Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan ins
 ## Product context
 
 At the start of a session, run `npx chocks context` and use its feature tree as context
-for your product's scope, status and terminology.
+for your product's scope, status and terminology. Use each feature's `code` paths to find
+where it's implemented before searching the repo.
 ```
 
 Pass `--dir` when the feature directory is somewhere other than `.chocks`:

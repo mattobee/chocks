@@ -28,6 +28,12 @@ real browser against a throwaway git repo.
 - `src/ui` — React, Tailwind, shadcn/ui on Base UI.
 - `e2e` — Playwright specs.
 
+## Product context
+
+At the start of a session, run `pnpm tsx src/cli.ts context` and use its feature tree as
+context for the product's scope, status and terminology. Use each feature's `code` paths
+to find where it's implemented before searching the repo.
+
 ## Code style
 
 Enforced by `pnpm check` (oxlint + prettier + tsc), not by hand. Don't reformat code to
