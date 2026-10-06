@@ -15,23 +15,23 @@ pnpm chocks
 
 The feature tree belongs next to the code that implements it.
 
-- **The plan changes in the same pull request as the code.** A reviewer sees the feature move to `released` in the same diff that makes it true.
+- **It changes with the code.** A feature moves to `released` in the same pull request that ships it.
 - **Branches work.** Sketch a feature tree on a spike branch and throw it away with the branch.
 - **No account, no server, no sync.** Access control is having the repo checked out.
-- **Agents can read it.** `chocks context` prints the whole tree in one go, so a coding agent starts a session knowing what the product does, what state each part is in and where each part lives in the code, rather than working it out by exploring.
+- **Agents can read it.** `chocks context` prints the whole tree in one go, so a coding agent starts a session knowing what the product does, what state each part is in and where each part lives in the code.
 - **Nothing to lose.** Worst case, `.chocks` is a folder of markdown you can read in any editor.
 
-A tree lives in one repo. For a product spread across several, you can keep a tree in each, or put the whole product in one dedicated chocks repo. One tree gives you one map of the product. The cost is that the plan no longer changes in the same pull request as the code, which is what stops a tree going stale. I'd keep a tree per repo, but that's a preference rather than a rule.
+A tree lives in one repo. For a product spread across several, I'd keep a tree in each so it still changes with the code. That's a preference, not a rule.
 
 ## Statuses
 
 The defaults are a lifecycle, not a workflow: Planned, Pre-release, Released, Deprecated, plus Dropped for something considered and rejected.
 
-Each one says where a feature is, not how much effort is going into it. That's deliberate. "In progress" collides with every other state, since a released feature is usually still being worked on. Activity is a separate axis, so use a tag for that instead.
+Each one says where a feature is, not how much effort is going into it. "In progress" collides with every other state, since a released feature is usually still being worked on. Activity is a separate axis, so use a tag for that.
 
-It's also the difference between chocks and an issue tracker in markdown. A ticket describes work that finishes and goes away. A status describes the product, which is still there afterwards.
+Planned is for something you've decided to build and want visible in the tree, not for a backlog of maybes. If you're reordering the tree to work out what to do next, that belongs in your issue tracker.
 
-Override them in `.chocks/config.yaml`:
+Override the defaults in `.chocks/config.yaml`:
 
 ```yaml
 statuses:
@@ -43,13 +43,25 @@ statuses:
     color: emerald
 ```
 
-### What doesn't belong in the tree
+## Agent context
 
-I moved this repo's own ideas and not-yet-started features out of chocks and into GitHub issues. What stayed is everything that's a statement about what shipped: released, pre-release, deprecated and dropped.
+The tree doubles as a map for coding agents. Each feature says what it is, what state it's in and which files implement it, so an agent can go straight to the right part of the repo instead of exploring to find it.
 
-That's the boundary I'd suggest. Planned is for something you've decided to build and want visible in the tree, not for a backlog of maybes. If you're reordering the tree to work out what to do next, that belongs in your issue tracker instead.
+Docs that explain how the code works go stale, and they repeat what an agent can read for itself. A feature tree holds what the code can't say: what the product is made of, what's deprecated or dropped, and what your team calls each part.
 
-It's a judgement call rather than anything the tool enforces, so ignore it if your team works differently.
+It's a map of the product, not of the architecture. Shared code that no single feature owns, like auth middleware or build tooling, won't appear unless a feature claims it.
+
+`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, tags, links, code and a summary taken from the first paragraph of its description.
+
+Add this to `AGENTS.md` or `CLAUDE.md`:
+
+```markdown
+## Product context
+
+At the start of a session, run `npx chocks context` and use its feature tree as context
+for your product's scope, status and terminology. Use each feature's `code` paths to find
+where it's implemented before searching the repo.
+```
 
 ## Layout
 
@@ -65,8 +77,6 @@ A leaf feature is `<slug>.chocks.md`. A feature with children is a `<slug>/` dir
       instant-alerts.chocks.md
 ```
 
-Every feature directory must contain `index.chocks.md`. A directory without one is invalid, as is `index.chocks.md` directly under `.chocks/`. Don't create both `<slug>.chocks.md` and `<slug>/` for the same feature. Invalid entries are skipped, the rest of the tree still loads, and the problem is printed in the terminal. Adding a first child automatically changes a leaf into directory form. Removing its last child leaves directory form in place.
-
 ```markdown
 ---
 title: Daily digest email
@@ -78,12 +88,8 @@ links:
   - label: Daily digest user docs
     url: https://docs.example.com/daily-digest
     type: docs
-  - label: Original proposal
-    url: docs/notifications.md
 code:
   - path: src/notifications/daily-digest.ts
-  - path: src/notifications/daily-digest.test.ts
-    kind: test
   - path: daily-digest-send-time
     kind: flag
 ---
@@ -91,76 +97,21 @@ code:
 Sends once a day with everything you missed. Still behind a flag while the send time is settled.
 ```
 
-The markdown body is the description, and everything is editable by hand: the running UI picks up changes immediately. Features saved through chocks allow titles up to 300 characters, 100 tags of up to 50 characters each, and descriptions up to 10,000 characters. A feature's id is its path, so there's no `parent` field that can disagree with the filesystem, and moving or retitling a feature is just a rename. Links keep working after a move, because they resolve on a `uid` generated once per feature rather than on the path.
+The markdown body is the description. A feature's id is its path, so moving or retitling a feature is a rename. Edit a file by hand and the running UI picks up the change.
 
-`importance` is `high`, `normal` or `low`. A feature without the key inherits the nearest ancestor's importance, falling back to normal at the root. An explicit value wins, including `normal`, which stops inheritance. Unrecognised values are treated as absent. The feature page shows the effective importance and names its source when inherited. Importance is read-only in the UI, so change it by editing the file.
+- `importance` is `high`, `normal` or `low`, inherited from the nearest ancestor when absent.
+- `links` are places to click: docs, issues, pull requests, designs and specs.
+- `code` claims where the feature is implemented, as repo-relative globs. The feature page shows how many files each one matches and whether they've changed since the feature file did.
 
-`links` is an ordered list of up to 20 objects. Each needs a `url`. HTTP, HTTPS and protocol-relative URLs are clickable; repo-relative paths and other schemes render as plain text because chocks does not serve files from the repo. An optional `label` replaces a clickable URL as the link text. For non-clickable entries, the label appears alongside the raw value in muted monospace text so the file or target is not hidden. An optional `type` adds an icon for `docs`, `issue`, `pr`, `design` or `spec`; anything else gets the generic link icon without being corrected or dropped. A hand-written file with more than 20 entries opens with the first 20, while an API write over the limit is rejected. Links are read-only in the UI for now, so editing one is a hand edit.
-
-`code` is a separate, similarly shaped list claiming where a feature is implemented. Where a link is somewhere to click, a `code` entry is a repo-relative glob, and each needs a `path`. An optional `kind` is one of `code`, `test` or `flag` and defaults to `code`, with an unrecognised `kind` falling back to the default rather than being dropped. It's capped at 20 entries the same way `links` is.
-
-The feature page shows how many files each `path` currently matches, read fresh from disk on that page rather than folded into the tree scan, so opening the tree stays fast. Zero matches is shown as a broken claim rather than a neutral fact, since a glob that finds nothing and one that finds plenty would otherwise look identical. A `flag` entry has no path to check, so it's skipped rather than reported as zero.
-
-Next to each entry is when its matched files last changed, against when the feature file itself last changed. That comparison is the drift signal: a `code` entry that moved on after the plan did is worth a second look. Both dates come straight from git, and degrade the same way the feature page's own History section does: no repo, no git, or nothing committed yet all mean there's nothing to show rather than an error. Beyond that, `code` is read-only in the UI: nothing yet fails a build over a stale entry, which is what a future `chocks audit` would do.
+The [file format reference](docs/file-format.md) covers every field, its limits and how invalid files are handled.
 
 ## Seeding a tree
 
-A new install has no tree. The fastest way to fill one in is pointing a coding agent at the repo and asking it to read the code for you.
+A new install has no tree. The fastest way to fill one in is to give a coding agent the [seeding prompt](docs/seed-prompt.md) and let it read the code for you.
 
-```
-Read this codebase and populate .chocks with a feature tree.
+Review the result before committing it. An agent can only see what's in the repo, so it will get statuses wrong for anything still in your head and miss features that were deliberately dropped.
 
-A feature is a capability someone outside the team would recognise, not a file, a function or an internal system. Split down to individual actions where each has its own lifecycle: creating, editing and deleting a thing usually ship at different times, so `create-invoice`, `edit-invoice` and `delete-invoice` belong under `invoices/` as three features, not one. Stop splitting once you'd be naming something no user or PM would ever refer to separately, or that only exists because of how the code happens to be organised.
-
-A leaf feature is <slug>.chocks.md. A feature with children is a <slug>/ directory with its own content in <slug>/index.chocks.md and its children alongside that index. Never create both <slug>.chocks.md and <slug>/ for one feature, and never create a feature directory without index.chocks.md.
-
-For each feature, write a title, a status, tags for cross-cutting concerns such as "api" or "billing", and a couple of sentences describing it in the markdown body. The status must be one of planned, pre-release, released, deprecated or dropped, unless .chocks/config.yaml defines a different set, in which case use those ids exactly. Use released for something that looks fully built, and pre-release for something still missing pieces. Add a `links` list when the feature has a URL you can point to, but only then: a made-up or guessed URL is worse than none. Add a `code` list of the paths that implement it, since you're already reading them to write the description.
-
-Only add features you can see in the code. Leave out anything referenced but not built, like a TODO or an empty route. You can't tell from the code whether it's planned or abandoned, and a wrong guess is harder to notice later than a gap.
-
-Skip uid and sort. chocks fills those in the first time it runs. For example:
-
----
-title: Daily digest email
-status: pre-release
-tags:
-  - notifications
----
-
-Sends once a day with everything you missed. Still behind a flag while the send time is settled.
-```
-
-Review the result before committing it. An agent can only see what's in the repo, so it will get statuses wrong for anything still in your head and miss features that were deliberately dropped. That's a starting point to edit, not a finished tree.
-
-If chocks is running while the agent works, it backfills uids for the new files as they land, with or without a tab open. If it isn't, it does the same the next time it starts.
-
-For a big or unfamiliar codebase, narrow the same prompt to one directory or one PR's diff at a time rather than asking for the whole tree in one pass.
-
-## Agent context
-
-The tree doubles as a map for coding agents. Each feature says what it is, what state it's in and which files implement it, so an agent can go straight to the right part of the repo instead of exploring to find it.
-
-Docs that explain how the code works go stale, and they repeat what an agent can read for itself. A feature tree holds what the code can't say: what the product is made of, what's deprecated or dropped, and what your team calls each part.
-
-It's a map of the product, not of the architecture. Shared code that no single feature owns, like auth middleware or build tooling, won't appear unless a feature claims it.
-
-`chocks context` prints the whole feature tree as JSON Lines, in tree order. Each line has one feature's path, title, status, tags, links, code and a summary taken from the first paragraph of its description. Effective high or low importance is included when present; normal is omitted. It writes only to stdout and does not start the server or open a browser.
-
-Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan instead of inferring it from the code:
-
-```markdown
-## Product context
-
-At the start of a session, run `npx chocks context` and use its feature tree as context
-for your product's scope, status and terminology. Use each feature's `code` paths to find
-where it's implemented before searching the repo.
-```
-
-Pass `--dir` when the feature directory is somewhere other than `.chocks`:
-
-```sh
-npx chocks context --dir docs/features
-```
+For a big or unfamiliar codebase, narrow the prompt to one directory or one pull request's diff at a time.
 
 ## Usage
 
@@ -177,13 +128,17 @@ npx chocks context [options]
   -h, --help          Show this message
 ```
 
-It walks up from the working directory to find the repo root, creating `.chocks` on first run. Before binding, it migrates the old sibling file and directory layout to index files and renames remaining `*.feature.md` files to `*.chocks.md`. Clean git repositories use `git mv`; other trees use filesystem moves. Symbolic links inside the feature directory are refused so reads and writes cannot escape it. Binds to loopback unless you pass `--host`. Requests for any other host are rejected, and browser changes must come from the same origin.
+It walks up from the working directory to find the repo root and creates `.chocks` on first run.
+
+It binds to loopback unless you pass `--host`.
 
 ## What the UI does
 
-A persistent sidebar shows the whole tree next to whatever feature you're viewing: expand/collapse, drag to reorder and reparent, a search box, and a filter menu for status and tags that prune the tree while keeping ancestors visible. A button in the sidebar starts a new top-level feature. Every feature also has its own page at `/f/<slug>~<uid>`, showing its breadcrumb trail, description, status, sub-features and git history. The history marks when the feature file was created, identifies which feature details changed in each commit, shows each commit's release inclusion, and links commits to recognised repository hosts. Rename, status and description are all edited there, not on the row in the tree. Chocks has no revision model of its own on purpose: the repo already records who changed what and why, usually in the same commit as the code the feature describes.
+A sidebar shows the whole tree next to the feature you're viewing, with search and filters for status and tags. Each feature has its own page showing its description, status, sub-features, links, code and git history.
 
-`Cmd+Z` undoes the last change, `Cmd+Shift+Z` redoes it, and both work several steps back. That is a safety net for the edit you regret a second later, not a history: it survives a refresh but goes when you close the tab, and nothing extra is written to `.chocks`. Undoing a delete puts the whole subtree back with the same uids, so links to it keep working. If a feature has changed on disk since, the undo is refused rather than applied over the top.
+You can create, rename, reorder and delete features in the UI. `Cmd+Z` undoes the last change and `Cmd+Shift+Z` redoes it, until you close the tab.
+
+History comes from git. Chocks doesn't keep its own, because the repo already records who changed what and why.
 
 ## Development
 
@@ -196,6 +151,4 @@ pnpm test:e2e     # builds, then runs Playwright
 pnpm build        # dist/ui (Vite) + dist/cli.mjs (tsdown)
 ```
 
-`dev` has no backend of its own: it just proxies `/api` to :2457, so `dev:server` needs to be running too, in a second terminal.
-
-`src/lib` is pure and shared by both sides: tree building, filtering, drag projection and sort keys. `src/store` owns the file format and the filesystem. `src/server` is Hono. `src/ui` is React, Tailwind and shadcn/ui on Base UI.
+`dev` proxies `/api` to :2457, so run `dev:server` alongside it. [`AGENTS.md`](AGENTS.md) covers the code layout and conventions.
