@@ -18,7 +18,7 @@ A leaf feature is `<slug>.chocks.md`. A feature with children is a `<slug>/` dir
 
 Every feature directory must contain `index.chocks.md`. A directory without one is invalid, as is `index.chocks.md` directly under `.chocks/`. Don't create both `<slug>.chocks.md` and `<slug>/` for the same feature.
 
-Invalid entries are skipped, the rest of the tree still loads, and the problem is printed in the terminal.
+Invalid entries are skipped, the rest of the tree still loads, and the problem is printed in the terminal. Symbolic links inside the feature directory are refused.
 
 Adding a first child changes a leaf into directory form. Removing its last child leaves directory form in place.
 

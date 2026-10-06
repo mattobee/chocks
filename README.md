@@ -21,7 +21,7 @@ The feature tree belongs next to the code that implements it.
 - **Agents can read it.** `chocks context` prints the whole tree in one go, so a coding agent starts a session knowing what the product does, what state each part is in and where each part lives in the code.
 - **Nothing to lose.** Worst case, `.chocks` is a folder of markdown you can read in any editor.
 
-A tree lives in one repo. For a product spread across several, I'd keep a tree in each, so the plan still changes in the same pull request as the code.
+A tree lives in one repo. For a product spread across several, I'd keep a tree in each so it still changes with the code. That's a preference, not a rule.
 
 ## Statuses
 
@@ -130,7 +130,7 @@ npx chocks context [options]
 
 It walks up from the working directory to find the repo root and creates `.chocks` on first run.
 
-It binds to loopback unless you pass `--host`. Requests for any other host are rejected, browser changes must come from the same origin, and symbolic links inside the feature directory are refused.
+It binds to loopback unless you pass `--host`.
 
 ## What the UI does
 
@@ -138,7 +138,7 @@ A sidebar shows the whole tree next to the feature you're viewing, with search a
 
 You can create, rename, reorder and delete features in the UI. `Cmd+Z` undoes the last change and `Cmd+Shift+Z` redoes it, until you close the tab.
 
-History comes from git. Chocks has no revision model of its own, because the repo already records who changed what and why.
+History comes from git. Chocks doesn't keep its own, because the repo already records who changed what and why.
 
 ## Development
 
