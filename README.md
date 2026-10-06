@@ -152,7 +152,8 @@ Add this to `AGENTS.md` or `CLAUDE.md` so coding agents use the product plan ins
 ## Product context
 
 At the start of a session, run `npx chocks context` and use its feature tree as context
-for your product's scope, status and terminology.
+for your product's scope, status and terminology. Use each feature's `code` paths to find
+where it's implemented before searching the repo.
 ```
 
 Pass `--dir` when the feature directory is somewhere other than `.chocks`:
