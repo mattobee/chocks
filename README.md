@@ -15,7 +15,7 @@ pnpm chocks
 
 The feature tree belongs next to the code that implements it.
 
-- **The plan changes in the same pull request as the code.** A reviewer sees the feature move to `released` in the same diff that makes it true.
+- **It changes with the code.** A feature moves to `released` in the same pull request that ships it.
 - **Branches work.** Sketch a feature tree on a spike branch and throw it away with the branch.
 - **No account, no server, no sync.** Access control is having the repo checked out.
 - **Agents can read it.** `chocks context` prints the whole tree in one go, so a coding agent starts a session knowing what the product does, what state each part is in and where each part lives in the code.
