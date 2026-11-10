@@ -955,6 +955,22 @@ describe('backfill', () => {
     expect(text).not.toContain('uid: "')
   })
 
+  it('leaves values it does not understand as they were written', async () => {
+    const links = Array.from(
+      { length: 22 },
+      (_, index) => `  - url: https://example.com/${index}\n    note: keep ${index}`,
+    ).join('\n')
+    const frontmatter = `title: 2024\nstatus: In Progress\ntags:\n  - api\n  - 2024\nlinks:\n${links}`
+    await given('legacy.chocks.md', frontmatter)
+
+    expect(await backfill(root)).toMatchObject({ uids: 1, sortKeys: 1 })
+
+    const text = await readFile(path.join(root, 'legacy.chocks.md'), 'utf8')
+    expect(text).toMatch(
+      new RegExp(`^---\n${frontmatter}\nsort: \\S+\nuid: [a-f][0-9a-f]{9}\n---\n$`),
+    )
+  })
+
   it('leaves the rest of the file alone', async () => {
     await given(
       'legacy.chocks.md',

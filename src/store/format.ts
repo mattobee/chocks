@@ -113,6 +113,9 @@ function normaliseTags(value: unknown): string[] {
  * Key order is fixed rather than alphabetical so that editing a feature produces a minimal
  * diff — this content is reviewed in pull requests. `uid` goes last: it never changes, so
  * it stays out of the way of the fields people actually read.
+ *
+ * `fallbackTitle` is the one `originalContent` was read with, so a file with no usable
+ * title of its own is not mistaken for one whose title changed.
  */
 export function serializeFeatureFile(
   feature: Pick<
@@ -120,6 +123,7 @@ export function serializeFeatureFile(
     'title' | 'status' | 'importance' | 'tags' | 'links' | 'code' | 'sort' | 'description' | 'uid'
   >,
   originalContent?: string,
+  fallbackTitle = '',
 ): string {
   const frontmatter: Record<string, unknown> = {
     title: feature.title,
@@ -155,9 +159,17 @@ export function serializeFeatureFile(
       throw new FrontmatterError()
     }
 
+    // The parser turns anything it does not understand into a default. Writing that back
+    // would destroy the original, so a key the caller did not change is left as it is.
+    const original: Record<string, unknown> = {
+      ...parseFeatureFile(originalContent!, fallbackTitle),
+    }
+    const fields: Record<string, unknown> = feature
+    const unchanged = (key: string) => JSON.stringify(fields[key]) === JSON.stringify(original[key])
+
     for (const [key, value] of Object.entries(frontmatter)) {
       if (document.has(key)) {
-        document.set(key, value)
+        if (!unchanged(key)) document.set(key, value)
         continue
       }
 
@@ -175,7 +187,7 @@ export function serializeFeatureFile(
       }
     }
     for (const key of ['importance', 'tags', 'links', 'code', 'uid']) {
-      if (!(key in frontmatter)) document.delete(key)
+      if (!(key in frontmatter) && !unchanged(key)) document.delete(key)
     }
     yaml = document.toString({ lineWidth: 0 }).trimEnd()
   } else {
