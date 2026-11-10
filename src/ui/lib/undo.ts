@@ -39,6 +39,9 @@ export interface Snapshot {
   parentUid: string | null
 }
 
+const EDITABLE_FIELDS = ['title', 'status', 'tags', 'links', 'code', 'description'] as const
+export type EditableField = (typeof EDITABLE_FIELDS)[number]
+
 /**
  * What happened, named once and carried both ways.
  *
@@ -47,7 +50,11 @@ export interface Snapshot {
  */
 export type UndoEntry =
   | { kind: 'created'; label: string; uid: string }
-  | { kind: 'updated'; label: string; before: Snapshot }
+  /**
+   * `fields` is what the edit changed, and all an undo writes back: anything else may have
+   * been edited on disk since. Entries stored by an older build have none.
+   */
+  | { kind: 'updated'; label: string; before: Snapshot; fields?: EditableField[] }
   | { kind: 'moved'; label: string; before: Snapshot }
   | { kind: 'deleted'; label: string; subtree: Snapshot[] }
   /** The other side of a delete: it is back, and can be taken away again. */
@@ -123,10 +130,15 @@ export const createdEntry = (created: Feature): UndoEntry => ({
   uid: created.uid,
 })
 
-export const updatedEntry = (before: Feature, features: Feature[]): UndoEntry => ({
+export const updatedEntry = (
+  before: Feature,
+  features: Feature[],
+  fields?: EditableField[],
+): UndoEntry => ({
   kind: 'updated',
   label: `edited ${before.title}`,
   before: snapshot(features, before),
+  ...(fields ? { fields } : {}),
 })
 
 export const movedEntry = (before: Feature, features: Feature[]): UndoEntry => ({
@@ -164,15 +176,12 @@ export async function applyEntry(entry: UndoEntry, features: Feature[]): Promise
 
     case 'updated': {
       const current = byUid(features, entry.before.uid)
-      const redo = updatedEntry(current, features)
-      await api.updateFeature(current.id, {
-        title: entry.before.title,
-        status: entry.before.status,
-        tags: entry.before.tags,
-        links: entry.before.links,
-        code: entry.before.code,
-        description: entry.before.description,
-      })
+      const redo = updatedEntry(current, features, entry.fields)
+      const fields = entry.fields ?? EDITABLE_FIELDS
+      await api.updateFeature(
+        current.id,
+        Object.fromEntries(fields.map((field) => [field, entry.before[field]])),
+      )
       return { ...redo, label: entry.label }
     }
 

@@ -240,6 +240,31 @@ test.describe('undo', () => {
       .toBe(true)
   })
 
+  test('leaves alone what the undone edit did not change', async ({ page, workspace }) => {
+    await page.goto(`${workspace.url}/f/billing~aaa0000005`)
+
+    await page.getByRole('button', { name: 'Status' }).click()
+    await page.getByRole('menuitemradio', { name: 'Released' }).click()
+    await expect.poll(() => undoStackSize(page), { timeout: 10_000 }).toBe(1)
+
+    await workspace.write(
+      'billing',
+      '---\ntitle: Billing\nstatus: released\nsort: a1\nuid: aaa0000005\n---\n\nEdited on disk.\n',
+    )
+    await expect(page.getByRole('main').getByText('Edited on disk.')).toBeVisible({
+      timeout: 10_000,
+    })
+
+    await page.keyboard.press('ControlOrMeta+z')
+
+    await expect
+      .poll(async () => (await workspace.read('billing')).includes('status: planned'), {
+        timeout: 5000,
+      })
+      .toBe(true)
+    expect(await workspace.read('billing')).toContain('Edited on disk.')
+  })
+
   test('restores a deleted subtree with its uids intact', async ({ page, workspace }) => {
     await page.goto(`${workspace.url}/f/oauth~aaa0000002`)
 
