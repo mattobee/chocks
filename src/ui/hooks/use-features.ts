@@ -6,7 +6,14 @@ import { queryKeys } from '../lib/queries'
 import { childrenOf, indexAfter } from '../../lib/tree'
 import type { Feature } from '../../lib/types'
 import { useUndo } from '../lib/undo-context'
-import { createdEntry, deletedEntry, movedEntry, subtreeSnapshot, updatedEntry } from '../lib/undo'
+import {
+  createdEntry,
+  deletedEntry,
+  movedEntry,
+  subtreeSnapshot,
+  updatedEntry,
+  type EditableField,
+} from '../lib/undo'
 
 function message(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback
@@ -73,11 +80,11 @@ export function useFeatureMutations(features: Feature[]) {
     onSuccess: (_updated, variables, context) => {
       // A bare sort change is a reorder the move mutation already recorded, so recording
       // it again would need two undos to put one drag back.
-      const changesMoreThanOrder = Object.keys(variables).some(
+      const edited = Object.keys(variables).filter(
         (key) => key !== 'id' && key !== 'sort',
-      )
-      if (context.previous && changesMoreThanOrder) {
-        record(updatedEntry(context.previous, context.features))
+      ) as EditableField[]
+      if (context.previous && edited.length > 0) {
+        record(updatedEntry(context.previous, context.features, edited))
       }
       return invalidate()
     },

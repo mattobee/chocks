@@ -83,7 +83,32 @@ describe('undoing a create', () => {
 })
 
 describe('undoing an edit', () => {
-  it('writes the old fields back', async () => {
+  it('writes back only the fields the edit changed', async () => {
+    const features = tree()
+    const before = find(features, 'auth/oauth')
+    const entry = updatedEntry(before, features, ['status'])
+
+    // The description was rewritten in an editor after the status change.
+    const after = features.map((f) =>
+      f.uid === before.uid ? { ...f, status: 'released', description: 'Rewritten.' } : f,
+    )
+    await applyEntry(entry, after)
+
+    expect(updateFeature).toHaveBeenCalledWith('auth/oauth', { status: before.status })
+  })
+
+  it('redoes only the same fields', async () => {
+    const features = tree()
+    const before = find(features, 'auth/oauth')
+    const after = features.map((f) => (f.uid === before.uid ? { ...f, status: 'released' } : f))
+
+    const redo = await applyEntry(updatedEntry(before, features, ['status']), after)
+    await applyEntry(redo, features)
+
+    expect(updateFeature).toHaveBeenLastCalledWith('auth/oauth', { status: 'released' })
+  })
+
+  it('writes every field back for an entry stored before fields were recorded', async () => {
     const features = tree()
     const before = find(features, 'auth/oauth')
     const entry = updatedEntry(before, features)
