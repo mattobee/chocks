@@ -626,13 +626,11 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
   const sortKeys = plannedSortKeys(features)
 
   const counts: Backfilled = { uids: 0, sortKeys: 0, failures: [] }
-  // A file copied by hand carries its source's uid, and URLs and undo resolve on it.
-  const seenUids = new Set<string>()
+  const copies = await copiedIds(root, features)
   for (const scanned of features) {
     try {
       const { feature, content } = await readSnapshot(root, scanned.id)
-      const uid = feature.uid && !seenUids.has(feature.uid) ? feature.uid : generateUid()
-      seenUids.add(uid)
+      const uid = feature.uid && !copies.has(scanned.id) ? feature.uid : generateUid()
       const sort =
         feature.sort === scanned.sort ? (sortKeys.get(feature.id) ?? feature.sort) : feature.sort
       if (uid === feature.uid && sort === feature.sort) continue
@@ -653,6 +651,39 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
     }
   }
   return counts
+}
+
+/**
+ * Ids of features whose uid belongs to an older file.
+ *
+ * A file copied by hand carries its source's uid, and URLs and undo resolve on it. The
+ * oldest file keeps the uid so existing links stay with the source, whichever of the two
+ * the scan reaches first.
+ */
+async function copiedIds(root: string, features: Feature[]): Promise<Set<string>> {
+  const holders = new Map<string, string[]>()
+  for (const { id, uid } of features) {
+    if (uid !== '') holders.set(uid, [...(holders.get(uid) ?? []), id])
+  }
+
+  const copies = new Set<string>()
+  for (const ids of holders.values()) {
+    if (ids.length < 2) continue
+    const born = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          return (await lstat(await featureFileFor(root, id))).birthtimeMs
+        } catch {
+          return Number.POSITIVE_INFINITY
+        }
+      }),
+    )
+    const source = born.indexOf(Math.min(...born))
+    ids.forEach((id, index) => {
+      if (index !== source) copies.add(id)
+    })
+  }
+  return copies
 }
 
 /**
