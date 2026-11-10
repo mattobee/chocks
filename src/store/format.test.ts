@@ -207,7 +207,7 @@ describe('serializeFeatureFile', () => {
     expect(output).not.toContain('tags')
   })
 
-  it('omits undeclared importance and removes an unrecognised value when rewriting', () => {
+  it('omits undeclared importance and keeps an unrecognised value when rewriting', () => {
     const feature = {
       title: 'X',
       status: 'planned',
@@ -224,7 +224,7 @@ describe('serializeFeatureFile', () => {
         feature,
         '---\ntitle: X\nstatus: planned\nimportance: medium\nsort: a0\n---\n',
       ),
-    ).not.toContain('importance')
+    ).toContain('importance: medium')
   })
 
   it('round-trips an explicit normal declaration', () => {
@@ -487,6 +487,35 @@ Old body.
 
     expect(output).not.toContain('tags')
     expect(output).not.toContain('# these tags matter')
+  })
+
+  describe('values the parser does not understand', () => {
+    const links = Array.from(
+      { length: 22 },
+      (_, index) => `  - url: https://example.com/${index}\n    note: keep ${index}`,
+    ).join('\n')
+    const original = `---\ntitle: 2024\nstatus: In Progress\nimportance: urgent\ntags:\n  - api\n  - 2024\nlinks:\n${links}\nsort: a0\nuid: not-a-uid\n---\n`
+    // What the store reads this file as, for a file named `billing.chocks.md`.
+    const parsed = { ...parseFeatureFile(original, 'Billing'), description: 'New body.' }
+
+    it('leaves them as written when the caller did not change them', () => {
+      expect(serializeFeatureFile(parsed, original, 'Billing')).toBe(
+        original.replace(/\n$/, '\n\nNew body.\n'),
+      )
+    })
+
+    it('still writes a key the caller changed', () => {
+      const output = serializeFeatureFile(
+        { ...parsed, title: 'Invoices', status: 'done', tags: [], uid: 'a1b2c3d4e5' },
+        original,
+        'Billing',
+      )
+
+      expect(output).toContain('title: Invoices\nstatus: done\nimportance: urgent\nlinks:')
+      expect(output).not.toContain('tags')
+      expect(output).toContain('note: keep 21')
+      expect(output).toContain('\nuid: a1b2c3d4e5\n')
+    })
   })
 
   it('preserves markdown containing a horizontal rule', () => {

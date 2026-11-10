@@ -511,7 +511,7 @@ async function updateUnlocked(root: string, id: string, patch: UpdateInput): Pro
 
   let serialized: string
   try {
-    serialized = serializeFeatureFile(next, content)
+    serialized = serializeFeatureFile(next, content, humanise(slugOf(id)))
   } catch (error) {
     if (error instanceof FrontmatterError) throw malformedFrontmatter(id)
     throw error
@@ -636,7 +636,7 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
 
       await writeAtomic(
         await featureFileFor(root, feature.id),
-        serializeFeatureFile({ ...feature, uid, sort }, content),
+        serializeFeatureFile({ ...feature, uid, sort }, content, humanise(slugOf(feature.id))),
         content,
       )
       if (uid !== feature.uid) counts.uids++
