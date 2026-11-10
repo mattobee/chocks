@@ -947,6 +947,27 @@ describe('backfill', () => {
     expect((await scan(root))[0]?.uid).toBe(uid)
   })
 
+  it('gives a copied file its own uid', async () => {
+    await given('alpha.chocks.md', 'title: Alpha\nuid: a123456789\nsort: a0')
+    await given('beta.chocks.md', 'title: Beta\nuid: a123456789\nsort: a1')
+
+    expect((await backfill(root)).uids).toBe(1)
+    const uids = (await scan(root)).map((feature) => feature.uid)
+    expect(uids).toContain('a123456789')
+    expect(new Set(uids).size).toBe(2)
+  })
+
+  it('leaves the uid with the older file, whatever the copy is called', async () => {
+    await given('beta.chocks.md', 'title: Beta\nuid: a123456789\nsort: a1')
+    // Creation times can be only a few milliseconds fine on some filesystems.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await given('alpha.chocks.md', 'title: Alpha\nuid: a123456789\nsort: a0')
+
+    await backfill(root)
+    expect((await read(root, 'beta')).uid).toBe('a123456789')
+    expect((await read(root, 'alpha')).uid).not.toBe('a123456789')
+  })
+
   it('writes the uid unquoted, so it stays a string', async () => {
     await given('legacy.chocks.md', 'title: Legacy\nsort: a0')
     await backfill(root)
