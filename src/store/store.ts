@@ -626,10 +626,13 @@ async function backfillUnlocked(root: string): Promise<Backfilled> {
   const sortKeys = plannedSortKeys(features)
 
   const counts: Backfilled = { uids: 0, sortKeys: 0, failures: [] }
+  // A file copied by hand carries its source's uid, and URLs and undo resolve on it.
+  const seenUids = new Set<string>()
   for (const scanned of features) {
     try {
       const { feature, content } = await readSnapshot(root, scanned.id)
-      const uid = feature.uid || generateUid()
+      const uid = feature.uid && !seenUids.has(feature.uid) ? feature.uid : generateUid()
+      seenUids.add(uid)
       const sort =
         feature.sort === scanned.sort ? (sortKeys.get(feature.id) ?? feature.sort) : feature.sort
       if (uid === feature.uid && sort === feature.sort) continue

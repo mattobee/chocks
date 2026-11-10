@@ -947,6 +947,16 @@ describe('backfill', () => {
     expect((await scan(root))[0]?.uid).toBe(uid)
   })
 
+  it('gives a copied file its own uid', async () => {
+    await given('alpha.chocks.md', 'title: Alpha\nuid: a123456789\nsort: a0')
+    await given('beta.chocks.md', 'title: Beta\nuid: a123456789\nsort: a1')
+
+    expect((await backfill(root)).uids).toBe(1)
+    const uids = (await scan(root)).map((feature) => feature.uid)
+    expect(uids).toContain('a123456789')
+    expect(new Set(uids).size).toBe(2)
+  })
+
   it('writes the uid unquoted, so it stays a string', async () => {
     await given('legacy.chocks.md', 'title: Legacy\nsort: a0')
     await backfill(root)
